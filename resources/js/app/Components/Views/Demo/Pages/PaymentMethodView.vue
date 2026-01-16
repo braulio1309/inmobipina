@@ -115,7 +115,7 @@ export default {
                     });
                 }),
                 "theme": {
-                    "color": "#4466F2"
+                    "color": "#337300"
                 }
             };
             const rozarpay = new Razorpay(options);
