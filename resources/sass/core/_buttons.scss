@@ -22,17 +22,17 @@
 
   &.btn-primary {
     color: $white;
-    border-color: $blue;
-    background-color: $blue;
+    border-color: $brand-color;
+    background-color: $brand-color;
     transition: all $default-transition-duration $action-transition-timing-function;
 
     &:hover {
-      background-color: $dark-blue;
+      background-color: darken($brand-color, 6%);
     }
 
     &:disabled {
       &:hover {
-        background-color: $blue;
+        background-color: $brand-color;
       }
     }
   }
@@ -150,7 +150,7 @@
   }
 
   &.btn-outline-primary {
-    color: $blue;
+    color: $brand-color;
 
     &:hover {
       color: $white;
@@ -158,7 +158,7 @@
 
     &:disabled {
       &:hover {
-        color: $blue;
+        color: $brand-color;
       }
     }
   }
@@ -242,7 +242,7 @@
   }
 
   &.btn-transparent-primary {
-    color: $blue;
+    color: $brand-color;
     width: max-content;
     border-color: transparent;
     background-color: transparent;
@@ -250,7 +250,7 @@
 
     &:hover {
       color: $white;
-      background-color: $blue;
+      background-color: $brand-color;
     }
 
     &:disabled {
