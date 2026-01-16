@@ -6,9 +6,9 @@ $purple: #6a008a;
 $light-purple: #964ed8;
 $pink: #E91E63;
 $red: #f96868;
-$orange: #f2a654;
+$orange: #EB5C00;
 $yellow: #f6e84e;
-$green: #46c35f;
+$green: #337300;
 $teal: #58d8a3;
 $cyan: #57c7d4;
 $black: #000;
@@ -19,10 +19,10 @@ $darkslategray: #2e383e;
 $dodger-blue: #3498db;
 
 // Color Variables
-$brand-color: #4466F2;
+$brand-color: #337300;
 $base-color: #F9F9F9;
 $default-secondary-color: #9397A0;
-$default-light-color: #F5F8FF;
+$default-light-color: #E8F5E3;
 $muted-color: #afb1b6;
 $note-bg-color: rgba(255, 204, 23, 0.09);
 $note-bg-blue-color: rgba(236, 236, 255, 0.9);
@@ -32,10 +32,10 @@ $note-bg-success-color: rgba(211, 255, 220, 0.9);
 $note-bg-info-color: rgba(212, 249, 255, 0.9);
 $gray-1: #8A8A8A;
 $info-color: #38a4f8;
-$warning-color: #FC6510;
+$warning-color: #EB5C00;
 $error-color: #cc3300;
 $danger-color: #fc2c10;
-$success-color: #46c35f;
+$success-color: #337300;
 
 // Border Variables
 $default-radius: 0.25rem;
@@ -70,7 +70,7 @@ $action-transition-timing-function: ease-in-out;
 $wizard-step-btn-default-color: $default-secondary-color;
 $forms-input-text-color: #898989;
 $filter-btn-text-color: $light-layout-secondary-font-color;
-$inputs-focus-color: $blue;
+$inputs-focus-color: $brand-color;
 $default-input-box-padding: 10px 14px;
 
 // Misc Variables
