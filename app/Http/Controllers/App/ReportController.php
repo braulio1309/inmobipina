@@ -47,6 +47,9 @@ class ReportController extends Controller
     
     /**
      * Obtener lista de asesores (solo para admins)
+     * 
+     * Note: Role names 'Asesor', 'Advisor', 'Agent' are checked to identify advisors.
+     * Also includes users with sales or properties for comprehensive reporting.
      */
     public function getAdvisors(Request $request)
     {
