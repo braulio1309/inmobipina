@@ -111,7 +111,7 @@
             </div>
 
             <!-- Map Section -->
-            <div class="row mb-primary" v-if="!mainPreloader ">
+            <div class="row mb-primary" v-if="!mainPreloader">
                 <div class="col-12">
                     <div class="card card-with-shadow border-0">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
@@ -124,7 +124,8 @@
                 </div>
             </div>
 
-            <div class="row" >
+            <!-- TABLAS CORREGIDAS -->
+            <div class="row" v-if="!mainPreloader">
                 <div class="col-12 col-sm-12 col-md-6 mb-4 mb-md-0">
                     <div class="card card-with-shadow border-0">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
@@ -198,56 +199,36 @@
                     name: 'Latest Sales List',
                     url: null,
                     datatableWrapper: false,
-                    showHeader: false,
+                    showHeader: true,
                     tableShadow: false,
                     managePagination: false,
                     columns: [
-                        { title: 'Propiedad', type: 'text', key: 'property', isVisible: true },
-                        { title: 'Comprador', type: 'text', key: 'buyer', isVisible: true },
+                        { 
+                            title: 'Propiedad', 
+                            type: 'text', 
+                            key: 'property', 
+                            isVisible: true 
+                        },
+                        { 
+                            title: 'Comprador', 
+                            type: 'text', 
+                            key: 'buyer', 
+                            isVisible: true 
+                        },
                         { 
                             title: 'Monto', 
                             type: 'text', 
                             key: 'amount', 
                             isVisible: true,
-                            modifier: (value) => '$' + numberFormatter(value)
+                            modifier: (value) => {
+                                return value ? '$' + numberFormatter(value) : '$0';
+                            }
                         },
-                        { title: 'Fecha', type: 'text', key: 'date', isVisible: true }
-                    ],
-                    showFilter: false,
-                    paginationType: "pagination",
-                    responsive: true,
-                    rowLimit: 10,
-                    orderBy: 'desc',
-                    showAction: false,
-                    actions: [],
-                    data: [] // Inicializar vacío
-                },
-
-                /*Top Sellers list*/
-                topSellersList: {
-                    name: 'Top Sellers List',
-                    url: null,
-                    datatableWrapper: false,
-                    showHeader: false,
-                    tableShadow: false,
-                    managePagination: false,
-                    columns: [
-                        {
-                            title: 'Vendedor',
-                            type: 'media-object',
-                            key: 'image',
-                            mediaTitleKey: 'name',
-                            mediaSubtitleKey: 'email',
-                            modifier: (value, row) => value,
-                            isVisible: true
-                        },
-                        { title: 'Ventas', type: 'text', key: 'sales_count', isVisible: true },
                         { 
-                            title: 'Total', 
+                            title: 'Fecha', 
                             type: 'text', 
-                            key: 'total_revenue', 
-                            isVisible: true,
-                            modifier: (value) => '$' + numberFormatter(value)
+                            key: 'date', 
+                            isVisible: true 
                         }
                     ],
                     showFilter: false,
@@ -257,7 +238,54 @@
                     orderBy: 'desc',
                     showAction: false,
                     actions: [],
-                    data: [] // Inicializar vacío
+                    data: []
+                },
+
+                /*Top Sellers list*/
+                topSellersList: {
+                    name: 'Top Sellers List',
+                    url: null,
+                    datatableWrapper: false,
+                    showHeader: true,
+                    tableShadow: false,
+                    managePagination: false,
+                    columns: [
+                        {
+                            title: 'Vendedor',
+                            type: 'text',
+                            key: 'name',
+                            isVisible: true
+                        },
+                        { 
+                            title: 'Email', 
+                            type: 'text', 
+                            key: 'email', 
+                            isVisible: true 
+                        },
+                        { 
+                            title: 'Ventas', 
+                            type: 'text', 
+                            key: 'sales_count', 
+                            isVisible: true 
+                        },
+                        { 
+                            title: 'Total', 
+                            type: 'text', 
+                            key: 'total_revenue', 
+                            isVisible: true,
+                            modifier: (value) => {
+                                return value ? '$' + numberFormatter(value) : '$0';
+                            }
+                        }
+                    ],
+                    showFilter: false,
+                    paginationType: "pagination",
+                    responsive: true,
+                    rowLimit: 10,
+                    orderBy: 'desc',
+                    showAction: false,
+                    actions: [],
+                    data: []
                 },
             }
         },
@@ -281,10 +309,12 @@
                 return `${year}-${month}-${day}`;
             },
             applyFilters() {
+                this.mainPreloader = true;
                 this.loadRealEstateData();
             },
             resetFilters() {
                 this.initializeDates();
+                this.mainPreloader = true;
                 this.loadRealEstateData();
             },
             loadRealEstateData() {
@@ -302,83 +332,51 @@
                 this.isActivePatientStatistics = false;
 
                 this.axiosGet(url, reqData).then(response => {
-                    // 1. Asignar respuesta general
+                    console.log('✅ Respuesta completa de la API:', response.data);
+                    
+                    // Asignar datos generales
                     this.realEstateData = response.data;
                     
-                    // 2. CORRECCIÓN PRINCIPAL: Actualización reactiva de las tablas
-                    // Usamos desestructuración (...) para crear un nuevo objeto y forzar que el componente detecte el cambio
+                    // CORRECCIÓN: Actualizar tabla de Últimas Ventas
+                    if (response.data.latestSales && response.data.latestSales.data) {
+                        console.log('📊 Últimas Ventas recibidas:', response.data.latestSales.data);
+                        this.latestSalesList.data = response.data.latestSales.data;
+                    } else {
+                        console.warn('⚠️ No hay datos de ventas');
+                        this.latestSalesList.data = [];
+                    }
                     
-                    // Tabla Últimas Ventas
-                    const salesData = (this.realEstateData.latestSales && this.realEstateData.latestSales.data) 
-                                      ? this.realEstateData.latestSales.data 
-                                      : [];
-                    
-                    this.latestSalesList = {
-                        ...this.latestSalesList,
-                        data: salesData
-                    };
-                    console.log(this.latestSalesList)
+                    // CORRECCIÓN: Actualizar tabla de Top Vendedores
+                    if (response.data.topSellers && response.data.topSellers.data) {
+                        console.log('🏆 Top Vendedores recibidos:', response.data.topSellers.data);
+                        this.topSellersList.data = response.data.topSellers.data;
+                    } else {
+                        console.warn('⚠️ No hay datos de vendedores');
+                        this.topSellersList.data = [];
+                    }
 
-                    // Tabla Top Vendedores
-                    const sellersData = (this.realEstateData.topSellers && this.realEstateData.topSellers.data) 
-                                        ? this.realEstateData.topSellers.data 
-                                        : [];
+                    // Forzar actualización reactiva con $set
+                    this.$set(this.latestSalesList, 'data', this.latestSalesList.data);
+                    this.$set(this.topSellersList, 'data', this.topSellersList.data);
 
-                    this.topSellersList = {
-                        ...this.topSellersList,
-                        data: sellersData
-                    };
+                    console.log('✅ Tablas actualizadas:', {
+                        ventas: this.latestSalesList.data.length,
+                        vendedores: this.topSellersList.data.length
+                    });
 
-                    console.log('Tablas actualizadas con:', salesData.length, sellersData.length);
-
-                    // 3. Activar banderas de visualización
+                    // Activar banderas de visualización
                     this.isActivedDefaultInfo = true;
                     this.isActiveHospitalActivity = true;
                     this.isActivePatientStatistics = true;
 
-                }).catch(({response}) => {
-                    console.error('Error loading real estate data:', response);
+                }).catch((error) => {
+                    console.error('❌ Error cargando datos:', error);
+                    if (error.response) {
+                        console.error('Detalles del error:', error.response.data);
+                    }
                 }).finally(() => {
                     this.mainPreloader = false;
                     this.countCreatedResponse = 3;
-                });
-            },
-            getFilterValue(item) {
-                this.value = item;
-                this.isActiveHospitalActivity = false;
-                this.hospitalActivities();
-            },
-            defaultData() {
-                // Este método parece no usarse si `loadRealEstateData` carga todo, 
-                // pero lo mantenemos por si acaso se llama individualmente.
-                let url = actions.DEFAULT_HOSPITAL_INFO;
-                this.axiosGet(url).then(response => {
-                    this.hospital.defaultData = response.data;
-                    this.isActivedDefaultInfo = true;
-                }).finally(() => {
-                    this.mainPreloader = false;
-                    this.countCreatedResponse++;
-                });
-            },
-            hospitalActivities() {
-                let url = actions.HOSPITAL_ACTIVITIES, reqData = {};
-                reqData.params = { key: this.value };
-                this.axiosGet(url, reqData).then(response => {
-                    this.hospital.hospitalActivities = response.data;
-                    this.isActiveHospitalActivity = true;
-                }).finally(() => {
-                    this.mainPreloader = false;
-                    this.countCreatedResponse++;
-                });
-            },
-            patientStatistics() {
-                let url = actions.PATIENT_STATISTICS;
-                this.axiosGet(url).then(response => {
-                    this.hospital.patientStatistics = response.data;
-                    this.isActivePatientStatistics = true;
-                }).finally(() => {
-                    this.mainPreloader = false;
-                    this.countCreatedResponse++;
                 });
             },
             numberFormat(value) {
