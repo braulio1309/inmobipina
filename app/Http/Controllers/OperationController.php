@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
-
+use App\Models\Sale; 
 
 class OperationController extends Controller
 {
@@ -47,66 +47,82 @@ class OperationController extends Controller
     }
 
     public function create(Request $request)
-    {
-        $operation = Operation::create($request->all());
+{
+    // 1. Crear la Operación
+    $operation = Operation::create($request->all());
 
-        if ($request->has('buyers')) {
-            $operation->clients()->sync($request->buyers);
-        }
-
-        // Guardar sellers
-        if ($request->has('sellers')) {
-            $operation->sellers()->sync($request->sellers);
-        }
-        
-        if ($operation->type == 'exclusividad'){
-            $propietario = $operation->clients->first(); // Asumo que el seller es el propietario
-            $data = [
-                'propietario' => [
-                    'nombre' => $propietario->name ?? 'Nombre del Propietario',
-                    'ci' => $propietario->ci ?? 'V-12.345.678',
-                    'rif' => '123564',
-                    'email' => $propietario->email,
-                    'phone' => $propietario->phone
-                ],
-                'inmueble' => [
-                    'precio_numeros' => number_format($operation->price, 2) ?? '0.00',
-                    // ... otros datos del inmueble
-                ],
-                'fecha_contrato' => now()->locale('es')->isoFormat('DD \d\e MMMM \d\e YYYY'),
-                'property' => [
-                    'price' => $operation->property->price,
-                    'square_meters' =>$operation->property->square_meters,
-                    'address' => $operation->property->address,
-                ]
-            ];
-            // *************************************************************************
-
-            // 3. Generar y Guardar el PDF
-            $pdf = Pdf::loadView('pdf.exclusividad', $data);
-            
-            // Define la ruta y el nombre del archivo
-            $fileName = 'contrato_exclusividad_' . $operation->id . '.pdf';
-            $filePath = 'public/contracts/' . $fileName; // Guarda en storage/app/public/contracts
-            
-            // Guarda el archivo en el disco 'public'
-            Storage::put($filePath, $pdf->output());
-
-            // Opcional: Guardar la ruta del contrato en la base de datos de la operación
-            $operation->update(['contract_path' => $fileName]);
-
-        
-            
-            // 4. Devolver la respuesta al frontend (incluyendo la URL de descarga)
-            return response()->json([
-                'message' => 'Operation created successfully.',
-                'data' => $operation,
-                // Genera la URL pública para la descarga
-                'pdf_url' => Storage::url('contracts/' . $fileName), 
-            ], 201);
-        }
-        
+    // Guardar buyers (Relación muchos a muchos en Operation)
+    if ($request->has('buyers')) {
+        $operation->clients()->sync($request->buyers);
     }
+
+    // Guardar sellers (Relación muchos a muchos en Operation)
+    if ($request->has('sellers')) {
+        $operation->sellers()->sync($request->sellers);
+    }
+
+    // *************************************************************************
+    // LOGICA PARA VENTA (Crear registro en tabla Sales)
+    // *************************************************************************
+    if ($operation->type == 'venta') {
+        Sale::create([
+            'property_id'  => $operation->property_id, // O $request->property_id
+            'buyer_id'     => $request->buyers[0] ?? null, // Tomamos el primer comprador del array
+            'seller_id'    => $request->sellers[0] ?? null, // Tomamos el primer vendedor del array
+            'total_amount' => $operation->price, // Asumimos que el precio de la operación es el monto total
+            'date'         => now(), // O $request->date si viene en el request
+            'notes'        => $request->notes
+        ]);
+    }
+
+    // *************************************************************************
+    // LOGICA PARA EXCLUSIVIDAD (Generar PDF)
+    // *************************************************************************
+    $pdfUrl = null; // Variable para almacenar la URL si se genera PDF
+
+    if ($operation->type == 'exclusividad') {
+        $propietario = $operation->clients->first(); 
+        
+        $data = [
+            'propietario' => [
+                'nombre' => $propietario->name ?? 'Nombre del Propietario',
+                'ci'     => $propietario->ci ?? 'V-12.345.678',
+                'rif'    => '123564',
+                'email'  => $propietario->email,
+                'phone'  => $propietario->phone
+            ],
+            'inmueble' => [
+                'precio_numeros' => number_format($operation->price, 2) ?? '0.00',
+            ],
+            'fecha_contrato' => now()->locale('es')->isoFormat('DD \d\e MMMM \d\e YYYY'),
+            'property' => [
+                'price'         => $operation->property->price,
+                'square_meters' => $operation->property->square_meters,
+                'address'       => $operation->property->address,
+            ]
+        ];
+
+        // Generar y Guardar el PDF
+        $pdf = Pdf::loadView('pdf.exclusividad', $data);
+        $fileName = 'contrato_exclusividad_' . $operation->id . '.pdf';
+        $filePath = 'public/contracts/' . $fileName; 
+        
+        Storage::put($filePath, $pdf->output());
+
+        // Actualizar operación con la ruta
+        $operation->update(['contract_path' => $fileName]);
+
+        // Generar URL para la respuesta
+        $pdfUrl = Storage::url('contracts/' . $fileName);
+    }
+
+    // 4. Devolver la respuesta al frontend (Unificada)
+    return response()->json([
+        'message' => 'Operation created successfully.',
+        'data'    => $operation,
+        'pdf_url' => $pdfUrl, // Será null si es venta, o la URL si es exclusividad
+    ], 201);
+}
 
     public function edit(Request $request, $id)
     {
