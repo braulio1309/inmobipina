@@ -26,6 +26,8 @@ Route::view('/create/operations', 'operations.create');
 
 Route::view('/activities', 'activities.index');
 
+Route::view('/reports', 'reports.index');
+
 
 Route::get('property/listar', [PropertyController::class, 'listado'])->name('property.listar');
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');

@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\DietController;
+use App\Http\Controllers\ReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,3 +20,9 @@ use App\Http\Controllers\DietController;
 });*/
 
 Route::middleware('auth:api')->post('/diets/generate', [DietController::class, 'generate']);
+
+// Reports API routes
+Route::middleware('auth:api')->group(function () {
+    Route::get('/reports/advisor-metrics', [ReportController::class, 'getAdvisorMetrics']);
+    Route::get('/reports/advisors', [ReportController::class, 'getAdvisors']);
+});
