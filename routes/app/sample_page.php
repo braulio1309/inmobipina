@@ -23,6 +23,7 @@ Route::resource('calendars', CalendarController::class);
 
 // Report
 Route::get('reports', [ReportController::class, 'index'])->name('report.index');
+Route::get('reports/top-sellers', [ReportController::class, 'topSellers'])->name('report.top-sellers');
 
 // Kanban-view task management
 Route::get('stages', [StageController::class, 'index'])->name('stages.index');

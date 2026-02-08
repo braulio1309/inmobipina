@@ -26,6 +26,7 @@ export const EMPLOYEE_OVERVIEW = 'employee-overview';
 
 //Sample pages
 export const REPORTS = 'reports';
+export const TOP_SELLERS_REPORT = 'reports/top-sellers';
 export const CALENDARS = 'calendars';
 export const STAGES = 'stages';
 export const TASKS = 'tasks';
