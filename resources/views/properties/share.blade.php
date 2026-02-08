@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $property->title }} - Inmobipina</title>
-    <link rel="shortcut icon" href="{{ request()->root().config('settings.application.company_icon') }}" />
+    <link rel="shortcut icon" href="{{ url(config('settings.application.company_icon')) }}" />
     <style>
         * {
             margin: 0;
@@ -188,7 +188,7 @@
                 @if(filter_var(config('settings.application.company_logo'), FILTER_VALIDATE_URL))
                     <img src="{{ config('settings.application.company_logo') }}" alt="Inmobipina" class="logo">
                 @else
-                    <img src="{{ request()->root().config('settings.application.company_logo') }}" alt="Inmobipina" class="logo">
+                    <img src="{{ url(config('settings.application.company_logo')) }}" alt="Inmobipina" class="logo">
                 @endif
             </div>
         </div>
@@ -266,7 +266,7 @@
 
     <div class="footer">
         <div class="container">
-            <p>&copy; {{ date('Y') }} Inmobipina. Todos los derechos reservados.</p>
+            <p>&copy; {{ date('Y') }} {{ config('app.name') }}. Todos los derechos reservados.</p>
         </div>
     </div>
 </body>

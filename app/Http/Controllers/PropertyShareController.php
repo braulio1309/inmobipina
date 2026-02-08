@@ -13,7 +13,7 @@ class PropertyShareController extends Controller
      */
     public function show($id)
     {
-        $property = Property::with(['creator', 'approver'])->findOrFail($id);
+        $property = Property::findOrFail($id);
         
         return view('properties.share', compact('property'));
     }
