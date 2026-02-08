@@ -39,6 +39,7 @@ Route::get('hospital-activities', [HospitalDashboardController::class, 'hospital
 Route::get('patient-statistics', [HospitalDashboardController::class, 'patientStatistics']);
 Route::get('doctors-list', [HospitalDashboardController::class, 'doctorsList']);
 Route::get('upcoming-appointments', [HospitalDashboardController::class, 'upComingAppointments']);
+Route::get('real-estate-dashboard', [HospitalDashboardController::class, 'getRealEstateData']);
 
 // Hrm Dashboard
 Route::get('hrm-basic-data', [HrmDashboardController::class, 'basicData']);
