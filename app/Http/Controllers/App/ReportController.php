@@ -18,19 +18,19 @@ class ReportController extends Controller
     {
         $user = auth()->user();
         $userId = $request->get('user_id');
-        
+
         // Si no es admin, forzar que vea solo sus datos
-        if (!$user->hasRole('Admin') && !$user->hasRole('Administrator')) {
+        /*if (!$user->hasRole('Admin') && !$user->hasRole('Administrator')) {
             $userId = $user->id;
-        }
-        
+        }*/
+
         // Si no se especifica usuario, usar el autenticado
         if (!$userId) {
             $userId = $user->id;
         }
-        
+
         $advisor = User::findOrFail($userId);
-        
+
         return response()->json([
             'advisor' => [
                 'id' => $advisor->id,
@@ -47,7 +47,7 @@ class ReportController extends Controller
             ]
         ]);
     }
-    
+
     /**
      * Obtener lista de asesores (solo para admins)
      * 
@@ -57,25 +57,32 @@ class ReportController extends Controller
     public function getAdvisors(Request $request)
     {
         $user = auth()->user();
-        
-        if (!$user->hasRole('Admin') && !$user->hasRole('Administrator')) {
+
+        /* if (!$user->hasRole('Admin') && !$user->hasRole('Administrator')) {
             return response()->json(['error' => 'Unauthorized'], 403);
-        }
-        
-        $advisors = User::select('id', DB::raw("CONCAT(first_name, ' ', last_name) as name"))
-            ->where(function($query) {
-                $query->whereHas('roles', function($q) {
+        }*/
+
+        $advisors = User::select('id', 'first_name', 'last_name') // 1. Seleccionamos las columnas reales
+            ->where(function ($query) {
+                $query->whereHas('roles', function ($q) {
                     $q->whereIn('name', ['Asesor', 'Advisor', 'Agent']);
                 })
-                ->orWhereHas('sales')
-                ->orWhereHas('properties');
+                    ->orWhereHas('sales')
+                    ->orWhereHas('properties');
             })
             ->orderBy('first_name')
-            ->get();
-        
+            ->get()
+            ->map(function ($user) { // 2. "Mapeamos" para crear el campo name limpio
+                return [
+                    'id' => $user->id,
+                    // trim() elimina espacios extra si no tiene apellido
+                    'value' => trim($user->first_name . ' ' . $user->last_name) ?: 'Sin Nombre (' . $user->id . ')'
+                ];
+            });
+
         return response()->json($advisors);
     }
-    
+
     private function getSalesCount($userId)
     {
         // Contar ventas donde el usuario es seller_id
@@ -83,7 +90,7 @@ class ReportController extends Controller
             ->where('seller_id', $userId)
             ->count();
     }
-    
+
     private function getReservationsCount($userId)
     {
         // Contar operaciones de tipo 'reserva' asociadas al usuario
@@ -93,7 +100,7 @@ class ReportController extends Controller
             ->where('operation_user.user_id', $userId)
             ->count();
     }
-    
+
     private function getPropertiesCount($userId)
     {
         // Contar propiedades creadas por el usuario Y aprobadas (captaciones aprobadas)
@@ -102,7 +109,7 @@ class ReportController extends Controller
             ->whereNotNull('approved_by')
             ->count();
     }
-    
+
     private function getActivitiesByType($userId)
     {
         // Agrupar actividades por tipo
@@ -115,7 +122,7 @@ class ReportController extends Controller
                 return [$item->type => $item->count];
             });
     }
-    
+
     private function getDemonstrationsCount($userId)
     {
         // Contar actividades de tipo 'demostración'
@@ -124,7 +131,7 @@ class ReportController extends Controller
             ->where('type', 'demostración')
             ->count();
     }
-    
+
     private function getClosuresCount($userId)
     {
         // Contar cierres: ventas + reservas + alquileres
@@ -133,7 +140,7 @@ class ReportController extends Controller
             ->whereIn('type', ['venta', 'reserva', 'alquiler'])
             ->count();
     }
-    
+
     private function getTotalActivities($userId)
     {
         // Contar todas las actividades del usuario

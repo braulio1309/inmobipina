@@ -1,58 +1,109 @@
 <template>
     <div>
-        <app-overlay-loader v-if="preloader" />
-        <div v-else>
-            <div class="row">
-                <div class="col-12 col-md-4">
-                    <div class="card card-with-shadow border-0">
-                        <div class="card-body d-flex justifycontent-center align-items-center">
-                            <div class="text-center w-100">
-                                <div class="text-muted">{{ $t('total_jobs') }}({{ $t('all_time') }})</div>
-                                <div class="h1">{{ total_job }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="card card-with-shadow border-0">
-                        <div class="card-body d-flex justifycontent-center align-items-center">
-                            <div class="text-center w-100">
-                                <div class="text-muted">{{ $t('live_job') }}</div>
-                                <div class="h1">{{ live_job }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="card card-with-shadow border-0">
-                        <div class="card-body d-flex justifycontent-center align-items-center">
-                            <div class="text-center w-100">
-                                <div class="text-muted">{{ $t('avg_candidates_per_job') }}</div>
-                                <div class="h1">{{ avg_candidate_per_job }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row mt-primary">
-                <div class="col">
-                    <div class="card card-with-shadow border-0">
-                        <div class="card-body">
-                            <h4>New Candidates By Job</h4>
-                            <app-chart class="mb-primary" type="horizontal-line-chart" :height="230"
-                                :labels="newCandidates.labels" :data-sets="newCandidates.dataSet" />
+        <app-breadcrumb 
+            :page-title="$t('reports.advisor_reports')" 
+            :directory="$t('reports.title')" 
+            :icon="'chart-line'"
+        />
 
+        <div class="container-fluid p-0 mt-4">
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card card-with-shadow border-0">
+                        <div class="card-body py-3 d-flex align-items-center justify-content-between">
+                            <label class="mb-0 fw-bold me-3">{{ $t('reports.select_advisor') }}:</label>
+                            <app-input class="col-sm-8"
+                               :placeholder="$t('search_and_select')"
+                               type="search-select"
+                               :list="advisors"
+                               @change="loadReports"
+                               v-model="selectedAdvisorId"/>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="row mt-primary">
-                <div class="col">
-                    <div class="card card-with-shadow border-0">
-                        <div class="card-body">
-                            <h4>{{ $t('active_job_by_month') }}</h4>
-                            <app-chart class="mb-primary" type="bar-chart" :height="230" :labels="activeJobByMonth.labels"
-                                :data-sets="activeJobByMonth.dataSet" />
+
+            <!--<app-overlay-loader v-if="preloader"  />-->
+            
+            <div >
+                
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h5 class="text-primary">
+                            {{ $t('reports.reports_for') }}: <strong>{{ reports.advisor.name }}</strong>
+                        </h5>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12 col-md-4">
+                        <div class="card card-with-shadow border-0 mb-primary">
+                            <div class="card-body d-flex justify-content-center align-items-center">
+                                <div class="text-center w-100">
+                                    <div class="text-muted mb-2 text-uppercase small">{{ $t('reports.sales') }}</div>
+                                    <div class="h1 mb-0 text-success">{{ reports.metrics.sales_count }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-md-4">
+                        <div class="card card-with-shadow border-0 mb-primary">
+                            <div class="card-body d-flex justify-content-center align-items-center">
+                                <div class="text-center w-100">
+                                    <div class="text-muted mb-2 text-uppercase small">{{ $t('reports.reservations') }}</div>
+                                    <div class="h1 mb-0 text-info">{{ reports.metrics.reservations_count }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-md-4">
+                        <div class="card card-with-shadow border-0 mb-primary">
+                            <div class="card-body d-flex justify-content-center align-items-center">
+                                <div class="text-center w-100">
+                                    <div class="text-muted mb-2 text-uppercase small">{{ $t('reports.total_activities') }}</div>
+                                    <div class="h1 mb-0 text-primary">{{ reports.metrics.total_activities }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-primary">
+                    
+                    <div class="col-12 col-lg-6">
+                        <div class="card card-with-shadow border-0 h-100">
+                            <div class="card-body">
+                                <h4 class="card-title mb-4">{{ $t('reports.activities_by_type') }}</h4>
+                                <app-chart 
+                                    v-if="activitiesChart.labels.length"
+                                    class="mb-primary" 
+                                    type="horizontal-line-chart" 
+                                    :height="280"
+                                    :labels="activitiesChart.labels" 
+                                    :data-sets="activitiesChart.dataSet" 
+                                />
+                                <div v-else class="text-center text-muted py-5">
+                                    {{ $t('reports.no_activities') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-6">
+                        <div class="card card-with-shadow border-0 h-100">
+                            <div class="card-body">
+                                <h4 class="card-title mb-4">{{ $t('reports.performance_summary') }}</h4>
+                                <app-chart 
+                                    class="mb-primary" 
+                                    type="bar-chart" 
+                                    :height="280" 
+                                    :labels="metricsSummaryChart.labels"
+                                    :data-sets="metricsSummaryChart.dataSet" 
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -60,32 +111,64 @@
         </div>
     </div>
 </template>
+
 <script>
-import job_overview_response from './json/job-overview.json'
+// Asegúrate de que la ruta a ColorHelper sea correcta según tu estructura
 import { colorArray } from '../../../../../../app/Helpers/ColorHelper';
+import { FormMixin } from '../../../../../../core/mixins/form/FormMixin.js'; // Ajusta la ruta si es necesario
+
 export default {
+    name: 'AdvisorReports',
+    mixins: [FormMixin],
+
     data() {
         return {
-            preloader: false,
-            total_job: 0,
-            live_job: 0,
-            avg_candidate_per_job: 0,
-            newCandidates: {
+            reports: null,
+            advisors: [],
+            selectedAdvisorId: '',
+            isAdmin: false,
+            loadingAdvisors: false,
+            
+            // Datos para los gráficos
+            activitiesChart: {
                 labels: [],
                 dataSet: []
             },
-            activeJobByMonth: {
+            metricsSummaryChart: {
                 labels: [],
                 dataSet: []
             }
         }
     },
+
+    mounted() {
+        this.checkAdminRole();
+        //if (this.isAdmin) {
+            this.loadAdvisors();
+        //}
+        this.loadReports();
+    },
+
+    watch: {
+        selectedAdvisorId(newValue) {
+        
+            this.loadReports();
+        }
+    },
+
     methods: {
+        checkAdminRole() {
+            const user = this.$store.state.user || window.user;
+            this.isAdmin = user && user.roles && 
+                user.roles.some(role => ['Admin', 'Administrator'].includes(role.name));
+        },
+
+        // Generador de datos para AppChart (tomado de tu ejemplo)
         genChartData(data) {
             return [
                 {
                     barPercentage: 0.5,
-                    barThickness: 15,
+                    barThickness: 25, // Un poco más grueso para mejor visibilidad
                     borderWidth: 1,
                     borderColor: colorArray.slice(0, data.length),
                     backgroundColor: colorArray.slice(0, data.length),
@@ -93,27 +176,80 @@ export default {
                 }
             ]
         },
-        getJobOverview(query = {}) {
-            this.filterForm = query
-            return new Promise((resolve, reject) => {
-                setTimeout(() => {
-                    return resolve({ data: job_overview_response })
-                }, 500)
-            }).then(res => {
-                this.overview = res.data
-                this.total_job = res.data.total_job
-                this.live_job = res.data.live_job
-                this.avg_candidate_per_job = res.data.avg_candidate_per_job
-                this.newCandidates.labels = res.data.new_candidates_by_job.map(i => i.name)
-                this.newCandidates.dataSet = this.genChartData(res.data.new_candidates_by_job.map(i => ({ value: i.new_applicants })))
-                this.activeJobByMonth.labels = res.data.active_job_by_month.map(i => i.month)
-                this.activeJobByMonth.dataSet = this.genChartData(res.data.active_job_by_month.map(i => ({ value: i.active_jobs })))
-            })
+
+        async loadAdvisors() {
+            this.loadingAdvisors = true; // Empieza a cargar
+            
+            this.axiosGet('/app/reports/advisors')
+                .then(response => {
+                    const data = response.data;
+                    this.advisors = Array.isArray(data) ? data : [];
+                })
+                .catch(e => console.error(e))
+                .finally(() => {
+                    this.loadingAdvisors = false; // Termina de cargar
+                });
         },
-    },
-    mounted() {
-        this.preloader = true
-        Promise.all([this.getJobOverview()]).finally(() => this.preloader = false)
+
+        async loadReports() {
+            this.preloader = true;
+            const params = {};
+            
+            if (this.selectedAdvisorId) {
+                params.user_id = this.selectedAdvisorId;
+            }
+
+            this.axiosGet('/app/reports/advisor', { params })
+                .then(response => {
+                    this.reports = response.data;
+                    this.processChartData(response.data.metrics);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    this.$toastr.e(this.$t('reports.error_loading'));
+                })
+                .finally(() => {
+                    this.preloader = false;
+                });
+        },
+
+        processChartData(metrics) {
+            // 1. Procesar Gráfico de Actividades (Horizontal)
+            // La API devuelve: { "demostración": 1, "captación": 2 }
+            const activityKeys = Object.keys(metrics.activities_by_type);
+            const activityValues = Object.values(metrics.activities_by_type).map(val => ({ value: val }));
+
+            // Capitalizar primera letra de las keys para el label
+            this.activitiesChart.labels = activityKeys.map(key => 
+                key.charAt(0).toUpperCase() + key.slice(1)
+            );
+            this.activitiesChart.dataSet = this.genChartData(activityValues);
+
+            // 2. Procesar Gráfico de Resumen (Barras Verticales)
+            // Mapeamos manualmente las métricas importantes para compararlas
+            const summaryData = [
+                { label: this.$t('reports.demonstrations'), value: metrics.demonstrations_count },
+                { label: this.$t('reports.closures'), value: metrics.closures_count },
+                { label: this.$t('reports.sales'), value: metrics.sales_count },
+                { label: this.$t('reports.reservations'), value: metrics.reservations_count },
+                { label: this.$t('reports.properties_captured'), value: metrics.properties_count }
+            ];
+
+            // Filtramos las que tengan valor 0 si quieres limpiar el gráfico, 
+            // o las dejamos todas para ver qué falta. Las dejaremos todas.
+            this.metricsSummaryChart.labels = summaryData.map(d => d.label);
+            this.metricsSummaryChart.dataSet = this.genChartData(summaryData.map(d => ({ value: d.value })));
+        }
     }
 }
 </script>
+
+<style scoped>
+/* Ajustes menores para asegurar que se vea bien en móviles */
+.mt-primary {
+    margin-top: 1.5rem;
+}
+.mb-primary {
+    margin-bottom: 1.5rem;
+}
+</style>

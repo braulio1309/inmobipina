@@ -13,11 +13,11 @@ use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\OperationController;
+use App\Http\Controllers\App\ReportController;
 
 
 Route::view('/properties', 'properties.index');
 Route::view('/properties/create', 'properties.create');
-
 Route::view('/clients', 'clients.index');
 Route::view('/clients/create', 'clients.create');
 
@@ -26,8 +26,11 @@ Route::view('/create/operations', 'operations.create');
 
 Route::view('/activities', 'activities.index');
 
-Route::view('/reports/advisor', 'reports.advisor');
-
+Route::view('/report/advisor', 'reports.advisor');
+Route::group(['prefix' => 'app/reports'], function () {
+    Route::get('/advisor', [ReportController::class, 'getAdvisorReports']);
+    Route::get('/advisors', [ReportController::class, 'getAdvisors']);
+});
 Route::get('property/listar', [PropertyController::class, 'listado'])->name('property.listar');
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');
 Route::post('edit/property/{id}', [PropertyController::class, 'edit'])->name('property.edit');
