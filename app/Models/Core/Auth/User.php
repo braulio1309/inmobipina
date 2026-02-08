@@ -104,4 +104,14 @@ class User extends BaseUser implements HasLocalePreference
     {
         return $this->hasMany(Commission::class);
     }
+
+    /**
+     * Get the user's full name
+     *
+     * @return string
+     */
+    public function getFullName()
+    {
+        return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+    }
 }

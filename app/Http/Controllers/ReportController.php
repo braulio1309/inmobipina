@@ -73,7 +73,7 @@ class ReportController extends Controller
         return response()->json([
             'advisor' => [
                 'id' => $advisor->id,
-                'name' => trim(($advisor->first_name ?? '') . ' ' . ($advisor->last_name ?? ''))
+                'name' => $advisor->getFullName()
             ],
             'metrics' => [
                 'sales_count' => $salesCount,
@@ -105,7 +105,7 @@ class ReportController extends Controller
             ->map(function ($advisor) {
                 return [
                     'id' => $advisor->id,
-                    'name' => trim(($advisor->first_name ?? '') . ' ' . ($advisor->last_name ?? '')),
+                    'name' => $advisor->getFullName(),
                     'email' => $advisor->email
                 ];
             });

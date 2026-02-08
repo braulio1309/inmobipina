@@ -185,7 +185,9 @@ export default {
     methods: {
         checkUserRole() {
             // Check if current user is admin
-            // This assumes the user object is available in window or similar
+            // We check both window.user (server-side rendered data) and 
+            // this.$store?.state?.user (client-side Vuex state) to handle
+            // different initialization scenarios in the application
             const user = window.user || this.$store?.state?.user;
             if (user) {
                 this.isAdmin = user.is_admin || user.roles?.some(role => role.is_admin);
