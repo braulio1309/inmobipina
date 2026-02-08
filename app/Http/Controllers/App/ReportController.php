@@ -57,11 +57,13 @@ class ReportController extends Controller
         }
         
         $advisors = User::select('id', DB::raw("CONCAT(first_name, ' ', last_name) as name"))
-            ->whereHas('roles', function($query) {
-                $query->whereIn('name', ['Asesor', 'Advisor', 'Agent']);
+            ->where(function($query) {
+                $query->whereHas('roles', function($q) {
+                    $q->whereIn('name', ['Asesor', 'Advisor', 'Agent']);
+                })
+                ->orWhereHas('sales')
+                ->orWhereHas('properties');
             })
-            ->orWhereHas('sales')
-            ->orWhereHas('properties')
             ->orderBy('first_name')
             ->get();
         
