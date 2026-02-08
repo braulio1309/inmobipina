@@ -845,6 +845,8 @@ return [
     'count' => 'Count',
     'average' => 'Average',
     'order_report_by' => 'Order report by :',
+    'start_date' => 'Start date',
+    'end_date' => 'End date',
     'kanban_view' => 'Kanban View',
     'task' => 'Task',
     'tasks' => 'Tasks',

@@ -1,9 +1,33 @@
 <template>
     <div class="--content-wrapper">
         <div class="card card-with-shadow border-0 h-100">
-            <div class="card-header bg-transparent d-flex justify-content-end align-items-center p-primary">
-                <p class="my-0 mr-2 p-0">{{ $t('order_report_by') }}</p>
-                <app-input type="radio-buttons" v-model="reportUnit" :list="unitList"/>
+            <div class="card-header bg-transparent p-primary">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="row">
+                            <div class="col-md-6 mb-2 mb-md-0">
+                                <label class="d-block mb-1">{{ $t('start_date') }}</label>
+                                <app-input 
+                                    type="date" 
+                                    v-model="filters.startDate"
+                                    @input="loadReportData"
+                                />
+                            </div>
+                            <div class="col-md-6 mb-2 mb-md-0">
+                                <label class="d-block mb-1">{{ $t('end_date') }}</label>
+                                <app-input 
+                                    type="date" 
+                                    v-model="filters.endDate"
+                                    @input="loadReportData"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 d-flex justify-content-end align-items-center">
+                        <p class="my-0 mr-2 p-0">{{ $t('order_report_by') }}</p>
+                        <app-input type="radio-buttons" v-model="reportUnit" :list="unitList"/>
+                    </div>
+                </div>
             </div>
             <div class="card-body pt-primary">
                 <div class="chart-container position-relative min-height-380"
@@ -29,7 +53,7 @@
 
 <script>
 import {FormMixin} from "../../../../../../core/mixins/form/FormMixin";
-import {REPORTS} from "../../../../../Config/ApiUrl";
+import {TOP_SELLERS_REPORT} from "../../../../../Config/ApiUrl";
 
 
 export default {
@@ -37,6 +61,11 @@ export default {
     mixins: [FormMixin],
     data() {
         return {
+            // Date filters
+            filters: {
+                startDate: '',
+                endDate: ''
+            },
             // Order report by unit
             preloader: false,
             reportUnit: 'count',
@@ -66,12 +95,16 @@ export default {
             // Report Table
             reportTableId: 'report-table-demo',
             options: {
-                url: REPORTS,
+                url: TOP_SELLERS_REPORT,
                 tableShadow: false,
                 datatableWrapper: false,
                 showFilter: false,
                 showSearch: false,
                 managePagination: false,
+                queryParams: {
+                    start_date: '',
+                    end_date: ''
+                },
                 afterRequestSuccess: ({data}) => {
                     this.setupChartForTable(data);
                 },
@@ -88,8 +121,11 @@ export default {
                     },
                     {
                         title: this.$t('value'),
-                        type: 'text',
-                        key: 'value'
+                        type: 'custom-html',
+                        key: 'value',
+                        modifier: (value) => {
+                            return this.formatCurrency(value);
+                        }
                     }
                 ],
             }
@@ -116,8 +152,12 @@ export default {
             this.reportChart.labels = [];
             this.reportChart.dataSets[0].backgroundColor = [];
             this.reportChart.dataSets[0].data = [];
-            let midIndex = Math.ceil(this.reportChartData.length / 2);
-            this.reportChartData.forEach((item, index) => {
+            
+            // Take only top 10 for chart
+            const top10Data = this.reportChartData.slice(0, 10);
+            
+            let midIndex = Math.ceil(top10Data.length / 2);
+            top10Data.forEach((item, index) => {
                 if (index === midIndex) {
                     this.reportChart.labels.push(this.$t('average'));
                     this.reportChart.dataSets[0].backgroundColor.push('#4FE892');
@@ -132,9 +172,33 @@ export default {
             });
         },
         getAverageValue() {
-            let list = _.map(this.reportChartData, this.reportUnit),
-                total = list.reduce((result, item) => Number(result) + Number(item));
-            return total/this.reportChartData.length;
+            if (!this.reportChartData || this.reportChartData.length === 0) {
+                return 0;
+            }
+            const top10Data = this.reportChartData.slice(0, 10);
+            let list = _.map(top10Data, this.reportUnit),
+                total = list.reduce((result, item) => Number(result) + Number(item), 0);
+            return total/list.length;
+        },
+        loadReportData() {
+            // Update query params for the table
+            this.options.queryParams.start_date = this.filters.startDate;
+            this.options.queryParams.end_date = this.filters.endDate;
+            
+            // Reload the table data
+            this.$hub.$emit(`reload-${this.reportTableId}`);
+        },
+        formatCurrency(value) {
+            if (!value && value !== 0) return '-';
+            // Use the current locale or default to en-US
+            const locale = this.$i18n && this.$i18n.locale ? 
+                (this.$i18n.locale === 'es' ? 'es-ES' : 'en-US') : 
+                'en-US';
+            return new Intl.NumberFormat(locale, {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2
+            }).format(value);
         }
     }
 }
