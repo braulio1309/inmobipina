@@ -158,6 +158,10 @@
                             title: 'Editar',
                             type: 'none',
                         },
+                        {
+                            title: 'Compartir',
+                            type: 'none',
+                        },
                     ],
                 },
             }
@@ -186,6 +190,11 @@
                     //this.selectedUrl = `${actions.UPDATE_USER_NAME}/${rowData.id}`;
                     //this.openUserModal();
                     this.$router.push({ name: 'EditUser', params: { id: rowData.id } });
+
+                } else if (actionObj.title == 'Compartir') {
+                    // Open the public share link in a new window
+                    const shareUrl = `${window.location.origin}/property/share/${rowData.id}`;
+                    window.open(shareUrl, '_blank');
 
                 } else if (actionObj.title == this.$t('active')) {
 

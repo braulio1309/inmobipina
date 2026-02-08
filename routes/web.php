@@ -7,6 +7,7 @@ use App\Http\Controllers\Core\Setting\SettingController;
 use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\InstallDemoDataController;
 use App\Http\Controllers\SymlinkController;
+use App\Http\Controllers\PropertyShareController;
 use App\Http\Middleware\PermissionMiddleware;
 
 /**
@@ -17,6 +18,9 @@ use App\Http\Middleware\PermissionMiddleware;
 
 Route::redirect('/', 'admin/users/login');
 Route::get('/get-basic-setting-data', [SettingsApiController::class, 'getBasicSettingData']);
+
+// Public property sharing route (no authentication required)
+Route::get('/property/share/{id}', [PropertyShareController::class, 'show'])->name('property.share');
 Route::group(['middleware' => ['auth', 'authorize']], function () {
     include_route_files(__DIR__ . '/app/');
 });
