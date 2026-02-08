@@ -175,9 +175,10 @@ export default {
             if (!this.reportChartData || this.reportChartData.length === 0) {
                 return 0;
             }
-            let list = _.map(this.reportChartData.slice(0, 10), this.reportUnit),
+            const top10Data = this.reportChartData.slice(0, 10);
+            let list = _.map(top10Data, this.reportUnit),
                 total = list.reduce((result, item) => Number(result) + Number(item), 0);
-            return total/Math.min(this.reportChartData.length, 10);
+            return total/list.length;
         },
         loadReportData() {
             // Update query params for the table
@@ -189,7 +190,11 @@ export default {
         },
         formatCurrency(value) {
             if (!value && value !== 0) return '-';
-            return new Intl.NumberFormat('es-ES', {
+            // Use the current locale or default to en-US
+            const locale = this.$i18n && this.$i18n.locale ? 
+                (this.$i18n.locale === 'es' ? 'es-ES' : 'en-US') : 
+                'en-US';
+            return new Intl.NumberFormat(locale, {
                 style: 'currency',
                 currency: 'USD',
                 minimumFractionDigits: 2

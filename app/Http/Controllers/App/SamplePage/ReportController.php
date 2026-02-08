@@ -43,10 +43,9 @@ class ReportController extends Controller
             $query->where('sales.date', '<=', $endDate);
         }
 
-        // Get top 10 sellers ordered by sales count
+        // Get all sellers ordered by sales count (no limit to show all in table)
         $topSellers = $query
             ->orderByDesc('count')
-            ->limit(10)
             ->get();
 
         return response()->json([
