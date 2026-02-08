@@ -15,4 +15,11 @@ return [
     'activities_by_type' => 'Actividades por Tipo',
     'no_activities' => 'No hay actividades registradas',
     'error_loading' => 'Error al cargar los reportes',
+    'start_date' => 'Fecha inicial',
+    'end_date' => 'Fecha final',
+    'count' => 'Cantidad',
+    'average' => 'Promedio',
+    'order_report_by' => 'Ordenar reporte por :',
+    'value' => 'Valor',
+    'name' => 'Nombre',
 ];
