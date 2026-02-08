@@ -143,6 +143,13 @@ export default {
             selectedAdvisorId: '',
             loading: false,
             isAdmin: false,
+            activityIcons: {
+                'demostración': 'fas fa-eye',
+                'captación': 'fas fa-building',
+                'venta': 'fas fa-dollar-sign',
+                'alquiler': 'fas fa-key',
+                'reserva': 'fas fa-calendar-check',
+            },
         }
     },
     
@@ -190,18 +197,12 @@ export default {
         },
         
         getActivityIcon(type) {
-            const icons = {
-                'demostración': 'fas fa-eye',
-                'captación': 'fas fa-building',
-                'venta': 'fas fa-dollar-sign',
-                'alquiler': 'fas fa-key',
-                'reserva': 'fas fa-calendar-check',
-            };
-            return icons[type] || 'fas fa-tasks';
+            return this.activityIcons[type] || 'fas fa-tasks';
         },
         
         formatActivityType(type) {
             // Capitalize first letter
+            if (!type) return '';
             return type.charAt(0).toUpperCase() + type.slice(1);
         },
     }
