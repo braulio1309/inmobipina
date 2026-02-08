@@ -32,6 +32,28 @@
 
                 <!-- Métricas -->
                 <div v-if="reports" class="metrics-grid">
+                    <!-- Demostraciones -->
+                    <div class="metric-card">
+                        <div class="metric-icon demonstrations">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h6>{{ $t('reports.demonstrations') }}</h6>
+                            <h3>{{ reports.metrics.demonstrations_count }}</h3>
+                        </div>
+                    </div>
+
+                    <!-- Cierres -->
+                    <div class="metric-card">
+                        <div class="metric-icon closures">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h6>{{ $t('reports.closures') }}</h6>
+                            <h3>{{ reports.metrics.closures_count }}</h3>
+                        </div>
+                    </div>
+
                     <!-- Ventas -->
                     <div class="metric-card">
                         <div class="metric-icon sales">
@@ -62,6 +84,18 @@
                         <div class="metric-content">
                             <h6>{{ $t('reports.properties_captured') }}</h6>
                             <h3>{{ reports.metrics.properties_count }}</h3>
+                            <small class="text-muted">{{ $t('reports.approved_properties') }}</small>
+                        </div>
+                    </div>
+
+                    <!-- Total Actividades -->
+                    <div class="metric-card">
+                        <div class="metric-icon total-activities">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h6>{{ $t('reports.total_activities') }}</h6>
+                            <h3>{{ reports.metrics.total_activities }}</h3>
                         </div>
                     </div>
                 </div>
@@ -75,7 +109,10 @@
                             :key="type"
                             class="activity-item"
                         >
-                            <span class="activity-type">{{ type }}</span>
+                            <div class="activity-info">
+                                <i :class="getActivityIcon(type)"></i>
+                                <span class="activity-type">{{ formatActivityType(type) }}</span>
+                            </div>
                             <span class="activity-count badge badge-primary">{{ count }}</span>
                         </div>
                         <div v-if="Object.keys(reports.metrics.activities_by_type).length === 0" class="text-muted">
@@ -151,6 +188,22 @@ export default {
                 this.loading = false;
             }
         },
+        
+        getActivityIcon(type) {
+            const icons = {
+                'demostración': 'fas fa-eye',
+                'captación': 'fas fa-building',
+                'venta': 'fas fa-dollar-sign',
+                'alquiler': 'fas fa-key',
+                'reserva': 'fas fa-calendar-check',
+            };
+            return icons[type] || 'fas fa-tasks';
+        },
+        
+        formatActivityType(type) {
+            // Capitalize first letter
+            return type.charAt(0).toUpperCase() + type.slice(1);
+        },
     }
 }
 </script>
@@ -213,6 +266,18 @@ export default {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }
 
+.metric-icon.demonstrations {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.metric-icon.closures {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.metric-icon.total-activities {
+    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+}
+
 .metric-content h6 {
     margin: 0;
     color: #6c757d;
@@ -225,6 +290,12 @@ export default {
     font-size: 32px;
     font-weight: bold;
     color: #2c3e50;
+}
+
+.metric-content small {
+    display: block;
+    font-size: 11px;
+    margin-top: 3px;
 }
 
 .activities-section {
@@ -248,6 +319,18 @@ export default {
     background: white;
     border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.activity-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.activity-info i {
+    font-size: 18px;
+    color: #007bff;
+    width: 24px;
 }
 
 .activity-type {

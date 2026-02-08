@@ -40,7 +40,10 @@ class ReportController extends Controller
                 'sales_count' => $this->getSalesCount($userId),
                 'reservations_count' => $this->getReservationsCount($userId),
                 'properties_count' => $this->getPropertiesCount($userId),
+                'demonstrations_count' => $this->getDemonstrationsCount($userId),
+                'closures_count' => $this->getClosuresCount($userId),
                 'activities_by_type' => $this->getActivitiesByType($userId),
+                'total_activities' => $this->getTotalActivities($userId),
             ]
         ]);
     }
@@ -93,9 +96,10 @@ class ReportController extends Controller
     
     private function getPropertiesCount($userId)
     {
-        // Contar propiedades creadas por el usuario (captaciones)
+        // Contar propiedades creadas por el usuario Y aprobadas (captaciones aprobadas)
         return DB::table('properties')
             ->where('created_by', $userId)
+            ->whereNotNull('approved_by')
             ->count();
     }
     
@@ -110,5 +114,31 @@ class ReportController extends Controller
             ->mapWithKeys(function ($item) {
                 return [$item->type => $item->count];
             });
+    }
+    
+    private function getDemonstrationsCount($userId)
+    {
+        // Contar actividades de tipo 'demostración'
+        return DB::table('activities')
+            ->where('user_id', $userId)
+            ->where('type', 'demostración')
+            ->count();
+    }
+    
+    private function getClosuresCount($userId)
+    {
+        // Contar cierres: ventas + reservas + alquileres
+        return DB::table('activities')
+            ->where('user_id', $userId)
+            ->whereIn('type', ['venta', 'reserva', 'alquiler'])
+            ->count();
+    }
+    
+    private function getTotalActivities($userId)
+    {
+        // Contar todas las actividades del usuario
+        return DB::table('activities')
+            ->where('user_id', $userId)
+            ->count();
     }
 }
