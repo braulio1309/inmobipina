@@ -111,7 +111,7 @@
             </div>
 
             <!-- Map Section -->
-            <div class="row mb-primary" v-if="!mainPreloader && googleMapsToken">
+            <div class="row mb-primary" v-if="!mainPreloader ">
                 <div class="col-12">
                     <div class="card card-with-shadow border-0">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
@@ -124,7 +124,7 @@
                 </div>
             </div>
 
-            <div class="row" v-if="!mainPreloader">
+            <div class="row" >
                 <div class="col-12 col-sm-12 col-md-6 mb-4 mb-md-0">
                     <div class="card card-with-shadow border-0">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
@@ -151,7 +151,6 @@
 </template>
 
 <script>
-
     import {FormMixin} from '../../../../../core/mixins/form/FormMixin';
     import {DashboardPreloader} from "./Mixins/DashboardPreloader";
     import * as actions from '../../../../Config/ApiUrl';
@@ -160,7 +159,7 @@
 
     export default {
         name: "Hospital",
-        mixins: [FormMixin,DashboardPreloader],
+        mixins: [FormMixin, DashboardPreloader],
         components: {
             Map
         },
@@ -191,45 +190,28 @@
                     endDate: null
                 },
 
-                // Google Maps Token - should be configured via environment variables
+                // Google Maps Token
                 googleMapsToken: process.env.MIX_GOOGLE_MAPS_API_KEY || null,
 
                 /*Latest Sales list*/
                 latestSalesList: {
                     name: 'Latest Sales List',
-                    url: null, // We'll populate this from API
+                    url: null,
                     datatableWrapper: false,
                     showHeader: false,
                     tableShadow: false,
                     managePagination: false,
                     columns: [
-                        {
-                            title: 'Propiedad',
-                            type: 'text',
-                            key: 'property',
-                            isVisible: true
-                        },
-                        {
-                            title: 'Comprador',
-                            type: 'text',
-                            key: 'buyer',
-                            isVisible: true
-                        },
-                        {
-                            title: 'Monto',
-                            type: 'text',
-                            key: 'amount',
+                        { title: 'Propiedad', type: 'text', key: 'property', isVisible: true },
+                        { title: 'Comprador', type: 'text', key: 'buyer', isVisible: true },
+                        { 
+                            title: 'Monto', 
+                            type: 'text', 
+                            key: 'amount', 
                             isVisible: true,
-                            modifier: (value) => {
-                                return '$' + numberFormatter(value);
-                            }
+                            modifier: (value) => '$' + numberFormatter(value)
                         },
-                        {
-                            title: 'Fecha',
-                            type: 'text',
-                            key: 'date',
-                            isVisible: true
-                        }
+                        { title: 'Fecha', type: 'text', key: 'date', isVisible: true }
                     ],
                     showFilter: false,
                     paginationType: "pagination",
@@ -238,7 +220,7 @@
                     orderBy: 'desc',
                     showAction: false,
                     actions: [],
-                    data: []
+                    data: [] // Inicializar vacío
                 },
 
                 /*Top Sellers list*/
@@ -256,25 +238,16 @@
                             key: 'image',
                             mediaTitleKey: 'name',
                             mediaSubtitleKey: 'email',
-                            modifier: (value, row) => {
-                                return value;
-                            },
+                            modifier: (value, row) => value,
                             isVisible: true
                         },
-                        {
-                            title: 'Ventas',
-                            type: 'text',
-                            key: 'sales_count',
-                            isVisible: true
-                        },
-                        {
-                            title: 'Total',
-                            type: 'text',
-                            key: 'total_revenue',
+                        { title: 'Ventas', type: 'text', key: 'sales_count', isVisible: true },
+                        { 
+                            title: 'Total', 
+                            type: 'text', 
+                            key: 'total_revenue', 
                             isVisible: true,
-                            modifier: (value) => {
-                                return '$' + numberFormatter(value);
-                            }
+                            modifier: (value) => '$' + numberFormatter(value)
                         }
                     ],
                     showFilter: false,
@@ -284,10 +257,8 @@
                     orderBy: 'desc',
                     showAction: false,
                     actions: [],
-                    data: []
+                    data: [] // Inicializar vacío
                 },
-
-
             }
         },
         created() {
@@ -296,7 +267,6 @@
         },
         methods: {
             initializeDates() {
-                // Set default dates - last 30 days
                 const endDate = new Date();
                 const startDate = new Date();
                 startDate.setDate(startDate.getDate() - 30);
@@ -332,12 +302,36 @@
                 this.isActivePatientStatistics = false;
 
                 this.axiosGet(url, reqData).then(response => {
+                    // 1. Asignar respuesta general
                     this.realEstateData = response.data;
                     
-                    // Update table data
-                    this.latestSalesList.data = this.realEstateData.latestSales.data;
-                    this.topSellersList.data = this.realEstateData.topSellers.data;
+                    // 2. CORRECCIÓN PRINCIPAL: Actualización reactiva de las tablas
+                    // Usamos desestructuración (...) para crear un nuevo objeto y forzar que el componente detecte el cambio
+                    
+                    // Tabla Últimas Ventas
+                    const salesData = (this.realEstateData.latestSales && this.realEstateData.latestSales.data) 
+                                      ? this.realEstateData.latestSales.data 
+                                      : [];
+                    
+                    this.latestSalesList = {
+                        ...this.latestSalesList,
+                        data: salesData
+                    };
+                    console.log(this.latestSalesList)
 
+                    // Tabla Top Vendedores
+                    const sellersData = (this.realEstateData.topSellers && this.realEstateData.topSellers.data) 
+                                        ? this.realEstateData.topSellers.data 
+                                        : [];
+
+                    this.topSellersList = {
+                        ...this.topSellersList,
+                        data: sellersData
+                    };
+
+                    console.log('Tablas actualizadas con:', salesData.length, sellersData.length);
+
+                    // 3. Activar banderas de visualización
                     this.isActivedDefaultInfo = true;
                     this.isActiveHospitalActivity = true;
                     this.isActivePatientStatistics = true;
@@ -346,8 +340,6 @@
                     console.error('Error loading real estate data:', response);
                 }).finally(() => {
                     this.mainPreloader = false;
-                    // Set countCreatedResponse to 3 to ensure the preloader is hidden
-                    // since we're loading all data in one request instead of multiple
                     this.countCreatedResponse = 3;
                 });
             },
@@ -357,36 +349,23 @@
                 this.hospitalActivities();
             },
             defaultData() {
+                // Este método parece no usarse si `loadRealEstateData` carga todo, 
+                // pero lo mantenemos por si acaso se llama individualmente.
                 let url = actions.DEFAULT_HOSPITAL_INFO;
-
                 this.axiosGet(url).then(response => {
-
                     this.hospital.defaultData = response.data;
                     this.isActivedDefaultInfo = true;
-
-                }).catch(({response}) => {
-
                 }).finally(() => {
                     this.mainPreloader = false;
                     this.countCreatedResponse++;
                 });
-
             },
             hospitalActivities() {
-
                 let url = actions.HOSPITAL_ACTIVITIES, reqData = {};
-
-                reqData.params = {
-                    key: this.value
-                };
-
+                reqData.params = { key: this.value };
                 this.axiosGet(url, reqData).then(response => {
-
                     this.hospital.hospitalActivities = response.data;
                     this.isActiveHospitalActivity = true;
-
-                }).catch(({response}) => {
-
                 }).finally(() => {
                     this.mainPreloader = false;
                     this.countCreatedResponse++;
@@ -394,21 +373,14 @@
             },
             patientStatistics() {
                 let url = actions.PATIENT_STATISTICS;
-
                 this.axiosGet(url).then(response => {
-
                     this.hospital.patientStatistics = response.data;
                     this.isActivePatientStatistics = true;
-
-                }).catch(({response}) => {
-
                 }).finally(() => {
                     this.mainPreloader = false;
                     this.countCreatedResponse++;
                 });
-
             },
-
             numberFormat(value) {
                 return numberFormatter(value);
             }

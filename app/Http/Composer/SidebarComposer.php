@@ -17,38 +17,7 @@ class SidebarComposer
                 'icon' => 'pie-chart',
                 'name' => __t('dashboard'),
                 'permission' => authorize_any(['view_default', 'view_academy', 'view_ecmommerce', 'view_hospital', 'view_hrm']),
-                'subMenu' => [
-                    [
-                        'name' => trans('custom.default'),
-                        'url' => request()->root() . '/admin/dashboard',
-                        'permission' => auth()->user()->can('view_default'),
-                    ],
-                    [
-                        'name' => trans('custom.academy'),
-                        'url' => request()->root() . '/dashboard/academy',
-                        'permission' => auth()->user()->can('view_academy'),
-                    ],
-                    [
-                        'name' => trans('custom.e_commerce'),
-                        'url' => request()->root() . '/dashboard/ecommerce',
-                        'permission' => auth()->user()->can('view_ecmommerce'),
-                    ],
-                    [
-                        'name' => trans('custom.hospital'),
-                        'url' => request()->root() . '/dashboard/hospital',
-                        'permission' => auth()->user()->can('view_hospital'),
-                    ],
-                    [
-                        'name' => trans('custom.hrm'),
-                        'url' => request()->root() . '/dashboard/hrm',
-                        'permission' => auth()->user()->can('view_hrm'),
-                    ],
-                    [
-                        'name' => trans('custom.pos'),
-                        'url' => request()->root() . '/dashboard/pos',
-                        'permission' => auth()->user()->can('view_pos'),
-                    ],
-                ],
+                'url' => request()->root() . '/dashboard/hospital',
             ],
             [
                 'id' => 'Propiedades',
