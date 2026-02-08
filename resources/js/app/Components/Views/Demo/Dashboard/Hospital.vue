@@ -95,8 +95,8 @@
                             <div class="chart-data-list">
                                 <div class="row">
                                     <div class="col-12"
-                                         v-for="(item, index) in realEstateData.activitiesByType.chartElement"
-                                         :key="index">
+                                         v-for="item in realEstateData.activitiesByType.chartElement"
+                                         :key="item.key">
                                         <div class="data-group-item" :style="item.color">
                                             <span class="square" :style="item.background_color"/>
                                             {{item.key}}
@@ -191,8 +191,8 @@
                     endDate: null
                 },
 
-                // Google Maps Token (you may need to get this from env or settings)
-                googleMapsToken: process.env.MIX_GOOGLE_MAPS_API_KEY || 'AIzaSyDUd0TgJ4kYIhWKmYJmC1KEOj4OoDqrGTw',
+                // Google Maps Token - should be configured via environment variables
+                googleMapsToken: process.env.MIX_GOOGLE_MAPS_API_KEY || null,
 
                 /*Latest Sales list*/
                 latestSalesList: {
@@ -346,7 +346,9 @@
                     console.error('Error loading real estate data:', response);
                 }).finally(() => {
                     this.mainPreloader = false;
-                    this.countCreatedResponse = 3; // Set to 3 to hide preloader
+                    // Set countCreatedResponse to 3 to ensure the preloader is hidden
+                    // since we're loading all data in one request instead of multiple
+                    this.countCreatedResponse = 3;
                 });
             },
             getFilterValue(item) {

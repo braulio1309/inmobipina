@@ -140,11 +140,12 @@ class RealEstateDashboardService
         return [
             'data' => $topSellers->map(function ($seller) {
                 $user = User::find($seller->seller_id);
+                $defaultImage = '/images/default-avatar.png'; // Use local default avatar
                 return [
                     'id' => $seller->seller_id,
                     'name' => $user ? $user->full_name : 'N/A',
                     'email' => $user ? $user->email : 'N/A',
-                    'image' => $user && $user->profile_picture ? $user->profile_picture->path : 'https://via.placeholder.com/150',
+                    'image' => $user && $user->profile_picture ? $user->profile_picture->path : $defaultImage,
                     'sales_count' => $seller->sales_count,
                     'total_revenue' => $seller->total_revenue,
                 ];
@@ -190,15 +191,26 @@ class RealEstateDashboardService
             ->orderBy('period')
             ->get();
 
-        $labels = $salesData->pluck('period')->toArray();
-        $salesCounts = $salesData->pluck('count')->toArray();
-        $captacionesCounts = $captacionesData->pluck('count')->toArray();
+        // Merge all periods and create a mapping
+        $allPeriods = $salesData->pluck('period')
+            ->merge($captacionesData->pluck('period'))
+            ->unique()
+            ->sort()
+            ->values();
 
-        // Ensure both arrays have the same length
-        foreach ($labels as $label) {
-            if (!in_array($label, $captacionesData->pluck('period')->toArray())) {
-                $captacionesCounts[] = 0;
-            }
+        // Create mappings for quick lookup
+        $salesMap = $salesData->pluck('count', 'period')->toArray();
+        $captacionesMap = $captacionesData->pluck('count', 'period')->toArray();
+
+        // Build aligned arrays
+        $labels = [];
+        $salesCounts = [];
+        $captacionesCounts = [];
+
+        foreach ($allPeriods as $period) {
+            $labels[] = $period;
+            $salesCounts[] = $salesMap[$period] ?? 0;
+            $captacionesCounts[] = $captacionesMap[$period] ?? 0;
         }
 
         $chartData = [
