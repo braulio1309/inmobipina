@@ -17,7 +17,6 @@
                                :placeholder="$t('search_and_select')"
                                type="search-select"
                                :list="advisors"
-                               @change="loadReports"
                                v-model="selectedAdvisorId"/>
                         </div>
                     </div>
@@ -171,9 +170,10 @@ export default {
     },
 
     mounted() {
-       
-        this.loadAdvisors();
-        
+        this.checkAdminRole();
+        if (this.isAdmin) {
+            this.loadAdvisors();
+        }
         this.loadReports();
     },
 
@@ -210,6 +210,10 @@ export default {
                 .finally(() => {
                     this.loadingAdvisors = false;
                 });
+        },
+
+        checkAdminRole() {
+            this.isAdmin = this.$isAdmin();
         },
 
         async loadReports() {
