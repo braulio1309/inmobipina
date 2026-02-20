@@ -159,45 +159,168 @@
             </div>
         </div>
 
+        <!-- TAB 4: Fotos -->
         <div v-if="activeTab === 3">
-            <h5 class="mb-3">Imagenes</h5>
+            <h5 class="mb-3">Imágenes del Inmueble</h5>
 
-            <div class="card card-with-shadow border-0 mb-primary">
-        <div class="card-header p-primary bg-transparent">
-            <h5 class="card-title m-0">Imagenes del inmueble</h5>
-        </div>
+            <div v-if="!savedPropertyId" class="alert alert-info">
+                Guarda primero la propiedad (botón inferior) y luego sube las imágenes aquí.
+            </div>
 
-        <app-overlay-loader v-if="preloader"/>
-        <div class="card-body">
-            <form ref="form" data-url="/form/multiple-files" class="mb-0" :class="{'loading-opacity': preloader}">
-                <div class="form-group row mb-0">
-                    <label class="col-sm-2">
-                        Zona de imagenes
-                    </label>
-                    <div class="col-sm-8">
-                        <app-input type="dropzone"
-                                   v-model="dropzone_files"/>
-                        <small class="text-muted font-italic">
-                            Solo formato imagen
-                        </small>
+            <div v-else>
+                <div class="mb-3">
+                    <label class="form-label" for="property-images-input">Seleccionar imágenes</label>
+                    <input
+                        id="property-images-input"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        class="form-control"
+                        @change="onFilesSelected"
+                    >
+                    <small class="text-muted">Formatos permitidos: JPG, PNG, GIF, WEBP. Máx. 5MB por imagen.</small>
+                </div>
+
+                <div v-if="selectedFiles.length > 0" class="mb-3">
+                    <div class="row">
+                        <div class="col-md-3 mb-2" v-for="(preview, idx) in filePreviews" :key="idx">
+                            <img :src="preview" class="img-thumbnail" style="height:120px;object-fit:cover;width:100%;">
+                        </div>
                     </div>
                 </div>
-                <div class="mt-5 action-buttons">
-                    <button type="submit" class="btn btn-primary mr-2" @click.prevent="submit">
-                        Guardar imagenes
-                    </button>
+
+                <div v-if="uploadedImages.length > 0" class="mb-3">
+                    <h6>Imágenes guardadas:</h6>
+                    <div class="row">
+                        <div class="col-md-3 mb-2" v-for="(img, idx) in uploadedImages" :key="idx">
+                            <img :src="'/storage/' + img.path" class="img-thumbnail" style="height:120px;object-fit:cover;width:100%;">
+                        </div>
+                    </div>
                 </div>
-            </form>
+
+                <button class="btn btn-secondary" @click.prevent="uploadImages" :disabled="selectedFiles.length === 0">
+                    Subir Imágenes
+                </button>
+            </div>
         </div>
-    </div>
+
+        <!-- TAB 5: Exclusividad -->
+        <div v-if="activeTab === 4">
+            <h5 class="mb-3">Datos del Contrato de Exclusividad</h5>
+            <p class="text-muted mb-3">
+                Complete estos datos para generar el Contrato de Exclusividad de Bien Inmueble.
+            </p>
+
+            <h6 class="mb-2 text-primary">Datos del Propietario</h6>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Nombre del Propietario</label>
+                    <input v-model="exclusivityData.propietario_nombre" type="text" class="form-control"
+                        placeholder="Nombre completo">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Cédula de Identidad (C.I.)</label>
+                    <input v-model="exclusivityData.propietario_ci" type="text" class="form-control"
+                        placeholder="Ej: 12.345.678">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">R.I.F.</label>
+                    <input v-model="exclusivityData.propietario_rif" type="text" class="form-control"
+                        placeholder="Ej: V-123456789-0">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Correo Electrónico del Propietario</label>
+                    <input v-model="exclusivityData.propietario_email" type="email" class="form-control"
+                        placeholder="correo@ejemplo.com">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Teléfono del Propietario</label>
+                    <input v-model="exclusivityData.propietario_telefono" type="text" class="form-control"
+                        placeholder="Ej: 0414-123456">
+                </div>
+            </div>
+
+            <h6 class="mb-2 text-primary mt-3">Descripción del Inmueble (para el contrato)</h6>
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Constituido por (descripción)</label>
+                    <input v-model="exclusivityData.inmueble_descripcion" type="text" class="form-control"
+                        placeholder="Ej: una casa de tres (3) habitaciones, dos (2) baños...">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Parroquia</label>
+                    <input v-model="exclusivityData.parroquia" type="text" class="form-control"
+                        placeholder="Ej: Cachamay">
+                </div>
+            </div>
+
+            <h6 class="mb-2 text-primary mt-3">Datos del Registro (Protocolización)</h6>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Número</label>
+                    <input v-model="exclusivityData.registro_numero" type="text" class="form-control"
+                        placeholder="Ej: 15">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Folio</label>
+                    <input v-model="exclusivityData.registro_folio" type="text" class="form-control"
+                        placeholder="Ej: 25">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Tomo</label>
+                    <input v-model="exclusivityData.registro_tomo" type="text" class="form-control"
+                        placeholder="Ej: 32 A-PRO">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Protocolo</label>
+                    <input v-model="exclusivityData.registro_protocolo" type="text" class="form-control"
+                        placeholder="Ej: Transcripción">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Año</label>
+                    <input v-model="exclusivityData.registro_anio" type="text" class="form-control"
+                        placeholder="Ej: 2020">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Fecha de Registro</label>
+                    <input v-model="exclusivityData.registro_fecha" type="date" class="form-control">
+                </div>
+            </div>
+
+            <h6 class="mb-2 text-primary mt-3">Datos del Contrato</h6>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Precio de Venta (USD)</label>
+                    <input v-model="exclusivityData.precio_venta" type="number" step="0.01" class="form-control"
+                        placeholder="Ej: 45000">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Fecha de Firma del Contrato</label>
+                    <input v-model="exclusivityData.fecha_firma" type="date" class="form-control">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Fecha de Inicio</label>
+                    <input v-model="exclusivityData.start_date" type="date" class="form-control">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Fecha de Fin (90 días)</label>
+                    <input v-model="exclusivityData.end_date" type="date" class="form-control">
+                </div>
+            </div>
+
+            <div v-if="savedPropertyId" class="mt-3">
+                <a :href="'/property/' + savedPropertyId + '/exclusivity-pdf'" target="_blank" class="btn btn-success">
+                    <i class="fas fa-file-pdf"></i> Descargar Contrato de Exclusividad PDF
+                </a>
+            </div>
         </div>
 
     </div>
 
     <!-- Botón final -->
     <div class="mt-3 text-end">
-        <button class="btn btn-primary" @click="saveProperty">
-            Guardar Propiedad
+        <button class="btn btn-primary" @click="saveProperty" :disabled="saving">
+            {{ saving ? 'Guardando...' : (savedPropertyId ? 'Actualizar Propiedad' : 'Guardar Propiedad') }}
         </button>
     </div>
 
@@ -216,12 +339,17 @@ export default {
     data() {
         return {
             activeTab: 0,
+            saving: false,
+            savedPropertyId: null,
+            selectedFiles: [],
+            filePreviews: [],
+            uploadedImages: [],
             tabs: [
                 { label: "Detalles" },
                 { label: "Ubicación" },
                 { label: "Extras" },
-                { label: "Imagenes" },
-
+                { label: "Fotos" },
+                { label: "Exclusividad" },
             ],
 
             property: {
@@ -238,6 +366,27 @@ export default {
                 exclusivity: false,
                 type_sale: "",
             },
+
+            exclusivityData: {
+                propietario_nombre: "",
+                propietario_ci: "",
+                propietario_rif: "",
+                propietario_email: "",
+                propietario_telefono: "",
+                inmueble_descripcion: "",
+                parroquia: "Cachamay",
+                registro_numero: "",
+                registro_folio: "",
+                registro_tomo: "",
+                registro_protocolo: "",
+                registro_anio: "",
+                registro_fecha: "",
+                precio_venta: "",
+                fecha_firma: "",
+                start_date: "",
+                end_date: "",
+            },
+
               listForSelect: [
                     {
                         id: '',
@@ -296,31 +445,55 @@ export default {
     },
 
     methods: {
-        async saveProperty() {
+        onFilesSelected(event) {
+            this.selectedFiles = Array.from(event.target.files);
+            this.filePreviews = [];
+            this.selectedFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => this.filePreviews.push(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        },
+
+        async uploadImages() {
+            if (!this.savedPropertyId || this.selectedFiles.length === 0) return;
+            const formData = new FormData();
+            this.selectedFiles.forEach(file => formData.append('images[]', file));
             try {
-                const response = await axios.post("/property/create", this.property);
-                this.$toastr.s('Creado exitosamente');
-
-                console.log(response.data);
-
-                this.property = {
-                    title: "",
-                    description: "",
-                    bathrooms: "",
-                    bedrooms: "",
-                    square_meters: "",
-                    address: "",
-                    map_lat: "",
-                    map_lng: "",
-                    type: "",
-                    price: "",
-                    exclusivity: false,
-                    type_sale: "",
-                };
-                this.activeTab = 0;
+                const res = await axios.post(`/property/${this.savedPropertyId}/images`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                this.uploadedImages = [...this.uploadedImages, ...res.data.data];
+                this.selectedFiles = [];
+                this.filePreviews = [];
+                this.$toastr.s('Imágenes subidas correctamente');
             } catch (error) {
                 console.error(error);
-                alert("Hubo un error al guardar la propiedad");
+                this.$toastr.e('Error al subir las imágenes');
+            }
+        },
+
+        async saveProperty() {
+            this.saving = true;
+            try {
+                const hasExclusivityData = Object.values(this.exclusivityData)
+                    .some(v => v !== "" && v !== null);
+
+                const payload = {
+                    ...this.property,
+                    exclusivity_data: hasExclusivityData ? this.exclusivityData : undefined,
+                };
+
+                const response = await axios.post("/property/create", payload);
+                this.savedPropertyId = response.data.data.id;
+                this.$toastr.s('Propiedad guardada exitosamente');
+
+                console.log(response.data);
+            } catch (error) {
+                console.error(error);
+                this.$toastr.e("Hubo un error al guardar la propiedad");
+            } finally {
+                this.saving = false;
             }
         },
     },

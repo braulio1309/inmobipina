@@ -107,24 +107,27 @@ class OperationController extends Controller
     $pdfUrl = null;
 
     if ($operation->type == 'exclusividad') {
+        $property = $operation->property;
+        $exclusivity = $property ? $property->exclusivities()->latest()->first() : null;
         $propietario = $operation->clients->first(); 
-        
+
         $data = [
             'propietario' => [
-                'nombre' => $propietario->name ?? 'Nombre del Propietario',
-                'ci'     => $propietario->ci ?? 'V-12.345.678',
-                'rif'    => '123564',
-                'email'  => $propietario->email,
-                'phone'  => $propietario->phone
+                'nombre' => $exclusivity->propietario_nombre ?? ($propietario->name ?? 'Nombre del Propietario'),
+                'ci'     => $exclusivity->propietario_ci ?? ($propietario->ci ?? 'V-12.345.678'),
+                'rif'    => $exclusivity->propietario_rif ?? '123564',
+                'email'  => $exclusivity->propietario_email ?? ($propietario->email ?? ''),
+                'phone'  => $exclusivity->propietario_telefono ?? ($propietario->phone ?? ''),
             ],
-            'inmueble' => [
-                'precio_numeros' => number_format($operation->price, 2) ?? '0.00',
-            ],
-            'fecha_contrato' => now()->locale('es')->isoFormat('DD \d\e MMMM \d\e YYYY'),
+            'exclusivity' => $exclusivity,
+            'fecha_contrato' => $exclusivity && $exclusivity->fecha_firma
+                ? \Carbon\Carbon::parse($exclusivity->fecha_firma)->locale('es')->isoFormat('DD [de] MMMM [de] YYYY')
+                : now()->locale('es')->isoFormat('DD [de] MMMM [de] YYYY'),
             'property' => [
-                'price'         => $operation->property->price,
-                'square_meters' => $operation->property->square_meters,
-                'address'       => $operation->property->address,
+                'price'               => $property ? $property->price : 0,
+                'square_meters'       => $property ? $property->square_meters : 0,
+                'address'             => $property ? $property->address : '',
+                'inmueble_descripcion'=> $exclusivity ? ($exclusivity->inmueble_descripcion ?? '') : '',
             ]
         ];
 
