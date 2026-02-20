@@ -16,6 +16,10 @@ class ActivityFilter extends FilterContact
      */
     public function filter() : Builder
     {
+        if (!auth()->user()->isAdmin()) {
+            $this->query->where('user_id', auth()->id());
+        }
+
         return $this->query;
     }
 }

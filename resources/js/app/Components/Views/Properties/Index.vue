@@ -177,30 +177,20 @@
                     orderBy: 'desc',
                     showAction: true,
                     actions: [
-                         {
-                            title: 'Editar',
-                            type: 'none',
-                        },
-                        {
-                            title: 'Compartir',
-                            type: 'none',
-                        },
-                        {
-                            title: 'Aprobar',
-                            type: 'none',
-                            modifier: (row) => row.status === 'pending',
-                        },
-                        {
-                            title: 'Rechazar',
-                            type: 'none',
-                            modifier: (row) => row.status === 'pending',
-                        },
+                        { title: 'Editar', type: 'none' },
+                        { title: 'Compartir', type: 'none', modifier: (row) => !!row.approved_by || row.status === 'Disponible' },
                     ],
                 },
             }
         },
         created() {
             //this.options.columns = [...this.tableColumns];
+            if (this.$isAdmin()) {
+                this.options.actions.push(
+                    { title: 'Aprobar', type: 'none', modifier: (row) => row.status === 'pending' },
+                    { title: 'Rechazar', type: 'none', modifier: (row) => row.status === 'pending' }
+                );
+            }
             this.searchAndSelectFilterOptions();
         },
         methods: {
