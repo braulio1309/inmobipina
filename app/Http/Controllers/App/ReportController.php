@@ -19,7 +19,12 @@ class ReportController extends Controller
         $user = auth()->user();
         $userId = $request->get('user_id');
 
-        // If no user_id provided: aggregate all advisors
+        // Non-admin users can only see their own reports
+        if (!$user->isAdmin()) {
+            $userId = $user->id;
+        }
+
+        // If no user_id provided (admin with no filter): aggregate all advisors
         if (!$userId) {
             return $this->getAllAdvisorsReport();
         }

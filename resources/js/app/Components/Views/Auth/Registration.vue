@@ -149,6 +149,21 @@
                 }, 3000)
                 // window.location = urlGenerator('/admin/users/login');
             },
+            afterError(res) {
+                this.preloader = false;
+                if (res && res.data && res.data.errors) {
+                    // Field names from Laravel map to Vue fieldStatus keys via the v-model prefix:
+                    // v-model="user.email" -> fieldStatus key "user_email"
+                    Object.entries(res.data.errors).forEach(([field, messages]) => {
+                        this.$set(this.fieldStatus, 'user_' + field, {
+                            isValid: false,
+                            message: Array.isArray(messages) ? messages[0] : messages
+                        });
+                    });
+                } else {
+                    this.$toastr.e(res && res.data ? res.data.message : this.$t('something_went_wrong'));
+                }
+            },
         }
 
     }

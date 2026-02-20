@@ -159,9 +159,7 @@ export default {
     
     methods: {
         checkAdminRole() {
-            const user = this.$store.state.user || window.user;
-            this.isAdmin = user && user.roles && 
-                user.roles.some(role => ['Admin', 'Administrator'].includes(role.name));
+            this.isAdmin = this.$isAdmin();
         },
         
         async loadAdvisors() {
