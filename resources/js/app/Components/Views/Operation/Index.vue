@@ -71,6 +71,25 @@
                                 return (value)?'$'+row.amount: 'N/A';
                             }
                         },
+                        {
+                            title: 'Comisiones',
+                            type: 'custom-html',
+                            key: 'commission_details',
+                            default: "",
+                            isVisible: true,
+                            modifier:(value, row) => {
+                                if (!value || !value.length) return 'N/A';
+                                const escape = (str) => String(str)
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;')
+                                    .replace(/"/g, '&quot;');
+                                const lines = value.map(d =>
+                                    `<div><strong>${escape(d.name)}</strong>: $${escape(parseFloat(d.amount).toFixed(2))} (${escape(parseFloat(d.percentage).toFixed(2))}%)</div>`
+                                );
+                                return lines.join('');
+                            }
+                        },
                         
                         
                         

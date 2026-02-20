@@ -56,6 +56,7 @@ class Operation extends Model
 
     public function sellers()
     {
-        return $this->belongsToMany(User::class, 'operation_user');
+        return $this->belongsToMany(User::class, 'operation_user')
+            ->withPivot('commission_percentage', 'commission_amount');
     }
 }

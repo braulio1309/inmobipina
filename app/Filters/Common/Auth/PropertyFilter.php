@@ -17,7 +17,14 @@ class PropertyFilter extends FilterContact
     public function filter() : Builder
     {
         if (!auth()->user()->isAdmin()) {
-            $this->query->where('status', 'Disponible');
+            $userId = auth()->id();
+            $this->query->where(function ($q) use ($userId) {
+                $q->where('status', '!=', 'pending')
+                  ->orWhere(function ($q2) use ($userId) {
+                      $q2->where('status', 'pending')
+                         ->where('created_by', $userId);
+                  });
+            });
         }
 
         return $this->query;

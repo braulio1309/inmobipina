@@ -24,4 +24,5 @@ return [
     'value' => 'Valor',
     'name' => 'Nombre',
     'performance_summary' => 'Resumen de Rendimiento',
+    'my_commission' => 'Mi Comisión',
 ];

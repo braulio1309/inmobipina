@@ -28,18 +28,30 @@ class OperationController extends Controller
     public function listado()
     {
         return (new AppUserFilter(
-        $this->service->with('sellers')
+        $this->service->with(['sellers', 'property'])
             ->filters($this->filter)
             ->latest()
     ))
     ->filter()
     ->paginate(request()->get('per_page', 10))
     ->through(function ($item) {
-        // Agregar sellers_names
+        // Agregar sellers_names con sus comisiones
         $item->sellers_names = $item->sellers
             ->map(fn($s) => trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? '')))
             ->filter()
             ->implode(', ');
+
+        // Detalle de comisiones por involucrado
+        $item->commission_details = $item->sellers->map(function ($s) {
+            $name = trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? ''));
+            return [
+                'name'       => $name ?: ($s->email ?? '—'),
+                'percentage' => $s->pivot->commission_percentage ?? 0,
+                'amount'     => $s->pivot->commission_amount ?? 0,
+            ];
+        })->values()->toArray();
+
+        $item->property_title = $item->property ? $item->property->title : '';
 
         return $item;
     });
