@@ -8,21 +8,9 @@
                 <div class="float-md-right mb-3 mb-sm-3 mb-md-0">
                     <button type="button"
                             class="btn btn-success btn-with-shadow mr-2"
-                            data-toggle="modal"
-                            @click="operationForUserInvitation">
-                        {{ $t('invite_users') }}
+                            @click="openCreateUserModal">
+                        {{ $t('create_user') }}
                     </button>
-                    <!--<button type="button"
-                            class="btn btn-primary btn-with-shadow"
-                            data-toggle="modal"
-                            @click="operateRoles(true)">
-                        {{ $t('add_role') }}
-                    </button>
-                    <button type="button"
-                            class="btn btn-primary btn-with-shadow"
-                            @click="$router.push({ name: 'user-create' })">
-                        Crear usuario
-                    </button>-->
                 </div>
             </div>
         </div>
@@ -36,8 +24,9 @@
             </div>-->
         </div>
 
-        <!--<user-invitation-modal v-if="userAndRoles.users.isInviteModalActive"
-                               @close-modal="closeInviteModal"/>-->
+        <create-user-modal v-if="isCreateUserModalActive"
+                           modal-id="create-user-modal"
+                           @close-modal="closeCreateUserModal"/>
 
         <user-modal v-if="userAndRoles.users.isUserModalActive"
                     @close-modal="closeUserModal"/>
@@ -64,6 +53,7 @@
     import UserModal from "./Users/UserModal";
     import UserInvitationModal from "./Users/UserInvitationModal";
     import ManageUsersModal from "./Users/ManageUsersModal";
+    import CreateUserModal from "./Users/CreateUserModal";
     import User from "./Users/Index";
 
     import RolesAddEditModal from "./Roles/RolesAddEditModal";
@@ -83,11 +73,13 @@
             UserInvitationModal,
             RolesAddEditModal,
             User,
+            CreateUserModal,
             ManageUsersModal,
             Role
         },
         data() {
             return {
+                isCreateUserModalActive: false,
                 deleteLoader: false,
                 rowData: {},
                 selectedUrl: '',
@@ -195,6 +187,20 @@
                 $('#' + this.userAndRoles.users.manageUserModalId).modal('hide');
                 this.operationForManageUser(false);
                 this.resetData();
+            },
+
+            /* *
+             * OPEN / CLOSE CREATE USER MODAL
+             * */
+            openCreateUserModal() {
+                this.isCreateUserModalActive = true;
+                this.$nextTick(() => {
+                    $('#create-user-modal').modal('show');
+                });
+            },
+            closeCreateUserModal() {
+                $('#create-user-modal').modal('hide');
+                this.isCreateUserModalActive = false;
             },
 
             /* *

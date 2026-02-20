@@ -2,7 +2,7 @@
     <div class="content-wrapper">
         <app-breadcrumb :page-title="'Listado de Propiedades'" :directory="$t('datatables')" :icon="'grid'"/>
         <div class="mb-primary col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-            <app-table :id="'default-filter-table'" :options="options"/>
+            <app-table :id="'default-filter-table'" :options="options" @action="handleAction"/>
         </div>
     </div>
 </template>
@@ -186,8 +186,14 @@
                             type: 'none',
                         },
                         {
-                            title: 'Contrato',
+                            title: 'Aprobar',
                             type: 'none',
+                            modifier: (row) => row.status === 'pending',
+                        },
+                        {
+                            title: 'Rechazar',
+                            type: 'none',
+                            modifier: (row) => row.status === 'pending',
                         },
                     ],
                 },
@@ -198,42 +204,32 @@
             this.searchAndSelectFilterOptions();
         },
         methods: {
-            getActionUser(rowData, actionObj, active) {
-
-                this.$store.dispatch('setRowData', rowData);
-
-                if (actionObj.title == this.$t('manage_role')) {
-
-                    this.selectedUrl = `${actions.INVITE_USER}/${rowData.id}`;
-                    this.operationForUserInvitation();
-
-                } else if (actionObj.title == this.$t('delete')) {
-
-                    this.confirmation.url = `${actions.USERS}/${rowData.id}`;
-                    this.confirmation.tableId = this.userAndRoles.users.tableId;
-                    this.openConfirmationModal();
-
-                } else if(actionObj.title == this.$t('edit')) {
-                    // Navigate to property edit page
-                    this.$router.push({ name: 'EditUser', params: { id: rowData.id } });
-
-                } else if (actionObj.title == 'Compartir') {
-                    // Open the public share link in a new window
+            handleAction(rowData, actionObj) {
+                if (actionObj.title === 'Editar') {
+                    window.location.href = `/properties/create?id=${rowData.id}`;
+                } else if (actionObj.title === 'Compartir') {
                     const shareUrl = `${window.location.origin}/property/share/${rowData.id}`;
                     window.open(shareUrl, '_blank');
-
-                } else if (actionObj.title == 'Contrato') {
-                    // Download exclusivity contract PDF
-                    const pdfUrl = `${window.location.origin}/property/${rowData.id}/exclusivity-pdf`;
-                    window.open(pdfUrl, '_blank');
-
-                } else if (actionObj.title == this.$t('active')) {
-
-                    this.changeUserStatus(1, rowData.id);
-
-                } else if (actionObj.title == this.$t('de_activate')) {
-
-                    this.changeUserStatus(2, rowData.id);
+                } else if (actionObj.title === 'Aprobar') {
+                    this.axiosPatch({
+                        url: `property/${rowData.id}/approve`,
+                        data: { action: 'approve' }
+                    }).then(res => {
+                        this.$toastr.s(res.data.message || 'Propiedad aprobada.');
+                        this.$hub.$emit('reload-default-filter-table');
+                    }).catch(err => {
+                        this.$toastr.e(err.response?.data?.message || 'Error al aprobar.');
+                    });
+                } else if (actionObj.title === 'Rechazar') {
+                    this.axiosPatch({
+                        url: `property/${rowData.id}/approve`,
+                        data: { action: 'reject' }
+                    }).then(res => {
+                        this.$toastr.s(res.data.message || 'Propiedad rechazada.');
+                        this.$hub.$emit('reload-default-filter-table');
+                    }).catch(err => {
+                        this.$toastr.e(err.response?.data?.message || 'Error al rechazar.');
+                    });
                 }
             },
             searchAndSelectFilterOptions() {
