@@ -1,34 +1,6 @@
 <template>
     <div class="--content-wrapper">
         <div class="card card-with-shadow border-0 h-100">
-            <div class="card-header bg-transparent p-primary">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <div class="row">
-                            <div class="col-md-6 mb-2 mb-md-0">
-                                <label class="d-block mb-1">{{ $t('start_date') }}</label>
-                                <app-input 
-                                    type="date" 
-                                    v-model="filters.startDate"
-                                    @input="loadReportData"
-                                />
-                            </div>
-                            <div class="col-md-6 mb-2 mb-md-0">
-                                <label class="d-block mb-1">{{ $t('end_date') }}</label>
-                                <app-input 
-                                    type="date" 
-                                    v-model="filters.endDate"
-                                    @input="loadReportData"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 d-flex justify-content-end align-items-center">
-                        <p class="my-0 mr-2 p-0">{{ $t('order_report_by') }}</p>
-                        <app-input type="radio-buttons" v-model="reportUnit" :list="unitList"/>
-                    </div>
-                </div>
-            </div>
             <div class="card-body pt-primary">
                 <div class="chart-container position-relative min-height-380"
                      :class="{'loading-opacity':preloader}">
@@ -59,27 +31,17 @@ import {TOP_SELLERS_REPORT} from "../../../../../Config/ApiUrl";
 export default {
     name: "Report",
     mixins: [FormMixin],
+
+    inject: {
+        reportFilters: {
+            default: () => ({ startDate: '', endDate: '', reportUnit: 'count' }),
+        },
+    },
+
     data() {
         return {
-            // Date filters
-            filters: {
-                startDate: '',
-                endDate: ''
-            },
-            // Order report by unit
             preloader: false,
-            reportUnit: 'count',
-            unitList: [
-                {
-                    id: 'count',
-                    value: this.$t('count')
-                },
-                {
-                    id: 'value',
-                    value: this.$t('value')
-                }
-            ],
-            // Chart Static Value
+            // Chart and table configuration
             reportChart: {
                 labels: [],
                 dataSets: [
@@ -110,17 +72,17 @@ export default {
                 },
                 columns: [
                     {
-                        title: this.$t('name'),
+                        title: this.$t('reports.name'),
                         type: 'text',
                         key: 'name',
                     },
                     {
-                        title: this.$t('count'),
+                        title: this.$t('reports.count'),
                         type: 'text',
                         key: 'count'
                     },
                     {
-                        title: this.$t('value'),
+                        title: this.$t('reports.value'),
                         type: 'custom-html',
                         key: 'value',
                         modifier: (value) => {
@@ -132,9 +94,15 @@ export default {
         }
     },
     watch: {
-        reportUnit: {
+        'reportFilters.reportUnit': {
             handler: 'reportByOrder'
-        }
+        },
+        'reportFilters.startDate': {
+            handler: 'loadReportData'
+        },
+        'reportFilters.endDate': {
+            handler: 'loadReportData'
+        },
     },
     created() {
         this.preloader = true;
@@ -165,7 +133,7 @@ export default {
                 }
                 this.reportChart.labels.push(item.name);
                 this.reportChart.dataSets[0].backgroundColor.push('#2E69FF');
-                this.reportChart.dataSets[0].data.push(item[this.reportUnit]);
+                this.reportChart.dataSets[0].data.push(item[this.reportFilters.reportUnit]);
             });
             setTimeout(() => {
                 this.preloader = false
@@ -176,21 +144,20 @@ export default {
                 return 0;
             }
             const top10Data = this.reportChartData.slice(0, 10);
-            let list = _.map(top10Data, this.reportUnit),
+            let list = _.map(top10Data, this.reportFilters.reportUnit),
                 total = list.reduce((result, item) => Number(result) + Number(item), 0);
             return total/list.length;
         },
         loadReportData() {
-            // Update query params for the table
-            this.options.queryParams.start_date = this.filters.startDate;
-            this.options.queryParams.end_date = this.filters.endDate;
+            // Update query params for the table using global filters
+            this.options.queryParams.start_date = this.reportFilters.startDate;
+            this.options.queryParams.end_date = this.reportFilters.endDate;
             
             // Reload the table data
             this.$hub.$emit(`reload-${this.reportTableId}`);
         },
         formatCurrency(value) {
             if (!value && value !== 0) return '-';
-            // Use the current locale or default to en-US
             const locale = this.$i18n && this.$i18n.locale ? 
                 (this.$i18n.locale === 'es' ? 'es-ES' : 'en-US') : 
                 'en-US';

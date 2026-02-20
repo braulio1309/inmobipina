@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'title' => 'Reportes',
     'advisor_reports' => 'Reportes de Asesor',
     'select_advisor' => 'Seleccionar Asesor',
     'my_reports' => 'Mis Reportes',
@@ -22,4 +23,5 @@ return [
     'order_report_by' => 'Ordenar reporte por :',
     'value' => 'Valor',
     'name' => 'Nombre',
+    'performance_summary' => 'Resumen de Rendimiento',
 ];
