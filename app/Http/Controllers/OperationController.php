@@ -52,17 +52,21 @@ class OperationController extends Controller
         return response()->json(['message' => 'No tienes permiso para crear cierres.'], 403);
     }
 
-    // Calculate company commission (always 5% of amount)
+    // Total commission is always 5%, split equally among all parties:
+    // N advisors + 1 company → each gets 5% / (N + 1)
     $amount = $request->amount ?? 0;
-    $companyCommissionPct = 5.00;
-    $companyCommissionAmt = round($amount * $companyCommissionPct / 100, 2);
+    $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
+    $numSellers = count($sellers);
+    $numParties = $numSellers + 1; // advisors + company
+    $eachPartyPct = round(5 / $numParties, 4);
+    $eachPartyAmt = round($amount * $eachPartyPct / 100, 2);
 
     // 1. Crear la Operación
     $operation = Operation::create(array_merge(
         $request->only(['type', 'property_id', 'amount', 'start_date', 'end_date', 'notes']),
         [
-            'company_commission_percentage' => $companyCommissionPct,
-            'company_commission_amount'     => $companyCommissionAmt,
+            'company_commission_percentage' => $eachPartyPct,
+            'company_commission_amount'     => $eachPartyAmt,
         ]
     ));
 
@@ -71,29 +75,13 @@ class OperationController extends Controller
         $operation->clients()->sync($request->buyers);
     }
 
-    // Guardar sellers con comisiones (Relación muchos a muchos en Operation)
-    if ($request->has('sellers') && is_array($request->sellers) && count($request->sellers)) {
-        $sellers = $request->sellers; // array of user IDs
-        $numSellers = count($sellers);
-        $advisorCommissionPct = round(5 / $numSellers, 4);
-        $advisorCommissionAmt = round($amount * $advisorCommissionPct / 100, 2);
-
-        // Allow override from request (e.g. sellers_commissions: [{id: 1, pct: 2.5}, ...])
-        $customCommissions = [];
-        if ($request->has('sellers_commissions') && is_array($request->sellers_commissions)) {
-            foreach ($request->sellers_commissions as $sc) {
-                if (isset($sc['id']) && isset($sc['percentage'])) {
-                    $customCommissions[$sc['id']] = $sc['percentage'];
-                }
-            }
-        }
-
+    // Guardar sellers con comisiones iguales
+    if ($numSellers > 0) {
         $syncData = [];
         foreach ($sellers as $sellerId) {
-            $pct = $customCommissions[$sellerId] ?? $advisorCommissionPct;
             $syncData[$sellerId] = [
-                'commission_percentage' => $pct,
-                'commission_amount'     => round($amount * $pct / 100, 2),
+                'commission_percentage' => $eachPartyPct,
+                'commission_amount'     => $eachPartyAmt,
             ];
         }
         $operation->sellers()->sync($syncData);

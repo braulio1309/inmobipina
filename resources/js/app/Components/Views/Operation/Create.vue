@@ -102,7 +102,7 @@
                         <input
                             type="number"
                             class="form-control"
-                            v-model="operation.company_commission_percentage"
+                            :value="eachPartyPercentage"
                             min="0"
                             max="100"
                             step="0.01"
@@ -150,7 +150,8 @@
 
             <small class="text-muted">
                 Total asesores: {{ totalAdvisorPercentage.toFixed(2) }}% — 
-                Inmobiliaria: {{ operation.company_commission_percentage }}%
+                Inmobiliaria: {{ eachPartyPercentage.toFixed(2) }}% — 
+                Total: {{ (totalAdvisorPercentage + eachPartyPercentage).toFixed(2) }}%
             </small>
         </div>
 
@@ -216,7 +217,6 @@ export default {
                 buyers: [],
                 sellers: [],
                 notes: "",
-                company_commission_percentage: 5,
             }
         };
     },
@@ -226,10 +226,13 @@ export default {
     },
 
     computed: {
+        eachPartyPercentage() {
+            const numSellers = this.sellersCommissions.length;
+            return parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4));
+        },
         companyCommissionAmount() {
             const amt = parseFloat(this.operation.amount) || 0;
-            const pct = parseFloat(this.operation.company_commission_percentage) || 0;
-            return amt * pct / 100;
+            return amt * this.eachPartyPercentage / 100;
         },
         totalAdvisorPercentage() {
             return this.sellersCommissions.reduce((sum, s) => sum + (parseFloat(s.percentage) || 0), 0);
@@ -308,26 +311,27 @@ export default {
         },
 
         onSellersChanged(selectedIds) {
-            // Rebuild sellersCommissions array preserving existing percentages
+            // Each party (advisor OR company) gets 5% / (numSellers + 1)
             const numSellers = selectedIds.length;
-            const equalPct = numSellers > 0 ? parseFloat((this.COMMISSION_RATE / numSellers).toFixed(4)) : 0;
+            const equalPct = numSellers > 0
+                ? parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4))
+                : 0;
 
             this.sellersCommissions = selectedIds.map(id => {
-                const existing = this.sellersCommissions.find(s => s.id === id);
                 const seller = this.sellersList.find(s => s.id === id);
                 return {
                     id: id,
                     name: seller ? seller.value : id,
-                    percentage: existing ? existing.percentage : equalPct,
+                    percentage: equalPct,
                 };
             });
         },
 
         recalculateCommissions() {
-            // Re-distribute equally when amount changes
+            // Re-distribute equally: 5% / (numSellers + 1) per party
             const numSellers = this.sellersCommissions.length;
             if (numSellers === 0) return;
-            const equalPct = parseFloat((this.COMMISSION_RATE / numSellers).toFixed(4));
+            const equalPct = parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4));
             this.sellersCommissions = this.sellersCommissions.map(s => ({
                 ...s,
                 percentage: equalPct,
@@ -352,10 +356,6 @@ export default {
                 const payload = {
                     ...this.operation,
                     sellers: this.operation.sellers,
-                    sellers_commissions: this.sellersCommissions.map(s => ({
-                        id: s.id,
-                        percentage: s.percentage,
-                    })),
                 };
 
                 await axios.post("/operations/create", payload);
@@ -371,7 +371,6 @@ export default {
                     buyers: [],
                     sellers: [],
                     notes: "",
-                    company_commission_percentage: this.COMMISSION_RATE,
                 };
                 this.selectedPropertyPrice = null;
                 this.sellersCommissions = [];
