@@ -8,7 +8,7 @@
 
         <div class="container-fluid p-0 mt-4">
             
-            <div class="row mb-4">
+            <div v-if="isAdmin" class="row mb-4">
                 <div class="col-12">
                     <div class="card card-with-shadow border-0">
                         <div class="card-body py-3 d-flex align-items-center justify-content-between">
@@ -71,6 +71,19 @@
                     </div>
                 </div>
 
+                <div class="row mb-primary">
+                    <div class="col-12 col-md-6">
+                        <div class="card card-with-shadow border-0">
+                            <div class="card-body d-flex justify-content-center align-items-center">
+                                <div class="text-center w-100">
+                                    <div class="text-muted mb-2 text-uppercase small">{{ $t('reports.my_commission') }}</div>
+                                    <div class="h1 mb-0 text-warning">${{ formatCurrency(reports.metrics.total_advisor_commission) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row mt-primary">
                     
                     <div class="col-12 col-lg-6">
@@ -117,7 +130,7 @@ import { colorArray } from '../../../../../../app/Helpers/ColorHelper';
 import { FormMixin } from '../../../../../../core/mixins/form/FormMixin.js';
 
 export default {
-    name: 'AdvisorReports',
+    name: 'JobOverview',
     mixins: [FormMixin],
 
     inject: {
@@ -128,7 +141,19 @@ export default {
 
     data() {
         return {
-            reports: null,
+            reports: {
+                advisor: { name: '' },
+                metrics: {
+                    sales_count: 0,
+                    reservations_count: 0,
+                    total_activities: 0,
+                    total_advisor_commission: 0,
+                    activities_by_type: {},
+                    demonstrations_count: 0,
+                    closures_count: 0,
+                    properties_count: 0,
+                }
+            },
             advisors: [],
             selectedAdvisorId: '',
             isAdmin: false,
@@ -146,8 +171,10 @@ export default {
     },
 
     mounted() {
-        this.checkAdminRole();
-        this.loadAdvisors();
+        this.isAdmin = this.$isAdmin();
+        if (this.isAdmin) {
+            this.loadAdvisors();
+        }
         this.loadReports();
     },
 
@@ -160,12 +187,6 @@ export default {
     },
 
     methods: {
-        checkAdminRole() {
-            const user = this.$store.state.user || window.user;
-            this.isAdmin = user && user.roles && 
-                user.roles.some(role => ['Admin', 'Administrator'].includes(role.name));
-        },
-
         genChartData(data) {
             return [
                 {
@@ -196,7 +217,7 @@ export default {
             this.preloader = true;
             const params = {};
             
-            if (this.selectedAdvisorId) {
+            if (this.isAdmin && this.selectedAdvisorId) {
                 params.user_id = this.selectedAdvisorId;
             }
             if (this.reportFilters.startDate) {
@@ -209,7 +230,9 @@ export default {
             this.axiosGet('/app/reports/advisor', { params })
                 .then(response => {
                     this.reports = response.data;
-                    this.processChartData(response.data.metrics);
+                    if (response.data.metrics && response.data.metrics.activities_by_type) {
+                        this.processChartData(response.data.metrics);
+                    }
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -239,6 +262,10 @@ export default {
 
             this.metricsSummaryChart.labels = summaryData.map(d => d.label);
             this.metricsSummaryChart.dataSet = this.genChartData(summaryData.map(d => ({ value: d.value })));
+        },
+
+        formatCurrency(val) {
+            return (parseFloat(val) || 0).toFixed(2);
         }
     }
 }

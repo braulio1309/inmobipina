@@ -26,11 +26,11 @@ class SidebarComposer
                 'name' => 'Propiedades',
                 'permission' => authorize_any(['view_default', 'view_academy', 'view_ecmommerce', 'view_hospital', 'view_hrm']),
                 'subMenu' => array_filter([
-                    $isAdmin ? [
+                    [
                         'name' => 'Registrar captación',
                         'url' => request()->root() . '/properties/create',
                         'permission' => auth()->user()->can('view_default'),
-                    ] : null,
+                    ],
                     [
                         'name' => 'Listado',
                         'url' => request()->root() . '/properties',

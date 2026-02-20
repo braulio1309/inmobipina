@@ -42,6 +42,11 @@ class PropertyController extends Controller
         ]);
         $data['created_by'] = Auth::id();
 
+        if (!Auth::user()->isAdmin()) {
+            $data['status'] = 'pending';
+            unset($data['approved_by']);
+        }
+
         $property = Property::create($data);
 
         // Save exclusivity contract data if provided

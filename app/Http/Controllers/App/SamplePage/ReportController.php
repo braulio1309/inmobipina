@@ -23,6 +23,7 @@ class ReportController extends Controller
     {
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        $user = auth()->user();
 
         // Query to get top sellers
         $query = DB::table('sales')
@@ -34,6 +35,11 @@ class ReportController extends Controller
                 DB::raw('SUM(sales.total_amount) as value')
             )
             ->groupBy('users.id', 'users.first_name', 'users.last_name');
+
+        // Non-admin users can only see their own data
+        if (!$user->isAdmin()) {
+            $query->where('sales.seller_id', $user->id);
+        }
 
         // Apply date filters if provided
         if ($startDate) {
