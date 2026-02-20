@@ -133,15 +133,38 @@
                             "title": 'Fecha',
                             "type": "range-picker",
                             "key": "date",
-                            "option": ["hoy", "Este mes", "Ultima semana", "Ultimo año"]
+                            "option": ["today", "thisMonth", "last7Days", "lastYear"]
+                        },
+                        {
+                            "title": 'Tipo',
+                            "type": "checkbox",
+                            "key": "type",
+                            "option": [
+                                {id: 'Apartamento', value: 'Apartamento'},
+                                {id: 'Casa', value: 'Casa'},
+                                {id: 'Terreno', value: 'Terreno'},
+                                {id: 'Galpon', value: 'Galpon'},
+                                {id: 'Local', value: 'Local'},
+                            ],
+                        },
+                        {
+                            "title": 'Tipo de venta',
+                            "type": "checkbox",
+                            "key": "type_sale",
+                            "option": [
+                                {id: 'venta', value: 'Venta'},
+                                {id: 'alquiler', value: 'Alquiler'},
+                                {id: 'ambos', value: 'Ambos'},
+                            ],
                         },
                         {
                             "title": 'Estatus',
                             "type": "checkbox",
                             "key": "status",
                             "option": [
-                                {id: 'No disponible', value: 'No disponible'},
+                                {id: 'pending', value: 'Pendiente'},
                                 {id: 'Disponible', value: 'Disponible'},
+                                {id: 'No disponible', value: 'No disponible'},
                                 {id: 'Reservado', value: 'Reservado'},
                                 {id: 'Vendido', value: 'Vendido'},
                             ],

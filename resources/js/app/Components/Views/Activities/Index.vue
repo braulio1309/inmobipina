@@ -140,25 +140,19 @@ export default {
                         "title": 'Fecha',
                         "type": "range-picker",
                         "key": "date",
-                        "option": ["today", "thisMonth", "last7Days", "nextYear"]
+                        "option": ["today", "thisMonth", "last7Days", "lastYear"]
                     },
                     {
                         "title": 'Tipo de actividad',
                         "type": "checkbox",
-                        "key": "status",
+                        "key": "type",
                         "option": [
-                            {id: 'Demostración', value: 'Demostración'},
-                            {id: 'Captación', value: 'Captación'},
-                            {id: 'Reserva', value: 'Reserva'},
-                            {id: 'Publicidad', value: 'Publicidad'},
-
+                            {id: 'demostración', value: 'Demostración'},
+                            {id: 'captación', value: 'Captación'},
+                            {id: 'reserva', value: 'Reserva'},
+                            {id: 'venta', value: 'Venta'},
+                            {id: 'alquiler', value: 'Alquiler'},
                         ],
-                    },
-                    {
-                        "title": 'Asesores',
-                        "type": "drop-down-filter",
-                        "key": "Busca por asesores",
-                        "option": [],
                     },
                    
                 ],
@@ -259,13 +253,7 @@ export default {
         searchAndSelectFilterOptions() {
             this.axiosGet(actions.DATATABLE_SEARCH_SELECT).then(response => {
 
-                let name = this.options.filters.find(element => element.title === this.$t('search_and_select'));
-                name.option = response.data.map(name => {
-                    return {
-                        id: name.name,
-                        value: name.name
-                    }
-                });
+                // No dynamic filters to populate
             });
         }
     },
