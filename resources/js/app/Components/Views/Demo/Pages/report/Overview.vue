@@ -83,6 +83,11 @@ import candidate_flow_response from './json/candidate-flow'
 import overview_response from './json/overview.json'
 import moment from 'moment';
 export default {
+    inject: {
+        reportFilters: {
+            default: () => ({ startDate: '', endDate: '', reportUnit: 'count' }),
+        },
+    },
     data() {
         return {
             labels: [],
@@ -101,6 +106,10 @@ export default {
                 dataSet: []
             }
         }
+    },
+    watch: {
+        'reportFilters.startDate': 'reloadAll',
+        'reportFilters.endDate': 'reloadAll',
     },
     methods: {
         genChartData(data) {
@@ -185,12 +194,19 @@ export default {
                 this.performance.dataSet = this.genPerformanceChartData(res.data)
             })
         },
+        reloadAll() {
+            this.preloader = true;
+            const query = {
+                start_date: this.reportFilters.startDate,
+                end_date: this.reportFilters.endDate,
+            };
+            Promise.all([this.getOverview(query), this.getCandidateFlow(query)]).finally(() => {
+                this.preloader = false;
+            });
+        },
     },
     mounted() {
-        this.preloader = true;
-        Promise.all([this.getOverview(), this.getCandidateFlow()]).finally(() => {
-            this.preloader = false
-        }).finally(() => this.preloader = false)
+        this.reloadAll();
     }
 }
 </script>

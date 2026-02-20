@@ -113,13 +113,18 @@
 </template>
 
 <script>
-// Asegúrate de que la ruta a ColorHelper sea correcta según tu estructura
 import { colorArray } from '../../../../../../app/Helpers/ColorHelper';
-import { FormMixin } from '../../../../../../core/mixins/form/FormMixin.js'; // Ajusta la ruta si es necesario
+import { FormMixin } from '../../../../../../core/mixins/form/FormMixin.js';
 
 export default {
     name: 'AdvisorReports',
     mixins: [FormMixin],
+
+    inject: {
+        reportFilters: {
+            default: () => ({ startDate: '', endDate: '', reportUnit: 'count' }),
+        },
+    },
 
     data() {
         return {
@@ -129,7 +134,6 @@ export default {
             isAdmin: false,
             loadingAdvisors: false,
             
-            // Datos para los gráficos
             activitiesChart: {
                 labels: [],
                 dataSet: []
@@ -143,17 +147,16 @@ export default {
 
     mounted() {
         this.checkAdminRole();
-        //if (this.isAdmin) {
-            this.loadAdvisors();
-        //}
+        this.loadAdvisors();
         this.loadReports();
     },
 
     watch: {
-        selectedAdvisorId(newValue) {
-        
+        selectedAdvisorId() {
             this.loadReports();
-        }
+        },
+        'reportFilters.startDate': 'loadReports',
+        'reportFilters.endDate': 'loadReports',
     },
 
     methods: {
@@ -163,12 +166,11 @@ export default {
                 user.roles.some(role => ['Admin', 'Administrator'].includes(role.name));
         },
 
-        // Generador de datos para AppChart (tomado de tu ejemplo)
         genChartData(data) {
             return [
                 {
                     barPercentage: 0.5,
-                    barThickness: 25, // Un poco más grueso para mejor visibilidad
+                    barThickness: 25,
                     borderWidth: 1,
                     borderColor: colorArray.slice(0, data.length),
                     backgroundColor: colorArray.slice(0, data.length),
@@ -178,8 +180,7 @@ export default {
         },
 
         async loadAdvisors() {
-            this.loadingAdvisors = true; // Empieza a cargar
-            
+            this.loadingAdvisors = true;
             this.axiosGet('/app/reports/advisors')
                 .then(response => {
                     const data = response.data;
@@ -187,7 +188,7 @@ export default {
                 })
                 .catch(e => console.error(e))
                 .finally(() => {
-                    this.loadingAdvisors = false; // Termina de cargar
+                    this.loadingAdvisors = false;
                 });
         },
 
@@ -197,6 +198,12 @@ export default {
             
             if (this.selectedAdvisorId) {
                 params.user_id = this.selectedAdvisorId;
+            }
+            if (this.reportFilters.startDate) {
+                params.start_date = this.reportFilters.startDate;
+            }
+            if (this.reportFilters.endDate) {
+                params.end_date = this.reportFilters.endDate;
             }
 
             this.axiosGet('/app/reports/advisor', { params })
@@ -214,19 +221,14 @@ export default {
         },
 
         processChartData(metrics) {
-            // 1. Procesar Gráfico de Actividades (Horizontal)
-            // La API devuelve: { "demostración": 1, "captación": 2 }
             const activityKeys = Object.keys(metrics.activities_by_type);
             const activityValues = Object.values(metrics.activities_by_type).map(val => ({ value: val }));
 
-            // Capitalizar primera letra de las keys para el label
             this.activitiesChart.labels = activityKeys.map(key => 
                 key.charAt(0).toUpperCase() + key.slice(1)
             );
             this.activitiesChart.dataSet = this.genChartData(activityValues);
 
-            // 2. Procesar Gráfico de Resumen (Barras Verticales)
-            // Mapeamos manualmente las métricas importantes para compararlas
             const summaryData = [
                 { label: this.$t('reports.demonstrations'), value: metrics.demonstrations_count },
                 { label: this.$t('reports.closures'), value: metrics.closures_count },
@@ -235,8 +237,6 @@ export default {
                 { label: this.$t('reports.properties_captured'), value: metrics.properties_count }
             ];
 
-            // Filtramos las que tengan valor 0 si quieres limpiar el gráfico, 
-            // o las dejamos todas para ver qué falta. Las dejaremos todas.
             this.metricsSummaryChart.labels = summaryData.map(d => d.label);
             this.metricsSummaryChart.dataSet = this.genChartData(summaryData.map(d => ({ value: d.value })));
         }
