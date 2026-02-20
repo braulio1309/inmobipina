@@ -51,6 +51,7 @@ Vue.component('advisor-reports', require('./Components/Views/Reports/AdvisorRepo
 // User and Roles
 Vue.component('user-roles', require('./Components/Views/UserRoles/Index').default);
 Vue.component('create-user', require('./Components/Views/UserRoles/Users/CreateUser').default);
+Vue.component('create-user-modal', require('./Components/Views/UserRoles/Users/CreateUserModal').default);
 Vue.component('edit-user', require('./Components/Views/UserRoles/Users/EditUser').default);
 Vue.component('group-of-users', require('./Components/Views/UserRoles/Roles/GroupOfUsers').default);
 

@@ -14,6 +14,8 @@ return [
     'social_links' => 'Social links',
     'activity' => 'Activity',
     'invite_users' => 'Invite User',
+    'create_user' => 'Create User',
+    'select_a_role' => 'Select a role',
     'enter_user_email' => 'Enter user email',
     'choose_a_role' => 'Choose a role',
     'role_name' => 'Role name',

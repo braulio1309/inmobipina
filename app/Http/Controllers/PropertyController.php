@@ -117,6 +117,31 @@ class PropertyController extends Controller
         return response()->download(storage_path('app/' . $filePath), $fileName);
     }
 
+    public function approve(Request $request, $id)
+    {
+        $action = $request->input('action');
+
+        if (!in_array($action, ['approve', 'reject'])) {
+            return response()->json(['message' => 'Acción no válida.'], 422);
+        }
+
+        $property = Property::findOrFail($id);
+
+        if ($action === 'approve') {
+            $property->update([
+                'status' => 'Disponible',
+                'approved_by' => Auth::id(),
+            ]);
+            return response()->json(['message' => 'Propiedad aprobada exitosamente.']);
+        } else {
+            $property->update([
+                'status' => 'No disponible',
+                'approved_by' => null,
+            ]);
+            return response()->json(['message' => 'Propiedad rechazada.']);
+        }
+    }
+
     public function edit(Request $request, $id)
     {
         $Property = Property::where('id', $id)->first();

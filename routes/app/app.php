@@ -33,6 +33,7 @@ Route::group(['prefix' => 'app/reports'], function () {
 });
 Route::get('property/listar', [PropertyController::class, 'listado'])->name('property.listar');
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');
+Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->name('property.approve');
 Route::post('edit/property/{id}', [PropertyController::class, 'edit'])->name('property.edit');
 Route::post('property/{id}/images', [PropertyController::class, 'uploadImages'])->name('property.images');
 Route::get('property/{id}/exclusivity-pdf', [PropertyController::class, 'generateExclusivityPdf'])->name('property.exclusivity-pdf');
