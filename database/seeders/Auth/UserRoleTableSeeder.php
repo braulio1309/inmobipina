@@ -22,6 +22,9 @@ class UserRoleTableSeeder extends Seeder
         $user = User::query()->find(1);
         $user->assignRole(config('access.users.app_admin_role'));
 
+        $advisor = User::query()->find(2);
+        $advisor->assignRole('Asesor');
+
         $this->enableForeignKeys();
     }
 }

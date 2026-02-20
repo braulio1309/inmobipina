@@ -24,14 +24,23 @@ class PermissionRoleTableSeeder extends Seeder
         // Create Roles
         $superAdmin = User::first();
 
+        $appTypeId = Type::findByAlias('app')->id;
+
         $roles = [
             [
                 'name' => config('access.users.app_admin_role'),
                 'is_admin' => 1,
-                'type_id' => Type::findByAlias('app')->id,
+                'type_id' => $appTypeId,
                 'created_by' => $superAdmin->id,
                 'is_default' => 1
-            ]
+            ],
+            [
+                'name' => 'Asesor',
+                'is_admin' => 0,
+                'type_id' => $appTypeId,
+                'created_by' => $superAdmin->id,
+                'is_default' => 0
+            ],
         ];
 
         Role::query()->insert($roles);
