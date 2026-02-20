@@ -52,17 +52,51 @@ class OperationController extends Controller
         return response()->json(['message' => 'No tienes permiso para crear cierres.'], 403);
     }
 
+    // Calculate company commission (always 5% of amount)
+    $amount = $request->amount ?? 0;
+    $companyCommissionPct = 5.00;
+    $companyCommissionAmt = round($amount * $companyCommissionPct / 100, 2);
+
     // 1. Crear la Operación
-    $operation = Operation::create($request->all());
+    $operation = Operation::create(array_merge(
+        $request->only(['type', 'property_id', 'amount', 'start_date', 'end_date', 'notes']),
+        [
+            'company_commission_percentage' => $companyCommissionPct,
+            'company_commission_amount'     => $companyCommissionAmt,
+        ]
+    ));
 
     // Guardar buyers (Relación muchos a muchos en Operation)
     if ($request->has('buyers')) {
         $operation->clients()->sync($request->buyers);
     }
 
-    // Guardar sellers (Relación muchos a muchos en Operation)
-    if ($request->has('sellers')) {
-        $operation->sellers()->sync($request->sellers);
+    // Guardar sellers con comisiones (Relación muchos a muchos en Operation)
+    if ($request->has('sellers') && is_array($request->sellers) && count($request->sellers)) {
+        $sellers = $request->sellers; // array of user IDs
+        $numSellers = count($sellers);
+        $advisorCommissionPct = round(5 / $numSellers, 4);
+        $advisorCommissionAmt = round($amount * $advisorCommissionPct / 100, 2);
+
+        // Allow override from request (e.g. sellers_commissions: [{id: 1, pct: 2.5}, ...])
+        $customCommissions = [];
+        if ($request->has('sellers_commissions') && is_array($request->sellers_commissions)) {
+            foreach ($request->sellers_commissions as $sc) {
+                if (isset($sc['id']) && isset($sc['percentage'])) {
+                    $customCommissions[$sc['id']] = $sc['percentage'];
+                }
+            }
+        }
+
+        $syncData = [];
+        foreach ($sellers as $sellerId) {
+            $pct = $customCommissions[$sellerId] ?? $advisorCommissionPct;
+            $syncData[$sellerId] = [
+                'commission_percentage' => $pct,
+                'commission_amount'     => round($amount * $pct / 100, 2),
+            ];
+        }
+        $operation->sellers()->sync($syncData);
     }
 
     // *************************************************************************
@@ -70,11 +104,11 @@ class OperationController extends Controller
     // *************************************************************************
     if ($operation->type == 'venta') {
         Sale::create([
-            'property_id'  => $operation->property_id, // O $request->property_id
-            'buyer_id'     => $request->buyers[0] ?? null, // Tomamos el primer comprador del array
-            'seller_id'    => $request->sellers[0] ?? null, // Tomamos el primer vendedor del array
-            'total_amount' => $operation->price, // Asumimos que el precio de la operación es el monto total
-            'date'         => now(), // O $request->date si viene en el request
+            'property_id'  => $operation->property_id,
+            'buyer_id'     => $request->buyers[0] ?? null,
+            'seller_id'    => $request->sellers[0] ?? null,
+            'total_amount' => $operation->amount,
+            'date'         => now(),
             'notes'        => $request->notes
         ]);
     }
@@ -82,7 +116,7 @@ class OperationController extends Controller
     // *************************************************************************
     // LOGICA PARA EXCLUSIVIDAD (Generar PDF)
     // *************************************************************************
-    $pdfUrl = null; // Variable para almacenar la URL si se genera PDF
+    $pdfUrl = null;
 
     if ($operation->type == 'exclusividad') {
         $propietario = $operation->clients->first(); 
@@ -106,25 +140,21 @@ class OperationController extends Controller
             ]
         ];
 
-        // Generar y Guardar el PDF
         $pdf = Pdf::loadView('pdf.exclusividad', $data);
         $fileName = 'contrato_exclusividad_' . $operation->id . '.pdf';
         $filePath = 'public/contracts/' . $fileName; 
         
         Storage::put($filePath, $pdf->output());
 
-        // Actualizar operación con la ruta
         $operation->update(['contract_path' => $fileName]);
 
-        // Generar URL para la respuesta
         $pdfUrl = Storage::url('contracts/' . $fileName);
     }
 
-    // 4. Devolver la respuesta al frontend (Unificada)
     return response()->json([
         'message' => 'Operation created successfully.',
         'data'    => $operation,
-        'pdf_url' => $pdfUrl, // Será null si es venta, o la URL si es exclusividad
+        'pdf_url' => $pdfUrl,
     ], 201);
 }
 
@@ -144,10 +174,18 @@ class OperationController extends Controller
 
     public function formData()
     {
+        $users = User::select('id', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn($u) => [
+                'id'    => $u->id,
+                'value' => trim($u->first_name . ' ' . $u->last_name),
+            ]);
+
         return response()->json([
             'properties' => Property::select('id', 'title as value', 'price')->get(),
             'clients'    => Client::select('id', 'name as value')->get(),
-            'users'      => User::select('id', 'first_name as value')->get(),
+            'users'      => $users,
         ]);
     }
 }

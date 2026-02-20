@@ -55,11 +55,17 @@ class RealEstateDashboardService
         $totalProperties = Property::whereBetween('created_at', [$startDate, $endDate])
             ->count();
 
+        // Total company commission from operations in the date range
+        $totalCompanyCommission = \DB::table('operations')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->whereIn('type', ['venta', 'reserva'])
+            ->sum('company_commission_amount');
+
         return [
             ['label' => 'Total Ganancias en Ventas', 'number' => $totalSalesRevenue, 'icon' => 'dollar-sign'],
             ['label' => 'Exclusividades', 'number' => $exclusivitiesCount, 'icon' => 'award'],
             ['label' => 'Captaciones Aprobadas', 'number' => $captacionesCount, 'icon' => 'home'],
-            ['label' => 'Total Propiedades', 'number' => $totalProperties, 'icon' => 'map']
+            ['label' => 'Comisión Inmobiliaria', 'number' => $totalCompanyCommission, 'icon' => 'percent'],
         ];
     }
 
