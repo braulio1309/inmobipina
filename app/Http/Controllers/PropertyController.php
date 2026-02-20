@@ -42,13 +42,13 @@ class PropertyController extends Controller
         ]);
         $data['created_by'] = Auth::id();
 
-        if (!Auth::user()->isAdmin()) {
-            $data['status'] = 'pending';
-            unset($data['approved_by']);
-        }
-
+        
+        $data['status'] = 'pending';
+        unset($data['approved_by']);
+       // unset($data['exclusivity']);
+    //La data['exclusivity '] me da eerror de Array to string conversion corrigelo por favor haz un proceso para ue no me salte mas ese error
+    
         $property = Property::create($data);
-
         // Save exclusivity contract data if provided
         if ($request->has('exclusivity_data') && is_array($request->exclusivity_data)) {
             $exData = $request->exclusivity_data;

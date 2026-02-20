@@ -153,14 +153,15 @@
 
 <script>
     import {FormMixin} from '../../../../../core/mixins/form/FormMixin';
-    import {DashboardPreloader} from "./Mixins/DashboardPreloader";
+    import {TableHelpers} from "../../Demo/Tables/mixins/TableHelpers";
     import * as actions from '../../../../Config/ApiUrl';
     import {numberFormatter} from "../../../../Helpers/Helpers";
     import Map from '../Pages/map/Map.vue';
+    
 
     export default {
         name: "Hospital",
-        mixins: [FormMixin, DashboardPreloader],
+        mixins: [FormMixin, TableHelpers],
         components: {
             Map
         },

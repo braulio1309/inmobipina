@@ -171,10 +171,9 @@ export default {
     },
 
     mounted() {
-        this.isAdmin = this.$isAdmin();
-        if (this.isAdmin) {
-            this.loadAdvisors();
-        }
+       
+        this.loadAdvisors();
+        
         this.loadReports();
     },
 
