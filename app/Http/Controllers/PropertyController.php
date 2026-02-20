@@ -42,12 +42,18 @@ class PropertyController extends Controller
         ]);
         $data['created_by'] = Auth::id();
 
-        
         $data['status'] = 'pending';
         unset($data['approved_by']);
-       // unset($data['exclusivity']);
-    //La data['exclusivity '] me da eerror de Array to string conversion corrigelo por favor haz un proceso para ue no me salte mas ese error
-    
+
+        // Normaliza el campo exclusivity: puede llegar como array (checkbox) o boolean
+        if (isset($data['exclusivity'])) {
+            if (is_array($data['exclusivity'])) {
+                $data['exclusivity'] = !empty($data['exclusivity']);
+            } else {
+                $data['exclusivity'] = (bool) $data['exclusivity'];
+            }
+        }
+
         $property = Property::create($data);
         // Save exclusivity contract data if provided
         if ($request->has('exclusivity_data') && is_array($request->exclusivity_data)) {
@@ -57,7 +63,7 @@ class PropertyController extends Controller
             Exclusivity::create($exData);
         }
 
-        return response()->json(['message' => 'Property created successfully.', 'data' => $property], 201);
+        return response()->json(['message' => 'Propiedad creada exitosamente.', 'data' => $property], 201);
     }
 
     public function uploadImages(Request $request, $id)
