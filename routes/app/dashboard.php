@@ -10,7 +10,7 @@ Route::group(['prefix' => 'dashboard'], function () {
     Route::view('/academy', 'dashboard.academy');
     Route::view('/ecommerce', 'dashboard.e-commerce');
     Route::view('/hrm', 'dashboard.hrm');
-    Route::view('/hospital', 'dashboard.hospital');
+    Route::view('/inmobiliaria', 'dashboard.hospital');
     Route::view('/hospital', 'dashboard.hospital');
     Route::view('/pos', 'dashboard.pos');
 });

@@ -52,9 +52,12 @@
 </template>
 
 <script>
+import { FormMixin } from "../../../../../../core/mixins/form/FormMixin.js";
+
 export default {
     name: 'ReportView',
-
+        mixins: [FormMixin],
+    
     provide() {
         return {
             reportFilters: this.filters,

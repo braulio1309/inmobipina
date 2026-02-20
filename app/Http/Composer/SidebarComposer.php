@@ -18,7 +18,7 @@ class SidebarComposer
                 'icon' => 'pie-chart',
                 'name' => __t('dashboard'),
                 'permission' => authorize_any(['view_default', 'view_academy', 'view_ecmommerce', 'view_hospital', 'view_hrm']),
-                'url' => request()->root() . '/dashboard/hospital',
+                'url' => request()->root() . '/dashboard/inmobiliaria',
             ],
             [
                 'id' => 'Propiedades',
