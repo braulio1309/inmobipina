@@ -9,13 +9,11 @@
         <div class="mb-3">
             <label class="form-label">Propiedad</label>
             <app-input
-                type="select"
-                    v-if="propertiesList.length"
-
+                type="search-select"
                 v-model="operation.property_id"
                 :list="propertiesList"
-                placeholder="Selecciona una propiedad"
-                @change="onPropertySelected"
+                placeholder="Buscar propiedad..."
+                @input="onPropertySelected"
             />
         </div>
 
@@ -39,6 +37,7 @@
                 type="number"
                 class="form-control"
                 placeholder="Monto de la operación"
+                @input="recalculateCommissions"
             >
             <small class="text-muted" v-if="suggestedMessage">
                 {{ suggestedMessage }}
@@ -77,15 +76,83 @@
             />
         </div>
 
-        <!-- VENDEDORES -->
+        <!-- VENDEDORES (multi-select con autocomplete) -->
         <div class="mb-3">
-            <label class="form-label">Vendedores</label>
+            <label class="form-label">Asesores / Vendedores</label>
             <app-input
-                type="select"
+                type="multi-select"
                 v-model="operation.sellers"
                 :list="sellersList"
-                placeholder="Selecciona vendedores"
+                placeholder="Selecciona asesores..."
+                @input="onSellersChanged"
             />
+        </div>
+
+        <!-- COMISIONES -->
+        <div v-if="operation.sellers.length > 0 && showAmount" class="mb-3 border rounded p-3 bg-light">
+            <h6 class="mb-3">Distribución de Comisiones (5% del monto)</h6>
+
+            <!-- Comisión Inmobiliaria -->
+            <div class="row mb-2 align-items-center">
+                <div class="col-md-4">
+                    <strong>Inmobiliaria</strong>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <input
+                            type="number"
+                            class="form-control"
+                            :value="eachPartyPercentage"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            readonly
+                        >
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-success fw-bold">
+                        ${{ formatAmount(companyCommissionAmount) }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Comisión por asesor -->
+            <div
+                v-for="seller in sellersCommissions"
+                :key="seller.id"
+                class="row mb-2 align-items-center"
+            >
+                <div class="col-md-4">
+                    <span>{{ seller.name }}</span>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <input
+                            type="number"
+                            class="form-control"
+                            v-model="seller.percentage"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            @input="onCommissionChanged"
+                        >
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-primary fw-bold">
+                        ${{ formatAmount(sellerCommissionAmount(seller.percentage)) }}
+                    </span>
+                </div>
+            </div>
+
+            <small class="text-muted">
+                Total asesores: {{ totalAdvisorPercentage.toFixed(2) }}% — 
+                Inmobiliaria: {{ eachPartyPercentage.toFixed(2) }}% — 
+                Total: {{ (totalAdvisorPercentage + eachPartyPercentage).toFixed(2) }}%
+            </small>
         </div>
 
         <!-- NOTAS -->
@@ -130,11 +197,16 @@ export default {
             showAmount: true,
             suggestedMessage: "",
 
+            COMMISSION_RATE: 5, // Total commission percentage (split equally among advisors)
+
             operationTypes: [
                 { id: "venta", value: "Venta" },
                 { id: "reserva", value: "Reserva" },
                 { id: "exclusividad", value: "Exclusividad" },
             ],
+
+            // Per-seller commission tracking [{id, name, percentage}]
+            sellersCommissions: [],
 
             operation: {
                 property_id: "",
@@ -153,16 +225,29 @@ export default {
         await this.loadData();
     },
 
+    computed: {
+        eachPartyPercentage() {
+            const numSellers = this.sellersCommissions.length;
+            return parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4));
+        },
+        companyCommissionAmount() {
+            const amt = parseFloat(this.operation.amount) || 0;
+            return amt * this.eachPartyPercentage / 100;
+        },
+        totalAdvisorPercentage() {
+            return this.sellersCommissions.reduce((sum, s) => sum + (parseFloat(s.percentage) || 0), 0);
+        },
+    },
+
     methods: {
 
         async loadData() {
-
                 const response = await this.axiosGet('/operations/form-data');
-                console.log(response.data.users)
                 
                 const properties = JSON.parse(JSON.stringify(response.data.properties));
                 const buyers = JSON.parse(JSON.stringify(response.data.clients));
                 const users = JSON.parse(JSON.stringify(response.data.users));
+
                 this.buyersList = [
                     { id: "", value: "Elige uno" },
                     ...buyers.map(c => ({
@@ -170,8 +255,6 @@ export default {
                         value: c.value,
                     }))
                 ];
-                console.log(this.buyersList)
-
 
                 // Propiedades
                 this.propertiesList = [
@@ -183,9 +266,8 @@ export default {
                     }))
                 ];
 
-                // Usuarios (vendedores)
+                // Usuarios (vendedores) — incluye Asesor Externo
                 this.sellersList = [
-                    { id: "", value: "Elige uno" },
                     ...users.map(u => ({
                         id: u.id.toString(),
                         value: u.value,
@@ -193,15 +275,10 @@ export default {
                 ];
         },
 
-        onPropertySelected() {
-            const selected = this.propertiesList.find(
-                p => p.id === this.operation.property_id
-            );
-
+        onPropertySelected(val) {
+            const selected = this.propertiesList.find(p => p.id === val);
             if (!selected) return;
-
             this.selectedPropertyPrice = selected.price;
-
             this.updateAmountByType();
         },
 
@@ -229,11 +306,59 @@ export default {
                 this.showAmount = false;
                 this.suggestedMessage = "";
             }
+
+            this.recalculateCommissions();
+        },
+
+        onSellersChanged(selectedIds) {
+            // Each party (advisor OR company) gets 5% / (numSellers + 1)
+            const numSellers = selectedIds.length;
+            const equalPct = numSellers > 0
+                ? parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4))
+                : 0;
+
+            this.sellersCommissions = selectedIds.map(id => {
+                const seller = this.sellersList.find(s => s.id === id);
+                return {
+                    id: id,
+                    name: seller ? seller.value : id,
+                    percentage: equalPct,
+                };
+            });
+        },
+
+        recalculateCommissions() {
+            // Re-distribute equally: 5% / (numSellers + 1) per party
+            const numSellers = this.sellersCommissions.length;
+            if (numSellers === 0) return;
+            const equalPct = parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4));
+            this.sellersCommissions = this.sellersCommissions.map(s => ({
+                ...s,
+                percentage: equalPct,
+            }));
+        },
+
+        onCommissionChanged() {
+            // Allow manual override — no auto recalculation
+        },
+
+        sellerCommissionAmount(pct) {
+            const amt = parseFloat(this.operation.amount) || 0;
+            return amt * (parseFloat(pct) || 0) / 100;
+        },
+
+        formatAmount(val) {
+            return (parseFloat(val) || 0).toFixed(2);
         },
 
         async saveOperation() {
             try {
-                const response = await axios.post("/operations/create", this.operation);
+                const payload = {
+                    ...this.operation,
+                    sellers: this.operation.sellers,
+                };
+
+                await axios.post("/operations/create", payload);
                 this.$toastr.s("Operación creada correctamente");
 
                 // Reiniciar formulario
@@ -248,6 +373,7 @@ export default {
                     notes: "",
                 };
                 this.selectedPropertyPrice = null;
+                this.sellersCommissions = [];
 
             } catch (error) {
                 this.$toastr.e("Error al guardar la operación");

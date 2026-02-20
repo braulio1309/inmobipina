@@ -40,6 +40,8 @@ class Operation extends Model
         'start_date',
         'end_date',
         'notes',
+        'company_commission_percentage',
+        'company_commission_amount',
     ];
 
     public function property()

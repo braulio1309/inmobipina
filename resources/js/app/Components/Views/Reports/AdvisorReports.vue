@@ -11,27 +11,20 @@
                 <div class="card-body">
                     <div v-if="isAdmin" class="form-group mb-4">
                         <label class="form-label fw-semibold">{{ $t('reports.select_advisor') }}</label>
-                        <select 
-                            v-model="selectedAdvisorId" 
-                            @change="loadReports"
-                            class="form-control"
-                        >
-                            <option value="">{{ $t('reports.my_reports') }}</option>
-                            <option 
-                                v-for="advisor in advisors" 
-                                :key="advisor.id" 
-                                :value="advisor.id"
-                            >
-                                {{ advisor.name }}
-                            </option>
-                        </select>
+                        <app-input
+                            type="search-select"
+                            v-model="selectedAdvisorId"
+                            :list="advisorSelectList"
+                            :placeholder="$t('reports.my_reports')"
+                            @input="loadReports"
+                        />
                     </div>
 
-                    <div  class="advisor-name mb-4">
+                    <div class="advisor-name mb-4">
                         <h5>{{ $t('reports.reports_for') }}: <strong>{{ reports.advisor.name }}</strong></h5>
                     </div>
 
-                    <div  class="metrics-grid">
+                    <div class="metrics-grid">
                         <div class="metric-card shadow-sm">
                             <div class="metric-icon demonstrations">
                                 <i class="fas fa-eye"></i>
@@ -71,9 +64,19 @@
                                 <h3>{{ reports.metrics.reservations_count }}</h3>
                             </div>
                         </div>
+
+                        <div class="metric-card shadow-sm" v-if="reports.metrics.total_advisor_commission !== undefined">
+                            <div class="metric-icon commission">
+                                <i class="fas fa-percent"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h6>Comisión Asesores</h6>
+                                <h3>${{ formatCurrency(reports.metrics.total_advisor_commission) }}</h3>
+                            </div>
+                        </div>
                     </div>
 
-                    <div  class="activities-section mt-4 border-0 shadow-sm">
+                    <div class="activities-section mt-4 border-0 shadow-sm">
                         <h5 class="fw-semibold mb-3">{{ $t('reports.activities_by_type') }}</h5>
                         <div class="activities-grid">
                             <div 
@@ -105,7 +108,6 @@
 </template>
 
 <script>
-// Importamos el mixin igual que en tu vista de usuario
 import { FormMixin } from '../../../../core/mixins/form/FormMixin.js';
 
 export default {
@@ -114,7 +116,17 @@ export default {
     
     data() {
         return {
-            reports: null,
+            reports: {
+                advisor: { name: '' },
+                metrics: {
+                    demonstrations_count: 0,
+                    closures_count: 0,
+                    sales_count: 0,
+                    reservations_count: 0,
+                    activities_by_type: {},
+                    total_advisor_commission: 0,
+                }
+            },
             advisors: [],
             selectedAdvisorId: '',
             isAdmin: false,
@@ -128,6 +140,15 @@ export default {
         }
     },
     
+    computed: {
+        advisorSelectList() {
+            return [
+                { id: '', value: 'Todos los Asesores' },
+                ...this.advisors.map(a => ({ id: a.id, value: a.value || a.name }))
+            ];
+        }
+    },
+
     mounted() {
         this.checkAdminRole();
         if (this.isAdmin) {
@@ -144,7 +165,6 @@ export default {
         },
         
         async loadAdvisors() {
-            // Usando axiosGet del mixin
             this.axiosGet('/app/reports/advisors')
                 .then(response => {
                     this.advisors = response.data;
@@ -155,21 +175,20 @@ export default {
         },
         
         async loadReports() {
-            this.preloader = true; // Variable controlada por FormMixin
+            this.preloader = true;
             
             const params = {};
             if (this.selectedAdvisorId) {
                 params.user_id = this.selectedAdvisorId;
             }
+            // When selectedAdvisorId is empty, backend returns aggregated data for all advisors
 
-            // Usando axiosGet con parámetros
             this.axiosGet('/app/reports/advisor', { params })
                 .then(response => {
                     this.reports = response.data;
                 })
                 .catch(error => {
                     console.error('Error loading reports:', error);
-                    // Uso de toastr.e (error) según el estándar del mixin
                     this.$toastr.e(this.$t('reports.error_loading'));
                 })
                 .finally(() => {
@@ -179,6 +198,10 @@ export default {
         
         getActivityIcon(type) {
             return this.activityIcons[type.toLowerCase()] || 'fas fa-tasks';
+        },
+
+        formatCurrency(val) {
+            return (parseFloat(val) || 0).toFixed(2);
         }
     }
 }
@@ -224,12 +247,12 @@ export default {
     color: white;
 }
 
-/* Colores degradados similares a tu estilo */
 .metric-icon.sales { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
 .metric-icon.reservations { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
 .metric-icon.properties { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
 .metric-icon.demonstrations { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
 .metric-icon.closures { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+.metric-icon.commission { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); }
 
 .metric-content h6 {
     margin: 0;

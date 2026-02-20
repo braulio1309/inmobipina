@@ -12,21 +12,16 @@ class ReportController extends Controller
     /**
      * Obtener reportes del asesor
      * - Si es admin, puede filtrar por user_id
-     * - Si es asesor, solo ve sus propios datos
+     * - Si no se selecciona asesor, agrega datos de todos los asesores
      */
     public function getAdvisorReports(Request $request)
     {
         $user = auth()->user();
         $userId = $request->get('user_id');
 
-        // Si no es admin, forzar que vea solo sus datos
-        /*if (!$user->hasRole('Admin') && !$user->hasRole('Administrator')) {
-            $userId = $user->id;
-        }*/
-
-        // Si no se especifica usuario, usar el autenticado
+        // If no user_id provided: aggregate all advisors
         if (!$userId) {
-            $userId = $user->id;
+            return $this->getAllAdvisorsReport();
         }
 
         $advisor = User::findOrFail($userId);
@@ -44,6 +39,43 @@ class ReportController extends Controller
                 'closures_count' => $this->getClosuresCount($userId),
                 'activities_by_type' => $this->getActivitiesByType($userId),
                 'total_activities' => $this->getTotalActivities($userId),
+                'total_advisor_commission' => $this->getTotalAdvisorCommission($userId),
+            ]
+        ]);
+    }
+
+    /**
+     * Aggregate report for ALL advisors combined
+     */
+    private function getAllAdvisorsReport()
+    {
+        return response()->json([
+            'advisor' => [
+                'id' => null,
+                'name' => 'Todos los Asesores',
+            ],
+            'metrics' => [
+                'sales_count' => DB::table('sales')->count(),
+                'reservations_count' => DB::table('operations')
+                    ->where('type', 'reserva')
+                    ->count(),
+                'properties_count' => DB::table('properties')
+                    ->whereNotNull('approved_by')
+                    ->count(),
+                'demonstrations_count' => DB::table('activities')
+                    ->where('type', 'demostración')
+                    ->count(),
+                'closures_count' => DB::table('activities')
+                    ->whereIn('type', ['venta', 'reserva', 'alquiler'])
+                    ->count(),
+                'activities_by_type' => DB::table('activities')
+                    ->select('type', DB::raw('COUNT(*) as count'))
+                    ->groupBy('type')
+                    ->get()
+                    ->mapWithKeys(fn($item) => [$item->type => $item->count]),
+                'total_activities' => DB::table('activities')->count(),
+                'total_advisor_commission' => DB::table('operation_user')
+                    ->sum('commission_amount'),
             ]
         ]);
     }
@@ -81,6 +113,13 @@ class ReportController extends Controller
             });
 
         return response()->json($advisors);
+    }
+
+    private function getTotalAdvisorCommission($userId)
+    {
+        return DB::table('operation_user')
+            ->where('user_id', $userId)
+            ->sum('commission_amount');
     }
 
     private function getSalesCount($userId)
