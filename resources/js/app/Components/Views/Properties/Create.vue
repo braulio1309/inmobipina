@@ -488,6 +488,11 @@ export default {
                 this.savedPropertyId = response.data.data.id;
                 this.$toastr.s('Propiedad guardada exitosamente');
 
+                // Si tiene datos de exclusividad, descargar el PDF automáticamente
+                if (hasExclusivityData && this.savedPropertyId) {
+                    window.location.href = '/property/' + this.savedPropertyId + '/exclusivity-pdf';
+                }
+
                 console.log(response.data);
             } catch (error) {
                 console.error(error);
