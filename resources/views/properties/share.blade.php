@@ -161,6 +161,87 @@
             margin: 20px 0;
         }
 
+        /* Carousel styles */
+        .carousel {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            background: #000;
+        }
+
+        .carousel-inner {
+            display: flex;
+            transition: transform 0.4s ease;
+        }
+
+        .carousel-item {
+            min-width: 100%;
+            position: relative;
+        }
+
+        .carousel-item img {
+            width: 100%;
+            height: 450px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            padding: 14px 18px;
+            cursor: pointer;
+            font-size: 1.4rem;
+            z-index: 10;
+            border-radius: 4px;
+        }
+
+        .carousel-btn:hover {
+            background: rgba(0,0,0,0.8);
+        }
+
+        .carousel-btn-prev { left: 10px; }
+        .carousel-btn-next { right: 10px; }
+
+        .carousel-indicators {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+        }
+
+        .carousel-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            cursor: pointer;
+            border: none;
+        }
+
+        .carousel-dot.active {
+            background: white;
+        }
+
+        .carousel-counter {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
         @media (max-width: 768px) {
             .property-title {
                 font-size: 1.5rem;
@@ -177,6 +258,10 @@
             .content {
                 padding: 20px;
                 margin: 20px auto;
+            }
+
+            .carousel-item img {
+                height: 240px;
             }
         }
     </style>
@@ -196,6 +281,35 @@
 
     <div class="container">
         <div class="content">
+
+            {{-- Image carousel --}}
+            @if($property->images && $property->images->count() > 0)
+            <div class="carousel" id="propertyCarousel">
+                <div class="carousel-inner" id="carouselInner">
+                    @foreach($property->images as $image)
+                    <div class="carousel-item">
+                        <img src="{{ asset('storage/' . $image->path) }}" alt="{{ $property->title }}">
+                    </div>
+                    @endforeach
+                </div>
+
+                @if($property->images->count() > 1)
+                <button class="carousel-btn carousel-btn-prev" onclick="carouselPrev()" aria-label="Imagen anterior">&#10094;</button>
+                <button class="carousel-btn carousel-btn-next" onclick="carouselNext()" aria-label="Imagen siguiente">&#10095;</button>
+
+                <div class="carousel-indicators" id="carouselIndicators">
+                    @foreach($property->images as $i => $image)
+                    <button class="carousel-dot {{ $i === 0 ? 'active' : '' }}" onclick="goToSlide({{ $i }})" aria-label="Ir a imagen {{ $i + 1 }}"></button>
+                    @endforeach
+                </div>
+
+                <div class="carousel-counter" id="carouselCounter">
+                    1 / {{ $property->images->count() }}
+                </div>
+                @endif
+            </div>
+            @endif
+
             <h1 class="property-title">{{ $property->title }}</h1>
             
             <div class="property-price">
@@ -269,5 +383,39 @@
             <p>&copy; {{ date('Y') }} {{ config('app.name') }}. Todos los derechos reservados.</p>
         </div>
     </div>
+
+    @if($property->images && $property->images->count() > 1)
+    <script>
+        var currentSlide = 0;
+        var totalSlides = {{ $property->images->count() }};
+
+        function updateCarousel() {
+            document.getElementById('carouselInner').style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
+            document.getElementById('carouselCounter').textContent = (currentSlide + 1) + ' / ' + totalSlides;
+            var dots = document.querySelectorAll('.carousel-dot');
+            dots.forEach(function(dot, i) {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+        }
+
+        function carouselNext() {
+            currentSlide = (currentSlide + 1) % totalSlides;
+            updateCarousel();
+        }
+
+        function carouselPrev() {
+            currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+            updateCarousel();
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            updateCarousel();
+        }
+
+        // Auto-advance every 5 seconds
+        setInterval(carouselNext, 5000);
+    </script>
+    @endif
 </body>
 </html>

@@ -69,4 +69,9 @@ class Property extends Model
     {
         return $this->hasMany(Sale::class);
     }
+
+    public function images()
+    {
+        return $this->hasMany(PropertyImage::class)->orderBy('order');
+    }
 }

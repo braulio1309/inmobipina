@@ -185,6 +185,10 @@
                             title: 'Compartir',
                             type: 'none',
                         },
+                        {
+                            title: 'Contrato',
+                            type: 'none',
+                        },
                     ],
                 },
             }
@@ -217,6 +221,11 @@
                     // Open the public share link in a new window
                     const shareUrl = `${window.location.origin}/property/share/${rowData.id}`;
                     window.open(shareUrl, '_blank');
+
+                } else if (actionObj.title == 'Contrato') {
+                    // Download exclusivity contract PDF
+                    const pdfUrl = `${window.location.origin}/property/${rowData.id}/exclusivity-pdf`;
+                    window.open(pdfUrl, '_blank');
 
                 } else if (actionObj.title == this.$t('active')) {
 
