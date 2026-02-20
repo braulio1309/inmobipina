@@ -87,17 +87,16 @@
                             "title": 'Fecha',
                             "type": "range-picker",
                             "key": "date",
-                            "option": ["hoy", "Este mes", "Ultima semana", "Ultimo año"]
+                            "option": ["today", "thisMonth", "last7Days", "lastYear"]
                         },
                         {
-                            "title": 'Estatus',
+                            "title": 'Tipo',
                             "type": "checkbox",
-                            "key": "status",
+                            "key": "type",
                             "option": [
-                                {id: 'No disponible', value: 'No disponible'},
-                                {id: 'Disponible', value: 'Disponible'},
-                                {id: 'Reservado', value: 'Reservado'},
-                                {id: 'Vendido', value: 'Vendido'},
+                                {id: 'venta', value: 'Venta'},
+                                {id: 'reserva', value: 'Reserva'},
+                                {id: 'exclusividad', value: 'Exclusividad'},
                             ],
                         },
                        

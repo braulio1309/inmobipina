@@ -24,6 +24,26 @@ class ActivityFilter extends FilterBuilder
         $this->whereClause('raza', "%{$raza}%", 'LIKE');
     }
 
+    public function type($type = null)
+    {
+        $type = $type ?: request()->input('type');
+        $this->builder->when($type, function (Builder $builder) use ($type) {
+            $types = is_array($type) ? $type : explode(',', $type);
+            $builder->whereIn('type', array_filter($types));
+        });
+    }
+
+    public function date($date = null)
+    {
+        $date = $date ?: request()->input('date');
+        if (is_string($date)) {
+            $date = json_decode(htmlspecialchars_decode($date), true);
+        }
+        $this->builder->when($date && is_array($date) && isset($date['start']), function (Builder $builder) use ($date) {
+            $builder->whereBetween(DB::raw('DATE(date)'), [$date['start'], $date['end']]);
+        });
+    }
+
     public function search($search = null)
     {
         return $this->builder->when($search, function (Builder $builder) use ($search) {
