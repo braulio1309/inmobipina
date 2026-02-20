@@ -16,6 +16,10 @@ class PropertyFilter extends FilterContact
      */
     public function filter() : Builder
     {
+        if (!auth()->user()->isAdmin()) {
+            $this->query->where('status', 'Disponible');
+        }
+
         return $this->query;
     }
 }

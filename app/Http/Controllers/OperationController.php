@@ -48,6 +48,10 @@ class OperationController extends Controller
 
     public function create(Request $request)
 {
+    if (!Auth::user()->isAdmin()) {
+        return response()->json(['message' => 'No tienes permiso para crear cierres.'], 403);
+    }
+
     // 1. Crear la Operación
     $operation = Operation::create($request->all());
 

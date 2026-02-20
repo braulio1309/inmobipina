@@ -16,6 +16,13 @@ class OperationFilter extends FilterContact
      */
     public function filter() : Builder
     {
+        if (!auth()->user()->isAdmin()) {
+            $userId = auth()->id();
+            $this->query->whereHas('sellers', function ($q) use ($userId) {
+                $q->where('users.id', $userId);
+            });
+        }
+
         return $this->query;
     }
 }

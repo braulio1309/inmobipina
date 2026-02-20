@@ -30,6 +30,15 @@ class UserTableSeeder extends Seeder
             'status_id' => Status::findByNameAndType('status_active', 'user')->id
         ]);
 
+        // Add a test advisor user, user id of 2
+        User::query()->create([
+            'first_name' => 'Asesor',
+            'last_name' => 'Demo',
+            'email' => 'asesor@demo.com',
+            'password' => Hash::make('123456'),
+            'status_id' => Status::findByNameAndType('status_active', 'user')->id
+        ]);
+
 
         $this->enableForeignKeys();
     }
