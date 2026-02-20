@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $property->title }} - Inmobipina</title>
     <link rel="shortcut icon" href="{{ url(config('settings.application.company_icon')) }}" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -14,16 +15,16 @@
 
         body {
             font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #F9F9F9;
+            background-color: #ffffff;
             color: #333;
             line-height: 1.6;
         }
 
+        /* Cabecera Minimalista */
         .header {
-            background-color: #337300;
-            color: white;
+            background-color: #ffffff;
             padding: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-bottom: 1px solid #eaeaea;
         }
 
         .container {
@@ -35,155 +36,47 @@
         .logo-section {
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start; /* Alineado a la izquierda para más elegancia */
         }
 
         .logo {
-            max-height: 60px;
+            max-height: 45px;
             max-width: 200px;
+            object-fit: contain;
         }
 
-        .content {
-            background: white;
+        /* Galería Panorámica (Carrusel) */
+        .property-gallery {
+            position: relative;
             margin: 30px auto;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .property-title {
-            font-size: 2rem;
-            color: #337300;
-            margin-bottom: 10px;
-            font-weight: 600;
-        }
-
-        .property-price {
-            font-size: 1.8rem;
-            color: #337300;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-
-        .property-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-            padding: 20px;
-            background-color: #E8F5E3;
-            border-radius: 8px;
-        }
-
-        .detail-item {
-            text-align: center;
-        }
-
-        .detail-label {
-            font-size: 0.9rem;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 5px;
-        }
-
-        .detail-value {
-            font-size: 1.3rem;
-            color: #337300;
-            font-weight: 600;
-        }
-
-        .property-description {
-            margin: 30px 0;
-        }
-
-        .property-description h3 {
-            color: #337300;
-            margin-bottom: 15px;
-            font-size: 1.4rem;
-        }
-
-        .property-description p {
-            color: #555;
-            line-height: 1.8;
-            font-size: 1rem;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 6px 12px;
             border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            margin: 5px;
+            overflow: hidden;
+            height: 550px;
+            background-color: #f8f8f8;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
         }
 
-        .badge-success {
-            background-color: #337300;
-            color: white;
-        }
-
-        .badge-info {
-            background-color: #38a4f8;
-            color: white;
-        }
-
-        .badge-warning {
-            background-color: #EB5C00;
-            color: white;
-        }
-
-        .badge-primary {
-            background-color: #4466F2;
-            color: white;
-        }
-
-        .property-address {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-left: 4px solid #337300;
-            border-radius: 4px;
-        }
-
-        .property-address strong {
-            color: #337300;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 30px 0;
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .type-badges {
-            margin: 20px 0;
-        }
-
-        /* Carousel styles */
         .carousel {
             position: relative;
             width: 100%;
-            overflow: hidden;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            background: #000;
+            height: 100%;
         }
 
         .carousel-inner {
             display: flex;
-            transition: transform 0.4s ease;
+            height: 100%;
+            transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
         .carousel-item {
             min-width: 100%;
+            height: 100%;
             position: relative;
         }
 
         .carousel-item img {
             width: 100%;
-            height: 450px;
+            height: 100%;
             object-fit: cover;
             display: block;
         }
@@ -192,82 +85,184 @@
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(0,0,0,0.5);
-            color: white;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
             border: none;
-            padding: 14px 18px;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
             cursor: pointer;
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             z-index: 10;
-            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            transition: all 0.2s ease;
         }
 
         .carousel-btn:hover {
-            background: rgba(0,0,0,0.8);
+            background: #fff;
+            transform: translateY(-50%) scale(1.05);
         }
 
-        .carousel-btn-prev { left: 10px; }
-        .carousel-btn-next { right: 10px; }
+        .carousel-btn-prev { left: 20px; }
+        .carousel-btn-next { right: 20px; }
 
-        .carousel-indicators {
+        .share-btn {
             position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 20px;
+            right: 20px;
+            background: #fff;
+            border: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            cursor: pointer;
+            z-index: 10;
+            transition: transform 0.2s ease;
+        }
+
+        .share-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Contenido Principal de la Propiedad */
+        .property-info {
+            max-width: 900px;
+            margin: 0 auto 50px auto;
+            padding: 0 20px;
+        }
+
+        .features-row {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            margin-bottom: 15px;
+            color: #444;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
             gap: 8px;
         }
 
-        .carousel-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.5);
-            cursor: pointer;
-            border: none;
+        .feature-item svg {
+            width: 22px;
+            height: 22px;
+            fill: none;
+            stroke: #444;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
-        .carousel-dot.active {
-            background: white;
+        .property-title {
+            font-size: 2.2rem;
+            color: #111;
+            font-weight: 700;
+            margin-bottom: 5px;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
         }
 
-        .carousel-counter {
-            position: absolute;
-            top: 10px;
-            right: 14px;
-            background: rgba(0,0,0,0.5);
-            color: white;
-            padding: 4px 10px;
+        .property-address {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            font-weight: 400;
+        }
+
+        .price-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 35px;
+        }
+
+        .property-price {
+            font-size: 2.4rem;
+            color: #111;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .badge-ref {
+            background-color: #E8F5E3; /* Verde muy sutil */
+            color: #337300; /* Tu verde principal */
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        /* Etiquetas secundarias */
+        .tags-row {
+            margin-bottom: 30px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-type { background-color: #f4f4f4; color: #444; }
+        .badge-sale { background-color: #337300; color: #fff; } 
+        .badge-exclusive { background-color: #111; color: #fff; }
+
+        .property-description {
+            color: #555;
+            font-size: 1.05rem;
+            line-height: 1.8;
+            white-space: pre-line;
+            padding-top: 20px;
+            border-top: 1px solid #eaeaea;
         }
 
-        @media (max-width: 768px) {
-            .property-title {
-                font-size: 1.5rem;
-            }
+        .footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #888;
+            font-size: 0.9rem;
+            border-top: 1px solid #eaeaea;
+        }
 
-            .property-price {
-                font-size: 1.4rem;
-            }
-
-            .property-details {
-                grid-template-columns: 1fr;
-            }
-
-            .content {
-                padding: 20px;
+        @media (max-width: 900px) {
+            .property-gallery {
+                height: 350px;
+                border-radius: 12px;
                 margin: 20px auto;
             }
-
-            .carousel-item img {
-                height: 240px;
+            .property-title {
+                font-size: 1.8rem;
+            }
+            .property-price {
+                font-size: 1.8rem;
+            }
+            .features-row {
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            .logo-section {
+                justify-content: center; /* Centrar logo en móviles */
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
+    <header class="header">
         <div class="container">
             <div class="logo-section">
                 @if(filter_var(config('settings.application.company_logo'), FILTER_VALIDATE_URL))
@@ -277,12 +272,20 @@
                 @endif
             </div>
         </div>
-    </div>
+    </header>
 
     <div class="container">
-        <div class="content">
+        <div class="property-gallery">
+            <button class="share-btn" aria-label="Compartir">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+            </button>
 
-            {{-- Image carousel --}}
             @if($property->images && $property->images->count() > 0)
             <div class="carousel" id="propertyCarousel">
                 <div class="carousel-inner" id="carouselInner">
@@ -294,95 +297,75 @@
                 </div>
 
                 @if($property->images->count() > 1)
-                <button class="carousel-btn carousel-btn-prev" onclick="carouselPrev()" aria-label="Imagen anterior">&#10094;</button>
-                <button class="carousel-btn carousel-btn-next" onclick="carouselNext()" aria-label="Imagen siguiente">&#10095;</button>
-
-                <div class="carousel-indicators" id="carouselIndicators">
-                    @foreach($property->images as $i => $image)
-                    <button class="carousel-dot {{ $i === 0 ? 'active' : '' }}" onclick="goToSlide({{ $i }})" aria-label="Ir a imagen {{ $i + 1 }}"></button>
-                    @endforeach
-                </div>
-
-                <div class="carousel-counter" id="carouselCounter">
-                    1 / {{ $property->images->count() }}
-                </div>
+                <button class="carousel-btn carousel-btn-prev" onclick="carouselPrev()" aria-label="Anterior">&#10094;</button>
+                <button class="carousel-btn carousel-btn-next" onclick="carouselNext()" aria-label="Siguiente">&#10095;</button>
                 @endif
             </div>
             @endif
+        </div>
+    </div>
 
-            <h1 class="property-title">{{ $property->title }}</h1>
-            
+    <div class="property-info">
+        
+        <div class="features-row">
+            @if($property->bathrooms)
+            <div class="feature-item">
+                <svg viewBox="0 0 24 24"><path d="M7 2v10H3V2h4zm14 10V2h-4v10h4zM4 14a2 2 0 0 0-2 2v4h2v-2h16v2h2v-4a2 2 0 0 0-2-2H4z"></path></svg>
+                <span>{{ $property->bathrooms }} baño</span>
+            </div>
+            @endif
+
+            @if($property->bedrooms)
+            <div class="feature-item">
+                <svg viewBox="0 0 24 24"><path d="M3 14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4z"></path><path d="M7 10V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"></path></svg>
+                <span>{{ $property->bedrooms }} dor.</span>
+            </div>
+            @endif
+
+            @if($property->square_meters)
+            <div class="feature-item">
+                <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"></path></svg>
+                <span>{{ $property->square_meters }}m²</span>
+            </div>
+            @endif
+        </div>
+
+        <h1 class="property-title">{{ $property->title }}</h1>
+        <p class="property-address">{{ $property->address }}</p>
+
+        <div class="price-badge-row">
             <div class="property-price">
                 ${{ number_format($property->price, 2) }}
             </div>
-
-            <div class="type-badges">
-                @if($property->type)
-                    @php
-                        $typeClass = 'primary';
-                        if ($property->type == 'Casa') $typeClass = 'warning';
-                        if ($property->type == 'Terreno') $typeClass = 'success';
-                        if ($property->type == 'Galpon') $typeClass = 'info';
-                        if ($property->type == 'Local') $typeClass = 'primary';
-                    @endphp
-                    <span class="badge badge-{{ $typeClass }}">{{ $property->type }}</span>
-                @endif
-
-                @if($property->type_sale)
-                    @php
-                        $saleClass = 'primary';
-                        if ($property->type_sale == 'alquiler') $saleClass = 'info';
-                        if ($property->type_sale == 'venta') $saleClass = 'success';
-                    @endphp
-                    <span class="badge badge-{{ $saleClass }}">{{ ucfirst($property->type_sale) }}</span>
-                @endif
-
-                @if($property->exclusivity)
-                    <span class="badge badge-warning">Exclusivo</span>
-                @endif
+            <div class="badge-ref">
+                Exp. #{{ str_pad($property->id, 4, '0', STR_PAD_LEFT) }}
             </div>
+        </div>
 
-            <div class="property-address">
-                <strong>📍 Ubicación:</strong> {{ $property->address }}
-            </div>
-
-            <div class="property-details">
-                @if($property->bedrooms)
-                <div class="detail-item">
-                    <div class="detail-label">Dormitorios</div>
-                    <div class="detail-value">{{ $property->bedrooms }}</div>
-                </div>
-                @endif
-
-                @if($property->bathrooms)
-                <div class="detail-item">
-                    <div class="detail-label">Baños</div>
-                    <div class="detail-value">{{ $property->bathrooms }}</div>
-                </div>
-                @endif
-
-                @if($property->square_meters)
-                <div class="detail-item">
-                    <div class="detail-label">Superficie</div>
-                    <div class="detail-value">{{ $property->square_meters }} m²</div>
-                </div>
-                @endif
-            </div>
-
-            @if($property->description)
-            <div class="property-description">
-                <h3>Descripción</h3>
-                <p>{{ $property->description }}</p>
-            </div>
+        <div class="tags-row">
+            @if($property->type)
+                <span class="badge badge-type">{{ $property->type }}</span>
+            @endif
+            @if($property->type_sale)
+                <span class="badge badge-sale">{{ ucfirst($property->type_sale) }}</span>
+            @endif
+            @if($property->exclusivity)
+                <span class="badge badge-exclusive">Exclusivo</span>
             @endif
         </div>
+
+        @if($property->description)
+        <div class="property-description">
+            {{ $property->description }}
+        </div>
+        @endif
     </div>
 
-    <div class="footer">
+    <footer class="footer">
         <div class="container">
             <p>&copy; {{ date('Y') }} {{ config('app.name') }}. Todos los derechos reservados.</p>
         </div>
-    </div>
+    </footer>
 
     @if($property->images && $property->images->count() > 1)
     <script>
@@ -391,11 +374,6 @@
 
         function updateCarousel() {
             document.getElementById('carouselInner').style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
-            document.getElementById('carouselCounter').textContent = (currentSlide + 1) + ' / ' + totalSlides;
-            var dots = document.querySelectorAll('.carousel-dot');
-            dots.forEach(function(dot, i) {
-                dot.classList.toggle('active', i === currentSlide);
-            });
         }
 
         function carouselNext() {
@@ -407,14 +385,6 @@
             currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
             updateCarousel();
         }
-
-        function goToSlide(index) {
-            currentSlide = index;
-            updateCarousel();
-        }
-
-        // Auto-advance every 5 seconds
-        setInterval(carouselNext, 5000);
     </script>
     @endif
 </body>
