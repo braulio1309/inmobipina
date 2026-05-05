@@ -10,7 +10,7 @@ if (! function_exists('home_route')) {
     {
         if (auth()->check()) {
             return [
-                'route_name' => 'core.dashboard',
+                'route_name' => 'dashboard.hospital',
                 'route_params' => null
             ];
         }

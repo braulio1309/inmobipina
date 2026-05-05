@@ -78,7 +78,7 @@ export default {
                         isVisible: true
                     },
                      {
-                        title: 'type',
+                        title: 'Tipo',
                         type: 'custom-html',
                         key: 'type',
                         isVisible: true,
@@ -92,7 +92,7 @@ export default {
                         }
                     },
                     {
-                        title: 'description',
+                        title: 'Descripción',
                         type: 'text',
                         key: 'description',
                         isVisible: true,
@@ -101,7 +101,7 @@ export default {
                         },
                     },
                     {
-                        title: 'date',
+                        title: 'Fecha',
                         type: 'text',
                         key: 'date',
                         isVisible: true,
@@ -110,7 +110,7 @@ export default {
                         },
                     },
                     {
-                        title: 'result',
+                        title: 'Resultado',
                         type: 'text',
                         key: 'result',
                         isVisible: true,

@@ -32,6 +32,7 @@ Route::group(['prefix' => 'app/reports'], function () {
     Route::get('/advisors', [ReportController::class, 'getAdvisors']);
 });
 Route::get('property/listar', [PropertyController::class, 'listado'])->name('property.listar');
+Route::get('property/{id}', [PropertyController::class, 'show'])->name('property.show');
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');
 Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->name('property.approve');
 Route::post('edit/property/{id}', [PropertyController::class, 'edit'])->name('property.edit');

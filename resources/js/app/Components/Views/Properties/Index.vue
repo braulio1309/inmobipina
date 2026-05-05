@@ -26,7 +26,7 @@
                     showClearFilter: true,
                     columns: [
                         {
-                            title: 'title',
+                            title: 'Título',
                             type: 'text',
                             key: 'title',
                             default: "",
@@ -36,7 +36,7 @@
                             }
                         },
                         {
-                            title: 'address',
+                            title: 'Dirección',
                             type: 'text',
                             key: 'address',
                             default: "",
@@ -45,8 +45,8 @@
                                 return row.address;
                             }
                         },
-                                                {
-                            title: 'type',
+                        {
+                            title: 'Tipo',
                             type: 'custom-html',
                             key: 'type',
                             default: "",
@@ -67,7 +67,7 @@
 
                         
                         {
-                            title: 'square_meters',
+                            title: 'Metros²',
                             type: 'custom-html',
                             key: 'square_meters',
                             default: "",
@@ -77,7 +77,7 @@
                             }
                         },
                         {
-                            title: 'price',
+                            title: 'Precio',
                             type: 'custom-html',
                             key: 'price',
                             default: "",
@@ -87,7 +87,7 @@
                             }
                         },
                         {
-                            title: 'type_sale',
+                            title: 'Tipo de Venta',
                             type: 'custom-html',
                             key: 'type_sale',
                             default: "",
@@ -103,7 +103,7 @@
                             }
                         },
                         {
-                            title: 'status',
+                            title: 'Estatus',
                             type: 'custom-html',
                             key: 'status',
                             default: "",
