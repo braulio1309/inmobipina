@@ -161,9 +161,10 @@ class PropertyController extends Controller
         return created_responses('Transaction');
     }
 
-    public function show(Property $Property)
+    public function show($id)
     {
-        return response()->json($Property);
+        $property = Property::with('images')->findOrFail($id);
+        return response()->json($property);
     }
 }
 

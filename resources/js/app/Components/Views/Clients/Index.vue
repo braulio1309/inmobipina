@@ -27,7 +27,7 @@
                     showClearFilter: true,
                     columns: [
                         {
-                            title: 'id',
+                            title: '#',
                             type: 'text',
                             key: 'id',
                             default: "",
@@ -37,7 +37,7 @@
                             }
                         },
                         {
-                            title: 'name',
+                            title: 'Nombre',
                             type: 'text',
                             key: 'name',
                             default: "",
@@ -48,7 +48,7 @@
 
                         },
                         {
-                            title: 'email',
+                            title: 'Correo',
                             type: 'text',
                             key: 'email',
                             default: "",
@@ -59,7 +59,7 @@
 
                         },
                         {
-                            title: 'phone',
+                            title: 'Teléfono',
                             type: 'text',
                             key: 'phone',
                             default: "",

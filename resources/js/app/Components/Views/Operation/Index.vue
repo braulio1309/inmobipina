@@ -26,7 +26,7 @@
                     showClearFilter: true,
                     columns: [
                         {
-                            title: 'id',
+                            title: '#',
                             type: 'text',
                             key: 'id',
                             default: "",
@@ -36,7 +36,7 @@
                             }
                         },
                         {
-                            title: 'sellers_names',
+                            title: 'Vendedores',
                             type: 'text',
                             key: 'sellers_names',
                             default: "",
@@ -47,7 +47,7 @@
 
                         },
                         {
-                            title: 'type',
+                            title: 'Tipo',
                             type: 'custom-html',
                             key: 'type',
                             default: "",
@@ -62,7 +62,7 @@
                             }
                         },
                         {
-                            title: 'amount',
+                            title: 'Monto',
                             type: 'custom-html',
                             key: 'amount',
                             default: "",

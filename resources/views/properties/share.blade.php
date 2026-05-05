@@ -359,6 +359,19 @@
             {{ $property->description }}
         </div>
         @endif
+
+        @if($property->map_lat && $property->map_lng)
+        <div class="property-map-section" style="margin-top: 30px;">
+            <h3 style="font-size: 1.2rem; font-weight: 600; margin-bottom: 12px; color: #111;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                Ubicación
+            </h3>
+            <div id="property-share-map" style="height: 320px; border-radius: 14px; overflow: hidden; border: 1px solid #eaeaea;"></div>
+        </div>
+        @endif
     </div>
 
     <footer class="footer">
@@ -385,6 +398,24 @@
             currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
             updateCarousel();
         }
+    </script>
+    @endif
+
+    @if($property->map_lat && $property->map_lng)
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var lat = {{ (float) $property->map_lat }};
+            var lng = {{ (float) $property->map_lng }};
+            var map = L.map('property-share-map').setView([lat, lng], 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup('{{ addslashes($property->title) }}')
+                .openPopup();
+        });
     </script>
     @endif
 </body>

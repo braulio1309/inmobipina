@@ -11,7 +11,7 @@ Route::group(['prefix' => 'dashboard'], function () {
     Route::view('/ecommerce', 'dashboard.e-commerce');
     Route::view('/hrm', 'dashboard.hrm');
     Route::view('/inmobiliaria', 'dashboard.hospital');
-    Route::view('/hospital', 'dashboard.hospital');
+    Route::view('/hospital', 'dashboard.hospital')->name('dashboard.hospital');
     Route::view('/pos', 'dashboard.pos');
 });
 

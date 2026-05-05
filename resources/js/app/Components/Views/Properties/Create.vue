@@ -89,6 +89,15 @@
                 >
             </div>
 
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-map-marker-alt mr-1 text-danger"></i>
+                    Ubicación en el Mapa
+                </label>
+                <p class="text-muted small mb-2">Haz clic en el mapa para marcar la ubicación de la propiedad. Las coordenadas se guardarán automáticamente.</p>
+                <div id="property-map" style="height: 350px; border-radius: 10px; border: 1px solid #dee2e6;"></div>
+            </div>
+
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Latitud</label>
@@ -97,6 +106,7 @@
                         type="text" 
                         class="form-control"
                         placeholder="Ej: 10.4928"
+                        readonly
                     >
                 </div>
                 <div class="col-md-6 mb-3">
@@ -106,6 +116,7 @@
                         type="text" 
                         class="form-control"
                         placeholder="Ej: -66.8792"
+                        readonly
                     >
                 </div>
             </div>
@@ -344,6 +355,8 @@ export default {
             selectedFiles: [],
             filePreviews: [],
             uploadedImages: [],
+            leafletMap: null,
+            leafletMarker: null,
             tabs: [
                 { label: "Detalles" },
                 { label: "Ubicación" },
@@ -444,7 +457,105 @@ export default {
         };
     },
 
+    watch: {
+        activeTab(newTab) {
+            if (newTab === 1) {
+                this.$nextTick(() => {
+                    this.initMap();
+                });
+            }
+        }
+    },
+
+    mounted() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const propertyId = urlParams.get('id');
+        if (propertyId) {
+            this.savedPropertyId = propertyId;
+            this.loadPropertyData(propertyId);
+        }
+    },
+
     methods: {
+        async loadPropertyData(id) {
+            try {
+                const res = await axios.get(`/property/${id}`);
+                const p = res.data;
+                this.property.title = p.title || '';
+                this.property.description = p.description || '';
+                this.property.bathrooms = p.bathrooms || '';
+                this.property.bedrooms = p.bedrooms || '';
+                this.property.square_meters = p.square_meters || '';
+                this.property.address = p.address || '';
+                this.property.map_lat = p.map_lat || '';
+                this.property.map_lng = p.map_lng || '';
+                this.property.type = p.type || '';
+                this.property.price = p.price || '';
+                this.property.exclusivity = p.exclusivity || false;
+                this.property.type_sale = p.type_sale || '';
+                if (p.images && p.images.length) {
+                    this.uploadedImages = p.images;
+                }
+            } catch (e) {
+                console.error('Error al cargar la propiedad:', e);
+            }
+        },
+        loadLeaflet() {
+            return new Promise((resolve) => {
+                if (window.L) {
+                    resolve(window.L);
+                    return;
+                }
+                // Load Leaflet CSS
+                if (!document.getElementById('leaflet-css')) {
+                    const link = document.createElement('link');
+                    link.id = 'leaflet-css';
+                    link.rel = 'stylesheet';
+                    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                    document.head.appendChild(link);
+                }
+                // Load Leaflet JS
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                script.onload = () => resolve(window.L);
+                document.head.appendChild(script);
+            });
+        },
+
+        async initMap() {
+            const mapEl = document.getElementById('property-map');
+            if (!mapEl || this.leafletMap) return;
+
+            const L = await this.loadLeaflet();
+
+            const defaultLat = this.property.map_lat ? parseFloat(this.property.map_lat) : 10.4910;
+            const defaultLng = this.property.map_lng ? parseFloat(this.property.map_lng) : -66.8792;
+            const defaultZoom = this.property.map_lat ? 15 : 8;
+
+            this.leafletMap = L.map('property-map').setView([defaultLat, defaultLng], defaultZoom);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(this.leafletMap);
+
+            // Place existing marker if coordinates are saved
+            if (this.property.map_lat && this.property.map_lng) {
+                this.leafletMarker = L.marker([defaultLat, defaultLng]).addTo(this.leafletMap);
+            }
+
+            // Click to set marker
+            this.leafletMap.on('click', (e) => {
+                const { lat, lng } = e.latlng;
+                this.property.map_lat = lat.toFixed(6);
+                this.property.map_lng = lng.toFixed(6);
+
+                if (this.leafletMarker) {
+                    this.leafletMarker.setLatLng([lat, lng]);
+                } else {
+                    this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
+                }
+            });
+        },
         onFilesSelected(event) {
             this.selectedFiles = Array.from(event.target.files);
             this.filePreviews = [];
@@ -484,13 +595,19 @@ export default {
                     exclusivity_data: hasExclusivityData ? this.exclusivityData : undefined,
                 };
 
-                const response = await axios.post("/property/create", payload);
-                this.savedPropertyId = response.data.data.id;
-                this.$toastr.s('Propiedad guardada exitosamente');
+                let response;
+                if (this.savedPropertyId) {
+                    response = await axios.post(`/edit/property/${this.savedPropertyId}`, payload);
+                    this.$toastr.s('Propiedad actualizada exitosamente');
+                } else {
+                    response = await axios.post("/property/create", payload);
+                    this.savedPropertyId = response.data.data.id;
+                    this.$toastr.s('Propiedad guardada exitosamente');
 
-                // Si tiene datos de exclusividad, descargar el PDF automáticamente
-                if (hasExclusivityData && this.savedPropertyId) {
-                    window.location.href = '/property/' + this.savedPropertyId + '/exclusivity-pdf';
+                    // Si tiene datos de exclusividad, descargar el PDF automáticamente
+                    if (hasExclusivityData && this.savedPropertyId) {
+                        window.location.href = '/property/' + this.savedPropertyId + '/exclusivity-pdf';
+                    }
                 }
 
                 console.log(response.data);
