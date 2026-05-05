@@ -106,7 +106,6 @@
                         type="text" 
                         class="form-control"
                         placeholder="Ej: 10.4928"
-                        readonly
                     >
                 </div>
                 <div class="col-md-6 mb-3">
@@ -116,7 +115,6 @@
                         type="text" 
                         class="form-control"
                         placeholder="Ej: -66.8792"
-                        readonly
                     >
                 </div>
             </div>
@@ -528,8 +526,9 @@ export default {
 
             const L = await this.loadLeaflet();
 
-            const defaultLat = this.property.map_lat ? parseFloat(this.property.map_lat) : 10.4910;
-            const defaultLng = this.property.map_lng ? parseFloat(this.property.map_lng) : -66.8792;
+            // Default center: Puerto Ordaz, Bolívar, Venezuela
+            const defaultLat = this.property.map_lat ? parseFloat(this.property.map_lat) : 8.2830;
+            const defaultLng = this.property.map_lng ? parseFloat(this.property.map_lng) : -62.7244; // Puerto Ordaz, Bolívar
             const defaultZoom = this.property.map_lat ? 15 : 8;
 
             this.leafletMap = L.map('property-map').setView([defaultLat, defaultLng], defaultZoom);
