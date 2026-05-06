@@ -140,11 +140,11 @@
                 genderList: [
                     {
                         id: 'male',
-                        value: 'Male'
+                        value: this.$t('male')
                     },
                     {
                         id: 'female',
-                        value: 'Female'
+                        value: this.$t('female')
                     }
                 ],
             }

@@ -115,7 +115,7 @@
                     ],
                 },
                 userFilterOptions: [
-                    {id: '', name: 'all_users', translated_name: 'All Users'},
+                    {id: '', name: 'all_users', translated_name: this.$t('all_users')},
                 ],
             }
         },
