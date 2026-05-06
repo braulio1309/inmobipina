@@ -118,7 +118,7 @@
                             <h5 class="card-title d-inline-block mb-0">{{ 'Mapa de Propiedades' }}</h5>
                         </div>
                         <div class="card-body p-0">
-                            <Map :token="googleMapsToken" />
+                            <Map :token="googleMapsToken" :properties="mapProperties" />
                         </div>
                     </div>
                 </div>
@@ -201,7 +201,6 @@
     import * as actions from '../../../../Config/ApiUrl';
     import {numberFormatter} from "../../../../Helpers/Helpers";
     import Map from '../Pages/map/Map.vue';
-    
 
     export default {
         name: "Hospital",
@@ -238,11 +237,15 @@
 
                 // Google Maps Token
                 googleMapsToken: process.env.MIX_GOOGLE_MAPS_API_KEY || null,
+
+                // Property map markers
+                mapProperties: [],
             }
         },
         created() {
             this.initializeDates();
             this.loadRealEstateData();
+            this.loadMapProperties();
         },
         methods: {
             initializeDates() {
@@ -299,6 +302,15 @@
             },
             numberFormat(value) {
                 return numberFormatter(value);
+            },
+            loadMapProperties() {
+                this.axiosGet(actions.PROPERTY_MAP_LOCATIONS)
+                    .then(response => {
+                        this.mapProperties = response.data;
+                    })
+                    .catch(error => {
+                        console.error('Error cargando propiedades para el mapa:', error);
+                    });
             }
         }
     }

@@ -346,4 +346,4 @@ return array_merge([
     // Dashboard
     'hospital' => 'Dashboard Principal',
 
-], include 'custom.php');
+], include 'custom.php', ['reports' => include 'reports.php']);

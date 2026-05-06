@@ -166,5 +166,15 @@ class PropertyController extends Controller
         $property = Property::with('images')->findOrFail($id);
         return response()->json($property);
     }
+
+    public function mapLocations()
+    {
+        $properties = Property::whereNotNull('map_lat')
+            ->whereNotNull('map_lng')
+            ->select('id', 'title', 'address', 'price', 'type', 'status', 'map_lat', 'map_lng')
+            ->get();
+
+        return response()->json($properties);
+    }
 }
 

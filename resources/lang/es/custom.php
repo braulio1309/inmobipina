@@ -2,6 +2,8 @@
 return [
     // Autenticación
     'my_profile' => 'Mi Perfil',
+    'logout' => 'Cerrar sesión',
+    'notifications' => 'Notificaciones',
     'email' => 'Correo electrónico',
     'first_name' => 'Nombre',
     'last_name' => 'Apellido',

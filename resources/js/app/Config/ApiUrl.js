@@ -20,6 +20,7 @@ export const DEFAULT_HOSPITAL_INFO = 'default-hospital-info';
 export const HOSPITAL_ACTIVITIES = 'hospital-activities';
 export const PATIENT_STATISTICS = 'patient-statistics';
 export const REAL_ESTATE_DASHBOARD = 'real-estate-dashboard';
+export const PROPERTY_MAP_LOCATIONS = 'property/map-locations';
 export const HRM_BASIC_DATA = 'hrm-basic-data';
 export const PROJECT_OVERVIEW = 'project-overview';
 export const YEARLY_HOLIDAY = 'yearly-holiday';
