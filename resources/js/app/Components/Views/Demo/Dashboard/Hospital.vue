@@ -124,25 +124,69 @@
                 </div>
             </div>
 
-            <!-- TABLAS CORREGIDAS -->
+            <!-- TABLAS -->
             <div class="row" v-if="!mainPreloader">
                 <div class="col-12 col-sm-12 col-md-6 mb-4 mb-md-0">
                     <div class="card card-with-shadow border-0">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
-                            <h5 class="card-title d-inline-block mb-0">{{ 'Últimas Ventas' }}</h5>
+                            <h5 class="card-title d-inline-block mb-0">Últimas Ventas</h5>
                         </div>
                         <div class="card-body p-0">
-                            <app-table :id="'latest-sales-table'" :options="latestSalesList"/>
+                            <div v-if="realEstateData.latestSales && realEstateData.latestSales.data && realEstateData.latestSales.data.length > 0">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Propiedad</th>
+                                            <th>Comprador</th>
+                                            <th>Monto</th>
+                                            <th>Fecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(sale, idx) in realEstateData.latestSales.data" :key="idx">
+                                            <td>{{ sale.property }}</td>
+                                            <td>{{ sale.buyer }}</td>
+                                            <td>{{ sale.amount ? '$' + numberFormat(sale.amount) : '$0' }}</td>
+                                            <td>{{ sale.date }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div v-else class="p-primary text-center text-muted">
+                                No hay ventas registradas
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-12 col-sm-12 col-md-6">
                     <div class="card card-with-shadow border-0">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
-                            <h5 class="card-title d-inline-block mb-0">{{ 'Top Vendedores' }}</h5>
+                            <h5 class="card-title d-inline-block mb-0">Top Vendedores</h5>
                         </div>
                         <div class="card-body p-0">
-                            <app-table :id="'top-sellers-table'" :options="topSellersList"/>
+                            <div v-if="realEstateData.topSellers && realEstateData.topSellers.data && realEstateData.topSellers.data.length > 0">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Vendedor</th>
+                                            <th>Email</th>
+                                            <th>Ventas</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(seller, idx) in realEstateData.topSellers.data" :key="idx">
+                                            <td>{{ seller.name }}</td>
+                                            <td>{{ seller.email }}</td>
+                                            <td>{{ seller.sales_count }}</td>
+                                            <td>{{ seller.total_revenue ? '$' + numberFormat(seller.total_revenue) : '$0' }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div v-else class="p-primary text-center text-muted">
+                                No hay vendedores registrados
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -194,100 +238,6 @@
 
                 // Google Maps Token
                 googleMapsToken: process.env.MIX_GOOGLE_MAPS_API_KEY || null,
-
-                /*Latest Sales list*/
-                latestSalesList: {
-                    name: 'Latest Sales List',
-                    url: null,
-                    datatableWrapper: false,
-                    showHeader: true,
-                    tableShadow: false,
-                    managePagination: false,
-                    columns: [
-                        { 
-                            title: 'Propiedad', 
-                            type: 'text', 
-                            key: 'property', 
-                            isVisible: true 
-                        },
-                        { 
-                            title: 'Comprador', 
-                            type: 'text', 
-                            key: 'buyer', 
-                            isVisible: true 
-                        },
-                        { 
-                            title: 'Monto', 
-                            type: 'text', 
-                            key: 'amount', 
-                            isVisible: true,
-                            modifier: (value) => {
-                                return value ? '$' + numberFormatter(value) : '$0';
-                            }
-                        },
-                        { 
-                            title: 'Fecha', 
-                            type: 'text', 
-                            key: 'date', 
-                            isVisible: true 
-                        }
-                    ],
-                    showFilter: false,
-                    paginationType: "pagination",
-                    responsive: true,
-                    rowLimit: 10,
-                    orderBy: 'desc',
-                    showAction: false,
-                    actions: [],
-                    data: []
-                },
-
-                /*Top Sellers list*/
-                topSellersList: {
-                    name: 'Top Sellers List',
-                    url: null,
-                    datatableWrapper: false,
-                    showHeader: true,
-                    tableShadow: false,
-                    managePagination: false,
-                    columns: [
-                        {
-                            title: 'Vendedor',
-                            type: 'text',
-                            key: 'name',
-                            isVisible: true
-                        },
-                        { 
-                            title: 'Email', 
-                            type: 'text', 
-                            key: 'email', 
-                            isVisible: true 
-                        },
-                        { 
-                            title: 'Ventas', 
-                            type: 'text', 
-                            key: 'sales_count', 
-                            isVisible: true 
-                        },
-                        { 
-                            title: 'Total', 
-                            type: 'text', 
-                            key: 'total_revenue', 
-                            isVisible: true,
-                            modifier: (value) => {
-                                return value ? '$' + numberFormatter(value) : '$0';
-                            }
-                        }
-                    ],
-                    showFilter: false,
-                    paginationType: "pagination",
-                    responsive: true,
-                    rowLimit: 10,
-                    orderBy: 'desc',
-                    showAction: false,
-                    actions: [],
-                    data: []
-                },
             }
         },
         created() {
@@ -333,37 +283,7 @@
                 this.isActivePatientStatistics = false;
 
                 this.axiosGet(url, reqData).then(response => {
-                    console.log('✅ Respuesta completa de la API:', response.data);
-                    
-                    // Asignar datos generales
                     this.realEstateData = response.data;
-                    
-                    // CORRECCIÓN: Actualizar tabla de Últimas Ventas
-                    if (response.data.latestSales && response.data.latestSales.data) {
-                        console.log('📊 Últimas Ventas recibidas:', response.data.latestSales.data);
-                        this.latestSalesList.data = response.data.latestSales.data;
-                    } else {
-                        console.warn('⚠️ No hay datos de ventas');
-                        this.latestSalesList.data = [];
-                    }
-                    
-                    // CORRECCIÓN: Actualizar tabla de Top Vendedores
-                    if (response.data.topSellers && response.data.topSellers.data) {
-                        console.log('🏆 Top Vendedores recibidos:', response.data.topSellers.data);
-                        this.topSellersList.data = response.data.topSellers.data;
-                    } else {
-                        console.warn('⚠️ No hay datos de vendedores');
-                        this.topSellersList.data = [];
-                    }
-
-                    // Forzar actualización reactiva con $set
-                    this.$set(this.latestSalesList, 'data', this.latestSalesList.data);
-                    this.$set(this.topSellersList, 'data', this.topSellersList.data);
-
-                    console.log('✅ Tablas actualizadas:', {
-                        ventas: this.latestSalesList.data.length,
-                        vendedores: this.topSellersList.data.length
-                    });
 
                     // Activar banderas de visualización
                     this.isActivedDefaultInfo = true;
@@ -371,10 +291,7 @@
                     this.isActivePatientStatistics = true;
 
                 }).catch((error) => {
-                    console.error('❌ Error cargando datos:', error);
-                    if (error.response) {
-                        console.error('Detalles del error:', error.response.data);
-                    }
+                    console.error('Error cargando datos del dashboard:', error);
                 }).finally(() => {
                     this.mainPreloader = false;
                     this.countCreatedResponse = 3;

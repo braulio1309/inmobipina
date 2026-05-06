@@ -316,4 +316,34 @@ return array_merge([
     'updated_at' => 'Actualizado el',
     'enable_registration_warning' => 'La página de registro debe estar habilitada en la configuración.',
 
+    // Reportes y tabs
+    'basic_report' => 'Reporte Básico',
+    'overview' => 'Resumen',
+    'job_overview' => 'Resumen de Asesor',
+    'clear_filter' => 'Limpiar filtro',
+
+    // Overview de candidatos
+    'new_candidates_this_week' => 'Nuevos candidatos esta semana',
+    'move_forward_this_week' => 'Avanzaron esta semana',
+    'total_candidates_hired' => 'Total contratados',
+    'all_time' => 'Total histórico',
+    'active_jobs' => 'Empleos activos',
+    'performance_overview' => 'Resumen de rendimiento',
+    'top_candidates_source' => 'Principales fuentes de candidatos',
+    'new_candidates_by_source' => 'Nuevos candidatos por fuente',
+
+    // Job review
+    'job_type' => 'Tipo de empleo',
+    'job_posted' => 'Publicado el',
+    'apply_now' => 'Aplicar ahora',
+    'view_all_jobs' => 'Ver todos los empleos',
+    'year' => 'Año',
+    'remote' => 'Remoto',
+
+    // Asesores
+    'all_users' => 'Todos los usuarios',
+
+    // Dashboard
+    'hospital' => 'Dashboard Principal',
+
 ], include 'custom.php');

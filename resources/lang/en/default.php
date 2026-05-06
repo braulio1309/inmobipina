@@ -439,6 +439,9 @@ return array_merge([
      'job_posted' => 'Job posted',
      'apply_now' => 'Apply now',
      'view_all_jobs' => 'View all jobs',
+     'year' => 'Year',
+     'remote' => 'Remote',
+     'all_users' => 'All Users',
      'basic_report' => 'Basic report',
      'group_tab' => 'Group Tab',
 
@@ -497,6 +500,8 @@ return array_merge([
     'updated_at' => 'Updated at',
     'active_jobs' => 'Active Jobs',
     'job_overview' => 'Job overview',
+    'overview' => 'Overview',
+    'clear_filter' => 'Clear filter',
     'candidate_overview' => 'Candidate overview',
     'current_pipeline' => 'Current pipeline',
     'candidate_flow' => 'Candidate flow',

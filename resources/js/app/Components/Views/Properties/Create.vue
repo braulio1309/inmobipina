@@ -81,12 +81,29 @@
 
             <div class="mb-3">
                 <label class="form-label">Dirección</label>
-                <input 
-                    v-model="property.address" 
-                    type="text" 
-                    class="form-control"
-                    placeholder="Dirección completa"
-                >
+                <div class="position-relative">
+                    <input 
+                        v-model="property.address" 
+                        type="text" 
+                        class="form-control"
+                        placeholder="Escribe el nombre de la calle o dirección"
+                        @input="onAddressInput"
+                        @keydown.down.prevent="moveAddressSuggestion(1)"
+                        @keydown.up.prevent="moveAddressSuggestion(-1)"
+                        @keydown.enter.prevent="selectAddressSuggestion(addressSuggestionIndex)"
+                        autocomplete="off"
+                    >
+                    <ul v-if="addressSuggestions.length > 0" class="list-group position-absolute w-100" style="z-index:1000; top:100%;">
+                        <li 
+                            v-for="(s, i) in addressSuggestions"
+                            :key="i"
+                            class="list-group-item list-group-item-action py-2"
+                            :class="{ active: i === addressSuggestionIndex }"
+                            style="cursor:pointer"
+                            @click="selectAddressSuggestion(i)"
+                        >{{ s.display_name }}</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="mb-3">
@@ -94,29 +111,8 @@
                     <i class="fas fa-map-marker-alt mr-1 text-danger"></i>
                     Ubicación en el Mapa
                 </label>
-                <p class="text-muted small mb-2">Haz clic en el mapa para marcar la ubicación de la propiedad. Las coordenadas se guardarán automáticamente.</p>
+                <p class="text-muted small mb-2">Haz clic en el mapa para marcar la ubicación, o busca por nombre de calle arriba.</p>
                 <div id="property-map" style="height: 350px; border-radius: 10px; border: 1px solid #dee2e6;"></div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Latitud</label>
-                    <input 
-                        v-model="property.map_lat" 
-                        type="text" 
-                        class="form-control"
-                        placeholder="Ej: 10.4928"
-                    >
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Longitud</label>
-                    <input 
-                        v-model="property.map_lng" 
-                        type="text" 
-                        class="form-control"
-                        placeholder="Ej: -66.8792"
-                    >
-                </div>
             </div>
         </div>
 
@@ -355,6 +351,9 @@ export default {
             uploadedImages: [],
             leafletMap: null,
             leafletMarker: null,
+            addressSuggestions: [],
+            addressSuggestionIndex: -1,
+            addressSearchTimeout: null,
             tabs: [
                 { label: "Detalles" },
                 { label: "Ubicación" },
@@ -528,13 +527,14 @@ export default {
 
             // Default center: Puerto Ordaz, Bolívar, Venezuela
             const defaultLat = this.property.map_lat ? parseFloat(this.property.map_lat) : 8.2830;
-            const defaultLng = this.property.map_lng ? parseFloat(this.property.map_lng) : -62.7244; // Puerto Ordaz, Bolívar
-            const defaultZoom = this.property.map_lat ? 15 : 8;
+            const defaultLng = this.property.map_lng ? parseFloat(this.property.map_lng) : -62.7244;
+            const defaultZoom = this.property.map_lat ? 15 : 14;
 
             this.leafletMap = L.map('property-map').setView([defaultLat, defaultLng], defaultZoom);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19,
             }).addTo(this.leafletMap);
 
             // Place existing marker if coordinates are saved
@@ -555,6 +555,60 @@ export default {
                 }
             });
         },
+
+        onAddressInput() {
+            clearTimeout(this.addressSearchTimeout);
+            this.addressSuggestionIndex = -1;
+            if (!this.property.address || this.property.address.length < 3) {
+                this.addressSuggestions = [];
+                return;
+            }
+            this.addressSearchTimeout = setTimeout(() => {
+                this.searchAddress(this.property.address);
+            }, 400);
+        },
+
+        async searchAddress(query) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5&viewbox=-63.1,-62.3,8.0,8.6&bounded=1`,
+                    { headers: { 'Accept-Language': 'es' } }
+                );
+                const data = await response.json();
+                this.addressSuggestions = data;
+            } catch (e) {
+                this.addressSuggestions = [];
+            }
+        },
+
+        moveAddressSuggestion(direction) {
+            const len = this.addressSuggestions.length;
+            if (len === 0) return;
+            this.addressSuggestionIndex = (this.addressSuggestionIndex + direction + len) % len;
+        },
+
+        selectAddressSuggestion(index) {
+            const suggestion = this.addressSuggestions[index >= 0 ? index : 0];
+            if (!suggestion) return;
+            this.property.address = suggestion.display_name;
+            this.property.map_lat = parseFloat(suggestion.lat).toFixed(6);
+            this.property.map_lng = parseFloat(suggestion.lon).toFixed(6);
+            this.addressSuggestions = [];
+            this.addressSuggestionIndex = -1;
+
+            if (this.leafletMap) {
+                const lat = parseFloat(suggestion.lat);
+                const lng = parseFloat(suggestion.lon);
+                this.leafletMap.setView([lat, lng], 16);
+                if (this.leafletMarker) {
+                    this.leafletMarker.setLatLng([lat, lng]);
+                } else {
+                    const L = window.L;
+                    if (L) this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
+                }
+            }
+        },
+
         onFilesSelected(event) {
             this.selectedFiles = Array.from(event.target.files);
             this.filePreviews = [];
