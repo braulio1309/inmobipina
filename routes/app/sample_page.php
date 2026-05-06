@@ -24,6 +24,11 @@ Route::resource('calendars', CalendarController::class);
 // Report
 Route::get('reports', [ReportController::class, 'index'])->name('report.index');
 Route::get('reports/top-sellers', [ReportController::class, 'topSellers'])->name('report.top-sellers');
+Route::get('reports/advisor-commissions', [ReportController::class, 'advisorCommissions'])->name('report.advisor-commissions');
+Route::get('reports/overview-stats', [ReportController::class, 'overviewStats'])->name('report.overview-stats');
+Route::get('reports/performance-chart', [ReportController::class, 'performanceChart'])->name('report.performance-chart');
+Route::get('reports/activities-by-type', [ReportController::class, 'activitiesByType'])->name('report.activities-by-type');
+Route::get('reports/top-advisors-activities', [ReportController::class, 'topAdvisorsActivities'])->name('report.top-advisors-activities');
 
 // Kanban-view task management
 Route::get('stages', [StageController::class, 'index'])->name('stages.index');

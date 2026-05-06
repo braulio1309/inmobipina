@@ -166,5 +166,19 @@ class PropertyController extends Controller
         $property = Property::with('images')->findOrFail($id);
         return response()->json($property);
     }
+
+    /**
+     * Return approved properties with coordinates for map display
+     */
+    public function getMapProperties()
+    {
+        $properties = Property::whereNotNull('map_lat')
+            ->whereNotNull('map_lng')
+            ->whereNotNull('approved_by')
+            ->select('id', 'title', 'address', 'price', 'type', 'type_sale', 'status', 'map_lat', 'map_lng')
+            ->get();
+
+        return response()->json($properties);
+    }
 }
 

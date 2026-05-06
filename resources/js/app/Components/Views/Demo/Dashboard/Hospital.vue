@@ -10,7 +10,7 @@
         </div>
 
         <div class="content-wrapper">
-            <app-breadcrumb :page-title="$t('hospital')" :directory="$t('dashboard')" :icon="'pie-chart'"/>
+            <app-breadcrumb :page-title="'Dashboard Inmobiliario'" :directory="$t('dashboard')" :icon="'pie-chart'"/>
 
             <!-- Date Filter Section -->
             <div class="card card-with-shadow border-0 mb-primary" v-if="!mainPreloader">
@@ -118,7 +118,7 @@
                             <h5 class="card-title d-inline-block mb-0">{{ 'Mapa de Propiedades' }}</h5>
                         </div>
                         <div class="card-body p-0">
-                            <Map :token="googleMapsToken" />
+                            <PropertiesMap />
                         </div>
                     </div>
                 </div>
@@ -200,14 +200,14 @@
     import {TableHelpers} from "../../Demo/Tables/mixins/TableHelpers";
     import * as actions from '../../../../Config/ApiUrl';
     import {numberFormatter} from "../../../../Helpers/Helpers";
-    import Map from '../Pages/map/Map.vue';
+    import PropertiesMap from '../Pages/map/PropertiesMap.vue';
     
 
     export default {
         name: "Hospital",
         mixins: [FormMixin, TableHelpers],
         components: {
-            Map
+            PropertiesMap
         },
 
         data() {
@@ -235,9 +235,6 @@
                     startDate: null,
                     endDate: null
                 },
-
-                // Google Maps Token
-                googleMapsToken: process.env.MIX_GOOGLE_MAPS_API_KEY || null,
             }
         },
         created() {
