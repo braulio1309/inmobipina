@@ -571,7 +571,7 @@ export default {
         async searchAddress(query) {
             try {
                 const response = await fetch(
-                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5&viewbox=-63.1,-62.3,8.0,8.6&bounded=1`,
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5&viewbox=-63.1,8.0,-62.3,8.6&bounded=1`,
                     { headers: { 'Accept-Language': 'es' } }
                 );
                 const data = await response.json();
