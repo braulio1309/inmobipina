@@ -63,7 +63,7 @@ export default {
                     map,
                     title: property.title || 'Propiedad',
                     icon: {
-                        url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                        url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
                     }
                 });
 

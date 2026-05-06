@@ -201,7 +201,8 @@
     import * as actions from '../../../../Config/ApiUrl';
     import {numberFormatter} from "../../../../Helpers/Helpers";
     import Map from '../Pages/map/Map.vue';
-        export default {
+
+    export default {
         name: "Hospital",
         mixins: [FormMixin, TableHelpers],
         components: {
