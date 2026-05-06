@@ -98,7 +98,7 @@ export default {
                 const marker = L.marker([lat, lng]).addTo(this.leafletMap);
 
                 const price = property.price
-                    ? '$' + parseFloat(property.price).toLocaleString('es-VE', { minimumFractionDigits: 2 })
+                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(parseFloat(property.price))
                     : 'N/D';
 
                 const popupContent = `

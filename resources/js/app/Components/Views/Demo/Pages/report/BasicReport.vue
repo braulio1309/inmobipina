@@ -92,9 +92,6 @@ export default {
         }
     },
     watch: {
-        'reportFilters.reportUnit': {
-            handler: 'reportByOrder'
-        },
         'reportFilters.startDate': {
             handler: 'loadReportData'
         },
@@ -109,9 +106,6 @@ export default {
         setupChartForTable({data}){
             this.reportChartData = data;
             this.getChartData();
-        },
-        reportByOrder() {
-            this.getChartData()
         },
         getChartData() {
             this.preloader = true;

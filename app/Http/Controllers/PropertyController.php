@@ -168,7 +168,7 @@ class PropertyController extends Controller
     }
 
     /**
-     * Return all registered properties that have coordinates for map display
+     * Return approved properties with coordinates for map display
      */
     public function getMapProperties()
     {

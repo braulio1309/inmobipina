@@ -141,6 +141,19 @@ export default {
                 }
             ];
         },
+        genDoughnutChartData(data) {
+            const colors = [
+                "#5a86f1", "#5bc5d5", "#eb779e", "#46cc97", "#368cd5",
+                "#f7971e", "#764ba2", "#43e97b", "#fa709a", "#fee140"
+            ];
+            return [
+                {
+                    backgroundColor: colors.slice(0, data.length),
+                    borderWidth: 0,
+                    data: data.map(i => i.total_candidates)
+                }
+            ];
+        },
         getOverview(query) {
             return this.axiosGet(OVERVIEW_STATS, { params: query })
                 .then(res => {
@@ -169,7 +182,7 @@ export default {
                 .then(res => {
                     const data = res.data;
                     this.newCandidates.labels = data.map(i => i.name);
-                    this.newCandidates.dataSet = this.genBarChartData(data);
+                    this.newCandidates.dataSet = this.genDoughnutChartData(data);
                 });
         },
         getTopAdvisors(query) {

@@ -166,7 +166,7 @@ class ReportController extends Controller
         if ($diffInDays <= 31) {
             $format = '%Y-%m-%d';
         } elseif ($diffInDays <= 365) {
-            $format = '%Y-W%u';
+            $format = '%Y-%v';
         } else {
             $format = '%Y-%m';
         }
