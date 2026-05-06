@@ -25,7 +25,7 @@
 
 <script>
 import {FormMixin} from "../../../../../../core/mixins/form/FormMixin";
-import {TOP_SELLERS_REPORT} from "../../../../../Config/ApiUrl";
+import {ADVISOR_COMMISSIONS_REPORT} from "../../../../../Config/ApiUrl";
 
 
 export default {
@@ -41,7 +41,6 @@ export default {
     data() {
         return {
             preloader: false,
-            // Chart and table configuration
             reportChart: {
                 labels: [],
                 dataSets: [
@@ -54,10 +53,9 @@ export default {
                 ]
             },
 
-            // Report Table
             reportTableId: 'report-table-demo',
             options: {
-                url: TOP_SELLERS_REPORT,
+                url: ADVISOR_COMMISSIONS_REPORT,
                 tableShadow: false,
                 datatableWrapper: false,
                 showFilter: false,
@@ -120,10 +118,10 @@ export default {
             this.reportChart.labels = [];
             this.reportChart.dataSets[0].backgroundColor = [];
             this.reportChart.dataSets[0].data = [];
-            
+
             // Take only top 10 for chart
             const top10Data = this.reportChartData.slice(0, 10);
-            
+
             let midIndex = Math.ceil(top10Data.length / 2);
             top10Data.forEach((item, index) => {
                 if (index === midIndex) {
@@ -133,7 +131,8 @@ export default {
                 }
                 this.reportChart.labels.push(item.name);
                 this.reportChart.dataSets[0].backgroundColor.push('#2E69FF');
-                this.reportChart.dataSets[0].data.push(item[this.reportFilters.reportUnit]);
+                // Always display commission value in chart regardless of reportUnit
+                this.reportChart.dataSets[0].data.push(item['value']);
             });
             setTimeout(() => {
                 this.preloader = false
@@ -144,22 +143,19 @@ export default {
                 return 0;
             }
             const top10Data = this.reportChartData.slice(0, 10);
-            let list = _.map(top10Data, this.reportFilters.reportUnit),
+            let list = _.map(top10Data, 'value'),
                 total = list.reduce((result, item) => Number(result) + Number(item), 0);
-            return total/list.length;
+            return total / list.length;
         },
         loadReportData() {
-            // Update query params for the table using global filters
             this.options.queryParams.start_date = this.reportFilters.startDate;
             this.options.queryParams.end_date = this.reportFilters.endDate;
-            
-            // Reload the table data
             this.$hub.$emit(`reload-${this.reportTableId}`);
         },
         formatCurrency(value) {
             if (!value && value !== 0) return '-';
-            const locale = this.$i18n && this.$i18n.locale ? 
-                (this.$i18n.locale === 'es' ? 'es-ES' : 'en-US') : 
+            const locale = this.$i18n && this.$i18n.locale ?
+                (this.$i18n.locale === 'es' ? 'es-ES' : 'en-US') :
                 'en-US';
             return new Intl.NumberFormat(locale, {
                 style: 'currency',
