@@ -24,33 +24,15 @@
             logo: {
                 type: String,
                 default: AppFunction.getAppUrl('images/icon.png')
+            },
+            isAdmin: {
+                type: Boolean,
+                default: false,
             }
         },
         data(){
             return{
                 urlGenerator,
-                profileData: [
-                    {
-                        optionName: 'My Profile',
-                        optionIcon: 'user',
-                        url: urlGenerator(actions.MY_PROFILE)
-                    },
-                    {
-                        optionName: 'Notifications',
-                        optionIcon: 'bell',
-                        url: urlGenerator(actions.All_NOTIFICATION)
-                    },
-                    {
-                        optionName: 'Settings',
-                        optionIcon: 'settings',
-                        url: urlGenerator(actions.APP_SETTINGS)
-                    },
-                    {
-                        optionName: 'Logout',
-                        optionIcon: 'log-out',
-                        url: urlGenerator(actions.LOGOUT)
-                    },
-                ]
             }
         },
         created() {
@@ -61,6 +43,31 @@
             this.$store.dispatch('getLanguages');
         },
         computed: {
+            profileData() {
+                const options = [
+                    {
+                        optionName: this.$t('profile'),
+                        optionIcon: 'user',
+                        url: urlGenerator(actions.MY_PROFILE)
+                    }
+                ];
+
+                if (this.isAdmin) {
+                    options.push({
+                        optionName: this.$t('settings'),
+                        optionIcon: 'settings',
+                        url: urlGenerator(actions.APP_SETTINGS)
+                    });
+                }
+
+                options.push({
+                    optionName: this.$t('logout'),
+                    optionIcon: 'log-out',
+                    url: urlGenerator(actions.LOGOUT)
+                });
+
+                return options;
+            },
             languageList() {
                 return this.$store.state.settings.languages
             },

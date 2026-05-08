@@ -3,5 +3,7 @@
 @section('title', 'Reportes de Asesor')
 
 @section('contents')
-    <advisor-reports></advisor-reports>
+    @php($isAdmin = auth()->user()->isAppAdmin())
+
+    <advisor-reports :is-admin='@json($isAdmin)'></advisor-reports>
 @endsection

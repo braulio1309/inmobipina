@@ -11,6 +11,7 @@
                         {{ $t('company_info') }}
                     </legend>
                     <div class="col-md-12">
+                        <!--
                         <div class="form-group row">
                             <label for="appSettingsCompanyName" class="col-lg-3 col-xl-3 col-form-label">
                                 {{ $t('company_name') }}
@@ -23,6 +24,7 @@
                                            :required="true"/>
                             </div>
                         </div>
+                        -->
                         <div class="form-group row">
                             <label for="appSettingsCompanyLogo" class="col-lg-3 col-xl-3 col-form-label h-fit-content">
                                 {{ $t('company_logo') }}<br>
@@ -38,6 +40,7 @@
                                            :label="$t('change_logo')"/>
                             </div>
                         </div>
+                        <!--
                         <div class="form-group row">
                             <label for="appSettingsCompanyIcon" class="col-lg-3 col-xl-3 col-form-label h-fit-content">
                                 {{ $t('company_icon') }}<br>
@@ -53,6 +56,7 @@
                                            :label="$t('change_icon')"/>
                             </div>
                         </div>
+                        -->
                         <div class="form-group row">
                             <label for="appSettingsCompanyBanner" class="col-lg-3 col-xl-3 col-form-label h-fit-content">
                                 {{ $t('company_banner') }}<br>
@@ -68,6 +72,7 @@
                                            :label="$t('change_banner')"/>
                             </div>
                         </div>
+                        <!--
                         <div class="form-group row">
                             <label for="appSettingsLanguage" class="col-lg-3 col-xl-3 col-form-label">
                                 {{ $t('language') }}
@@ -91,11 +96,12 @@
                                            :list="layouts"/>
                             </div>
                         </div>
+                        -->
                     </div>
                 </div>
             </fieldset>
 
-            <!-- Date & Time Setting -->
+            <!-- Date & Time Setting
             <fieldset class="form-group mb-5">
                 <div class="row">
                     <legend class="col-12 col-form-label text-primary pt-0 mb-3">{{ $t('date_and_time_setting') }}</legend>
@@ -136,8 +142,9 @@
                     </div>
                 </div>
             </fieldset>
+            -->
 
-            <!-- Currency Settings -->
+            <!-- Currency Settings
             <fieldset class="form-group mb-5">
                 <div class="row">
                     <legend class="col-12 col-form-label text-primary pt-0 mb-3">
@@ -209,8 +216,9 @@
                     </div>
                 </div>
             </fieldset>
+            -->
 
-            <!-- Currency Settings -->
+            <!-- User Registration
             <fieldset class="form-group mb-5">
                 <div class="row">
                     <legend class="col-12 col-form-label text-primary pt-0 mb-3">
@@ -231,6 +239,7 @@
                     </div>
                 </div>
             </fieldset>
+            -->
 
             <div class="mt-5 action-buttons">
                 <button class="btn btn-primary mr-2" @click.prevent="submit">
@@ -309,11 +318,12 @@
             submit() {
                 let formData = new FormData;
 
-                for (const [key, value] of Object.entries(this.appSettings)) {
-                    formData.append(key, value);
+                const allowedProperties = ['company_logo', 'company_banner'];
+                for (const prop of allowedProperties) {
+                    formData.append(prop, this.appSettings[prop]);
                 }
 
-                const imageProperties = ['company_logo', 'company_banner', 'company_icon'];
+                const imageProperties = ['company_logo', 'company_banner'];
                 for (const prop of imageProperties) {
                     if (!(this.appSettings[prop] instanceof File)) {
                         formData.delete(prop);

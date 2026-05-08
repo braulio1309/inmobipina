@@ -16,11 +16,12 @@ class ReportController extends Controller
      */
     public function getAdvisorReports(Request $request)
     {
+        /** @var \App\Models\Core\Auth\User $user */
         $user = auth()->user();
         $userId = $request->get('user_id');
 
         // Non-admin users can only see their own reports
-        if (!$user->isAdmin()) {
+        if (!$user->isAppAdmin()) {
             $userId = $user->id;
         }
 

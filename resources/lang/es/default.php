@@ -115,6 +115,7 @@ return array_merge([
     'brand_group' => 'Grupo de marca',
     'template' => 'Plantilla',
     'profile' => 'Perfil',
+    'logout' => 'Cerrar sesión',
     'log' => 'Registro',
     'invite' => 'Invitar',
 

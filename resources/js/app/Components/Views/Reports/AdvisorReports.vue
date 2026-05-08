@@ -163,6 +163,12 @@ import Chart from 'chart.js';
 export default {
     name: 'AdvisorReports',
     mixins: [FormMixin],
+    props: {
+        isAdmin: {
+            type: Boolean,
+            default: false,
+        },
+    },
     
     data() {
         return {
@@ -181,7 +187,6 @@ export default {
             selectedAdvisorId: '',
             filterStartDate: '',
             filterEndDate: '',
-            isAdmin: false,
             barChartInstance: null,
             pieChartInstance: null,
             activityIcons: {
@@ -211,7 +216,6 @@ export default {
     },
 
     mounted() {
-        this.checkAdminRole();
         if (this.isAdmin) {
             this.loadAdvisors();
         }
@@ -219,10 +223,6 @@ export default {
     },
     
     methods: {
-        checkAdminRole() {
-            this.isAdmin = this.$isAdmin();
-        },
-        
         async loadAdvisors() {
             this.axiosGet('/app/reports/advisors')
                 .then(response => {
