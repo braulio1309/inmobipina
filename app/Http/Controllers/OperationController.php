@@ -204,7 +204,9 @@ class OperationController extends Controller
             return response()->json(['message' => 'No hay contrato disponible para esta operación.'], 404);
         }
 
-        $filePath = 'public/contracts/' . $operation->contract_path;
+        // Use basename() to prevent path traversal
+        $fileName = basename($operation->contract_path);
+        $filePath = 'public/contracts/' . $fileName;
 
         if (!Storage::exists($filePath)) {
             return response()->json(['message' => 'El archivo del contrato no fue encontrado.'], 404);
@@ -212,7 +214,7 @@ class OperationController extends Controller
 
         return response()->download(
             storage_path('app/' . $filePath),
-            $operation->contract_path,
+            $fileName,
             ['Content-Type' => 'application/pdf']
         );
     }
