@@ -13,7 +13,7 @@
                 <div class="card-body">
                     <h6 class="fw-semibold mb-3"><i class="fas fa-filter mr-2"></i> Filtrar Reporte</h6>
                     <div class="row align-items-end">
-                        <div v-if="isAdmin" class="col-md-4 mb-3 mb-md-0">
+                        <div  class="col-md-4 mb-3 mb-md-0">
                             <label class="form-label fw-semibold">{{ $t('reports.select_advisor') }}</label>
                             <app-input
                                 type="search-select"
@@ -216,9 +216,8 @@ export default {
     },
 
     mounted() {
-        if (this.isAdmin) {
             this.loadAdvisors();
-        }
+        
         this.loadReports();
     },
     

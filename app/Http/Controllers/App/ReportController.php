@@ -19,15 +19,17 @@ class ReportController extends Controller
         /** @var \App\Models\Core\Auth\User $user */
         $user = auth()->user();
         $userId = $request->get('user_id');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
 
         // Non-admin users can only see their own reports
-        if (!$user->isAppAdmin()) {
+        if (!$user->isAdmin()) {
             $userId = $user->id;
         }
 
         // If no user_id provided (admin with no filter): aggregate all advisors
         if (!$userId) {
-            return $this->getAllAdvisorsReport();
+            return $this->getAllAdvisorsReport($startDate, $endDate);
         }
 
         $advisor = User::findOrFail($userId);
@@ -38,14 +40,14 @@ class ReportController extends Controller
                 'name' => $advisor->full_name,
             ],
             'metrics' => [
-                'sales_count' => $this->getSalesCount($userId),
-                'reservations_count' => $this->getReservationsCount($userId),
-                'properties_count' => $this->getPropertiesCount($userId),
-                'demonstrations_count' => $this->getDemonstrationsCount($userId),
-                'closures_count' => $this->getClosuresCount($userId),
-                'activities_by_type' => $this->getActivitiesByType($userId),
-                'total_activities' => $this->getTotalActivities($userId),
-                'total_advisor_commission' => $this->getTotalAdvisorCommission($userId),
+                'sales_count' => $this->getSalesCount($userId, $startDate, $endDate),
+                'reservations_count' => $this->getReservationsCount($userId, $startDate, $endDate),
+                'properties_count' => $this->getPropertiesCount($userId, $startDate, $endDate),
+                'demonstrations_count' => $this->getDemonstrationsCount($userId, $startDate, $endDate),
+                'closures_count' => $this->getClosuresCount($userId, $startDate, $endDate),
+                'activities_by_type' => $this->getActivitiesByType($userId, $startDate, $endDate),
+                'total_activities' => $this->getTotalActivities($userId, $startDate, $endDate),
+                'total_advisor_commission' => $this->getTotalAdvisorCommission($userId, $startDate, $endDate),
             ]
         ]);
     }
@@ -53,35 +55,43 @@ class ReportController extends Controller
     /**
      * Aggregate report for ALL advisors combined
      */
-    private function getAllAdvisorsReport()
+    private function getAllAdvisorsReport($startDate = null, $endDate = null)
     {
+        $salesQuery = DB::table('sales');
+        $reservationsQuery = DB::table('operations')->where('type', 'reserva');
+        $propertiesQuery = DB::table('properties')->whereNotNull('approved_by');
+        $demonstrationsQuery = DB::table('activities')->where('type', 'demostración');
+        $closuresQuery = DB::table('activities')->whereIn('type', ['venta', 'reserva', 'alquiler']);
+        $activitiesByTypeQuery = DB::table('activities')
+            ->select('type', DB::raw('COUNT(*) as count'))
+            ->groupBy('type');
+        $totalActivitiesQuery = DB::table('activities');
+        $commissionQuery = DB::table('operation_user');
+
+        $this->applyDateRange($salesQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRange($reservationsQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRange($propertiesQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRange($demonstrationsQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRange($closuresQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRange($activitiesByTypeQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRange($totalActivitiesQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRange($commissionQuery, 'created_at', $startDate, $endDate);
+
         return response()->json([
             'advisor' => [
                 'id' => null,
                 'name' => 'Todos los Asesores',
             ],
             'metrics' => [
-                'sales_count' => DB::table('sales')->count(),
-                'reservations_count' => DB::table('operations')
-                    ->where('type', 'reserva')
-                    ->count(),
-                'properties_count' => DB::table('properties')
-                    ->whereNotNull('approved_by')
-                    ->count(),
-                'demonstrations_count' => DB::table('activities')
-                    ->where('type', 'demostración')
-                    ->count(),
-                'closures_count' => DB::table('activities')
-                    ->whereIn('type', ['venta', 'reserva', 'alquiler'])
-                    ->count(),
-                'activities_by_type' => DB::table('activities')
-                    ->select('type', DB::raw('COUNT(*) as count'))
-                    ->groupBy('type')
-                    ->get()
+                'sales_count' => $salesQuery->count(),
+                'reservations_count' => $reservationsQuery->count(),
+                'properties_count' => $propertiesQuery->count(),
+                'demonstrations_count' => $demonstrationsQuery->count(),
+                'closures_count' => $closuresQuery->count(),
+                'activities_by_type' => $activitiesByTypeQuery->get()
                     ->mapWithKeys(fn($item) => [$item->type => $item->count]),
-                'total_activities' => DB::table('activities')->count(),
-                'total_advisor_commission' => DB::table('operation_user')
-                    ->sum('commission_amount'),
+                'total_activities' => $totalActivitiesQuery->count(),
+                'total_advisor_commission' => $commissionQuery->sum('commission_amount'),
             ]
         ]);
     }
@@ -94,11 +104,12 @@ class ReportController extends Controller
      */
     public function getAdvisors(Request $request)
     {
+        /** @var \App\Models\Core\Auth\User $user */
         $user = auth()->user();
 
-        /* if (!$user->hasRole('Admin') && !$user->hasRole('Administrator')) {
+        if (!$user->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
-        }*/
+        }
 
         $advisors = User::select('id', 'first_name', 'last_name') // 1. Seleccionamos las columnas reales
             ->where(function ($query) {
@@ -121,76 +132,106 @@ class ReportController extends Controller
         return response()->json($advisors);
     }
 
-    private function getTotalAdvisorCommission($userId)
+    private function getTotalAdvisorCommission($userId, $startDate = null, $endDate = null)
     {
-        return DB::table('operation_user')
-            ->where('user_id', $userId)
-            ->sum('commission_amount');
+        $query = DB::table('operation_user')
+            ->where('user_id', $userId);
+
+        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
+
+        return $query->sum('commission_amount');
     }
 
-    private function getSalesCount($userId)
+    private function getSalesCount($userId, $startDate = null, $endDate = null)
     {
-        // Contar ventas donde el usuario es seller_id
-        return DB::table('sales')
-            ->where('seller_id', $userId)
-            ->count();
+        $query = DB::table('sales')
+            ->where('seller_id', $userId);
+
+        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
+
+        return $query->count();
     }
 
-    private function getReservationsCount($userId)
+    private function getReservationsCount($userId, $startDate = null, $endDate = null)
     {
-        // Contar operaciones de tipo 'reserva' asociadas al usuario
-        return DB::table('operations')
+        $query = DB::table('operations')
             ->join('operation_user', 'operations.id', '=', 'operation_user.operation_id')
             ->where('operations.type', 'reserva')
-            ->where('operation_user.user_id', $userId)
-            ->count();
+            ->where('operation_user.user_id', $userId);
+
+        $this->applyDateRange($query, 'operations.created_at', $startDate, $endDate);
+
+        return $query->count();
     }
 
-    private function getPropertiesCount($userId)
+    private function getPropertiesCount($userId, $startDate = null, $endDate = null)
     {
-        // Contar propiedades creadas por el usuario Y aprobadas (captaciones aprobadas)
-        return DB::table('properties')
+        $query = DB::table('properties')
             ->where('created_by', $userId)
-            ->whereNotNull('approved_by')
-            ->count();
+            ->whereNotNull('approved_by');
+
+        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
+
+        return $query->count();
     }
 
-    private function getActivitiesByType($userId)
+    private function getActivitiesByType($userId, $startDate = null, $endDate = null)
     {
-        // Agrupar actividades por tipo
-        return DB::table('activities')
+        $query = DB::table('activities')
             ->select('type', DB::raw('COUNT(*) as count'))
             ->where('user_id', $userId)
-            ->groupBy('type')
-            ->get()
+            ->groupBy('type');
+
+        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
+
+        return $query->get()
             ->mapWithKeys(function ($item) {
                 return [$item->type => $item->count];
             });
     }
 
-    private function getDemonstrationsCount($userId)
+    private function getDemonstrationsCount($userId, $startDate = null, $endDate = null)
     {
-        // Contar actividades de tipo 'demostración'
-        return DB::table('activities')
+        $query = DB::table('activities')
             ->where('user_id', $userId)
-            ->where('type', 'demostración')
-            ->count();
+            ->where('type', 'demostración');
+
+        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
+
+        return $query->count();
     }
 
-    private function getClosuresCount($userId)
+    private function getClosuresCount($userId, $startDate = null, $endDate = null)
     {
-        // Contar cierres: ventas + reservas + alquileres
-        return DB::table('activities')
+        $query = DB::table('activities')
             ->where('user_id', $userId)
-            ->whereIn('type', ['venta', 'reserva', 'alquiler'])
-            ->count();
+            ->whereIn('type', ['venta', 'reserva', 'alquiler']);
+
+        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
+
+        return $query->count();
     }
 
-    private function getTotalActivities($userId)
+    private function getTotalActivities($userId, $startDate = null, $endDate = null)
     {
-        // Contar todas las actividades del usuario
-        return DB::table('activities')
-            ->where('user_id', $userId)
-            ->count();
+        $query = DB::table('activities')
+            ->where('user_id', $userId);
+
+        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
+
+        return $query->count();
+    }
+
+    private function applyDateRange($query, $column, $startDate = null, $endDate = null)
+    {
+        if ($startDate) {
+            $query->whereDate($column, '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $query->whereDate($column, '<=', $endDate);
+        }
+
+        return $query;
     }
 }

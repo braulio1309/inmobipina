@@ -49,6 +49,12 @@ import { FormMixin } from "../../../../../../core/mixins/form/FormMixin.js";
 export default {
     name: 'ReportView',
     mixins: [FormMixin],
+    props: {
+        isAdmin: {
+            type: Boolean,
+            default: false,
+        },
+    },
 
     provide() {
         return {
@@ -84,7 +90,9 @@ export default {
                             name: this.$t('reports.advisor_data_tab'),
                             title: this.$t('reports.advisor_data_tab'),
                             component: 'job-overview',
-                            props: {},
+                            props: {
+                                isAdmin: this.isAdmin,
+                            },
                             headerHide: true,
                         },
                     ],

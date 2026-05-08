@@ -8,7 +8,7 @@
 
         <div class="container-fluid p-0 mt-4">
             
-            <div v-if="isAdmin" class="row mb-4">
+            <div v-if="canFilterAdvisors" class="row mb-4">
                 <div class="col-12">
                     <div class="card card-with-shadow border-0">
                         <div class="card-body py-3 d-flex align-items-center justify-content-between">
@@ -131,6 +131,16 @@ import { FormMixin } from '../../../../../../core/mixins/form/FormMixin.js';
 export default {
     name: 'JobOverview',
     mixins: [FormMixin],
+    props: {
+        props: {
+            type: Object,
+            default: () => ({}),
+        },
+        isAdmin: {
+            type: Boolean,
+            default: false,
+        },
+    },
 
     inject: {
         reportFilters: {
@@ -155,7 +165,6 @@ export default {
             },
             advisors: [],
             selectedAdvisorId: '',
-            isAdmin: false,
             loadingAdvisors: false,
             
             activitiesChart: {
@@ -169,9 +178,14 @@ export default {
         }
     },
 
+    computed: {
+        canFilterAdvisors() {
+            return Boolean(this.props?.isAdmin ?? this.isAdmin);
+        },
+    },
+
     mounted() {
-        this.checkAdminRole();
-        if (this.isAdmin) {
+        if (this.canFilterAdvisors) {
             this.loadAdvisors();
         }
         this.loadReports();
@@ -212,15 +226,11 @@ export default {
                 });
         },
 
-        checkAdminRole() {
-            this.isAdmin = this.$isAdmin();
-        },
-
         async loadReports() {
             this.preloader = true;
             const params = {};
             
-            if (this.isAdmin && this.selectedAdvisorId) {
+            if (this.canFilterAdvisors && this.selectedAdvisorId) {
                 params.user_id = this.selectedAdvisorId;
             }
             if (this.reportFilters.startDate) {
