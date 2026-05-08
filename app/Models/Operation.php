@@ -42,6 +42,7 @@ class Operation extends Model
         'notes',
         'company_commission_percentage',
         'company_commission_amount',
+        'contract_path',
     ];
 
     public function property()

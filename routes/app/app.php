@@ -52,6 +52,7 @@ Route::get('operations/listar', [OperationController::class, 'listado'])->name('
 Route::post('operations/create', [OperationController::class, 'create'])->name('operations.crear');
 Route::post('edit/operations/{id}', [OperationController::class, 'edit'])->name('operations.edit');
 Route::get('/operations/form-data', [\App\Http\Controllers\OperationController::class, 'formData']);
+Route::get('operations/{id}/download-contract', [OperationController::class, 'downloadContract'])->name('operations.download-contract');
 
 Route::post('/users', [App\Http\Controllers\UserController::class, 'store']);
 Route::post('/users/edit/{id}', [App\Http\Controllers\UserController::class, 'update']);

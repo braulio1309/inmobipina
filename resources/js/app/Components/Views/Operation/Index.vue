@@ -90,9 +90,20 @@
                                 return lines.join('');
                             }
                         },
-                        
-                        
-                        
+                        {
+                            title: 'Contrato',
+                            type: 'custom-html',
+                            key: 'contract_url',
+                            default: "",
+                            isVisible: true,
+                            modifier:(value, row) => {
+                                if (row.type !== 'exclusividad') return 'N/A';
+                                if (value) {
+                                    return `<span class="badge badge-sm badge-pill badge-success">Disponible</span>`;
+                                }
+                                return `<span class="badge badge-sm badge-pill badge-secondary">Sin contrato</span>`;
+                            }
+                        },
                         {
                             title: this.$t('action'),
                             type: 'action',
@@ -131,7 +142,7 @@
                             type: 'none',
                         },
                         {
-                            title: 'Descargar formato',
+                            title: 'Descargar contrato',
                             type: 'none',
                         },
                     ],
@@ -167,15 +178,15 @@
                     this.selectedUrl = `${actions.INVITE_USER}/${rowData.id}`;
                     this.operationForUserInvitation();
 
-                } else if (actionObj.title == 'Descargar formato') {
+                } else if (actionObj.title == 'Descargar contrato') {
 
-                    this.confirmation.url = `${actions.USERS}/${rowData.id}`;
-                    this.confirmation.tableId = this.userAndRoles.users.tableId;
-                    this.openConfirmationModal();
+                    if (rowData.contract_url) {
+                        window.open(rowData.contract_url, '_blank');
+                    } else {
+                        window.location.href = `/operations/${rowData.id}/download-contract`;
+                    }
 
                 } else if(actionObj.title == this.$t('edit')) {
-                    //this.selectedUrl = `${actions.UPDATE_USER_NAME}/${rowData.id}`;
-                    //this.openUserModal();
                     console.log('epaaa')
                     this.$router.push({ name: 'EditUser', params: { id: rowData.id } });
 
