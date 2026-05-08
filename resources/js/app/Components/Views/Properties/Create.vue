@@ -335,6 +335,7 @@
 
 <script>
 import axios from "axios";
+import L from 'leaflet';
     import {FormMixin} from "../../../../../js/core/mixins/form/FormMixin.js";
 
 
@@ -497,33 +498,9 @@ export default {
                 console.error('Error al cargar la propiedad:', e);
             }
         },
-        loadLeaflet() {
-            return new Promise((resolve) => {
-                if (window.L) {
-                    resolve(window.L);
-                    return;
-                }
-                // Load Leaflet CSS
-                if (!document.getElementById('leaflet-css')) {
-                    const link = document.createElement('link');
-                    link.id = 'leaflet-css';
-                    link.rel = 'stylesheet';
-                    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                    document.head.appendChild(link);
-                }
-                // Load Leaflet JS
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                script.onload = () => resolve(window.L);
-                document.head.appendChild(script);
-            });
-        },
-
-        async initMap() {
+        initMap() {
             const mapEl = document.getElementById('property-map');
             if (!mapEl || this.leafletMap) return;
-
-            const L = await this.loadLeaflet();
 
             // Default center: Puerto Ordaz, Bolívar, Venezuela
             const defaultLat = this.property.map_lat ? parseFloat(this.property.map_lat) : 8.2830;
@@ -603,8 +580,7 @@ export default {
                 if (this.leafletMarker) {
                     this.leafletMarker.setLatLng([lat, lng]);
                 } else {
-                    const L = window.L;
-                    if (L) this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
+                    this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
                 }
             }
         },
