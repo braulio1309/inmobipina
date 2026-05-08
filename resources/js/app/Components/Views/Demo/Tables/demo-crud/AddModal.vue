@@ -11,7 +11,7 @@
             <form class="mb-0"
                   :class="{'loading-opacity': preloader}"
                   ref="form"
-                  :data-url='selectedUrl ? `activities/${inputs.id}` : `activities/create`'>
+                :data-url='selectedUrl ? `edit/activities/${inputs.id}` : `activities/create`'>
 
                 <!-- Tipo de Actividad -->
                 <div class="form-group row align-items-center">

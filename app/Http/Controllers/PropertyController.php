@@ -9,6 +9,8 @@ use App\Models\Exclusivity;
 use App\Filters\Common\Auth\PropertyFilter as AppUserFilter;
 use App\Filters\Core\PropertyFilter;
 use App\Services\Core\Auth\PropertyService;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -213,11 +215,75 @@ class PropertyController extends Controller
     {
         $properties = Property::whereNotNull('map_lat')
             ->whereNotNull('map_lng')
-            ->whereNotNull('approved_by')
             ->select('id', 'title', 'address', 'price', 'type', 'type_sale', 'status', 'map_lat', 'map_lng')
+            ->latest('id')
             ->get();
 
         return response()->json($properties);
+    }
+
+    public function getMapTile($z, $x, $y)
+    {
+        try {
+            $response = $this->mapHttpClient()->get("https://tile.openstreetmap.org/{$z}/{$x}/{$y}.png");
+
+            return response($response->getBody()->getContents(), 200, [
+                'Content-Type' => $response->getHeaderLine('Content-Type') ?: 'image/png',
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        } catch (GuzzleException $exception) {
+            report($exception);
+
+            return response()->json(['message' => 'No se pudieron cargar las calles del mapa.'], 502);
+        }
+    }
+
+    public function searchAddress(Request $request)
+    {
+        $query = trim((string) $request->get('q', ''));
+
+        if (mb_strlen($query) < 3) {
+            return response()->json([]);
+        }
+
+        try {
+            $response = $this->mapHttpClient()->get('https://nominatim.openstreetmap.org/search', [
+                'query' => [
+                    'format' => 'json',
+                    'q' => $query,
+                    'countrycodes' => 've',
+                    'limit' => 5,
+                    'viewbox' => '-63.1,8.0,-62.3,8.6',
+                    'bounded' => 1,
+                ],
+                'headers' => [
+                    'Accept-Language' => 'es',
+                ],
+            ]);
+
+            return response($response->getBody()->getContents(), 200, [
+                'Content-Type' => $response->getHeaderLine('Content-Type') ?: 'application/json',
+                'Cache-Control' => 'public, max-age=300',
+            ]);
+        } catch (GuzzleException $exception) {
+            report($exception);
+
+            return response()->json([], 502);
+        }
+    }
+
+    private function mapHttpClient()
+    {
+        return new Client([
+            'timeout' => 15,
+            'connect_timeout' => 10,
+            'http_errors' => true,
+            'verify' => false,
+            'allow_redirects' => true,
+            'headers' => [
+                'User-Agent' => config('app.name', 'Laravel') . '/1.0 map-proxy',
+            ],
+        ]);
     }
 }
 

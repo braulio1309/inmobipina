@@ -324,7 +324,15 @@
     </div>
 
     <!-- Botón final -->
-    <div class="mt-3 text-end">
+    <div class="mt-3 d-flex justify-content-end gap-2">
+        <button
+            v-if="canApproveProperty"
+            class="btn btn-success mr-2"
+            @click="approveProperty"
+            :disabled="saving"
+        >
+            Aprobar propiedad
+        </button>
         <button class="btn btn-primary" @click="saveProperty" :disabled="saving">
             {{ saving ? 'Guardando...' : (savedPropertyId ? 'Actualizar Propiedad' : 'Guardar Propiedad') }}
         </button>
@@ -336,25 +344,44 @@
 
 <script>
 import axios from "axios";
-<<<<<<< HEAD
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-=======
-import L from 'leaflet';
->>>>>>> 60fbd34612abb217cd0297f081857ff1c4651f8d
-    import {FormMixin} from "../../../../../js/core/mixins/form/FormMixin.js";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import {FormMixin} from "../../../../../js/core/mixins/form/FormMixin.js";
 
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
 });
+
+const PUERTO_ORDAZ_CENTER = {
+    lat: 8.2830,
+    lng: -62.7244,
+    zoom: 14,
+};
+
+const PUERTO_ORDAZ_BOUNDS = {
+    xmin: -63.1,
+    ymin: 8.0,
+    xmax: -62.3,
+    ymax: 8.6,
+};
 
 
 export default {
     mixins: [FormMixin],
+
+    props: {
+        isAdmin: {
+            type: Boolean,
+            default: false,
+        }
+    },
 
     data() {
         return {
@@ -365,6 +392,7 @@ export default {
             filePreviews: [],
             uploadedImages: [],
             leafletMap: null,
+            leafletTileLayer: null,
             leafletMarker: null,
             addressSuggestions: [],
             addressSuggestionIndex: -1,
@@ -388,6 +416,8 @@ export default {
                 map_lng: "",
                 type: "",
                 price: "",
+                status: "",
+                approved_by: null,
                 exclusivity: false,
                 type_sale: "",
             },
@@ -503,6 +533,10 @@ export default {
 
         canDownloadExclusivityPdf() {
             return Boolean(this.savedPropertyId) && this.hasExclusivityData && !this.isExclusivityDirty;
+        },
+
+        canApproveProperty() {
+            return this.isAdmin && Boolean(this.savedPropertyId) && this.property.status === 'pending';
         }
     },
 
@@ -532,6 +566,8 @@ export default {
                 this.property.map_lng = p.map_lng || '';
                 this.property.type = p.type || '';
                 this.property.price = p.price || '';
+                this.property.status = p.status || '';
+                this.property.approved_by = p.approved_by || null;
                 this.property.exclusivity = p.exclusivity || false;
                 this.property.type_sale = p.type_sale || '';
 
@@ -581,26 +617,27 @@ export default {
             const mapEl = document.getElementById('property-map');
             if (!mapEl) return;
 
-<<<<<<< HEAD
             if (this.leafletMap) {
                 this.refreshMapSize();
                 this.syncMapMarker();
                 return;
             }
-
-=======
->>>>>>> 60fbd34612abb217cd0297f081857ff1c4651f8d
             // Default center: Puerto Ordaz, Bolívar, Venezuela
             const hasCoordinates = this.hasValidCoordinates(this.property.map_lat, this.property.map_lng);
-            const defaultLat = hasCoordinates ? parseFloat(this.property.map_lat) : 8.2830;
-            const defaultLng = hasCoordinates ? parseFloat(this.property.map_lng) : -62.7244;
-            const defaultZoom = hasCoordinates ? 15 : 14;
+            const defaultLat = hasCoordinates ? parseFloat(this.property.map_lat) : PUERTO_ORDAZ_CENTER.lat;
+            const defaultLng = hasCoordinates ? parseFloat(this.property.map_lng) : PUERTO_ORDAZ_CENTER.lng;
+            const defaultZoom = hasCoordinates ? 15 : PUERTO_ORDAZ_CENTER.zoom;
 
-            this.leafletMap = L.map('property-map').setView([defaultLat, defaultLng], defaultZoom);
+            this.leafletMap = L.map(mapEl).setView([defaultLat, defaultLng], defaultZoom);
 
-            L.tileLayer('', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            this.leafletTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
                 maxZoom: 19,
+                detectRetina: true,
+                updateWhenIdle: true,
+                updateWhenZooming: false,
+                keepBuffer: 6,
+                crossOrigin: true,
             }).addTo(this.leafletMap);
 
             this.syncMapMarker();
@@ -644,7 +681,7 @@ export default {
 
             this.$nextTick(() => {
                 window.requestAnimationFrame(() => {
-                    this.leafletMap.invalidateSize();
+                    this.leafletMap.invalidateSize(false);
                 });
             });
         },
@@ -663,13 +700,114 @@ export default {
 
         async searchAddress(query) {
             try {
-                const response = await axios.get('/property/address-search', {
-                    params: { q: query }
-                });
-                this.addressSuggestions = response.data;
+                let suggestions = await this.searchAddressWithArcGis(query);
+
+                if (!suggestions.length) {
+                    suggestions = await this.searchAddressWithNominatim(query);
+                }
+
+                this.addressSuggestions = suggestions;
             } catch (e) {
+                console.error('Error al buscar dirección:', e);
                 this.addressSuggestions = [];
             }
+        },
+
+        async searchAddressWithArcGis(query) {
+            const params = new URLSearchParams({
+                f: 'json',
+                text: query,
+                maxSuggestions: '8',
+                countryCode: 'VEN',
+                location: `${PUERTO_ORDAZ_CENTER.lng},${PUERTO_ORDAZ_CENTER.lat}`,
+                searchExtent: `${PUERTO_ORDAZ_BOUNDS.xmin},${PUERTO_ORDAZ_BOUNDS.ymin},${PUERTO_ORDAZ_BOUNDS.xmax},${PUERTO_ORDAZ_BOUNDS.ymax}`,
+            });
+
+            const response = await fetch(
+                `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/suggest?${params.toString()}`,
+                {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`ArcGIS suggest failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            return (data.suggestions || [])
+                .filter((suggestion) => suggestion && suggestion.text)
+                .map((suggestion) => ({
+                    display_name: suggestion.text,
+                    magicKey: suggestion.magicKey,
+                    source: 'arcgis',
+                }));
+        },
+
+        async searchAddressWithNominatim(query) {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5&viewbox=${PUERTO_ORDAZ_BOUNDS.xmin},${PUERTO_ORDAZ_BOUNDS.ymax},${PUERTO_ORDAZ_BOUNDS.xmax},${PUERTO_ORDAZ_BOUNDS.ymin}&bounded=1`,
+                {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Accept-Language': 'es'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Nominatim lookup failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            return data.map((candidate) => ({
+                display_name: candidate.display_name,
+                lat: String(candidate.lat),
+                lon: String(candidate.lon),
+                source: 'nominatim',
+            }));
+        },
+
+        async resolveArcGisSuggestion(suggestion) {
+            const params = new URLSearchParams({
+                f: 'json',
+                magicKey: suggestion.magicKey,
+                SingleLine: suggestion.display_name,
+                maxLocations: '1',
+                outSR: '4326',
+                location: `${PUERTO_ORDAZ_CENTER.lng},${PUERTO_ORDAZ_CENTER.lat}`,
+                searchExtent: `${PUERTO_ORDAZ_BOUNDS.xmin},${PUERTO_ORDAZ_BOUNDS.ymin},${PUERTO_ORDAZ_BOUNDS.xmax},${PUERTO_ORDAZ_BOUNDS.ymax}`,
+            });
+
+            const response = await fetch(
+                `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`,
+                {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`ArcGIS candidate lookup failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+            const candidate = data.candidates && data.candidates[0];
+
+            if (!candidate || !candidate.location) {
+                return null;
+            }
+
+            return {
+                display_name: candidate.address || suggestion.display_name,
+                lat: String(candidate.location.y),
+                lon: String(candidate.location.x),
+            };
         },
 
         moveAddressSuggestion(direction) {
@@ -678,9 +816,28 @@ export default {
             this.addressSuggestionIndex = (this.addressSuggestionIndex + direction + len) % len;
         },
 
-        selectAddressSuggestion(index) {
-            const suggestion = this.addressSuggestions[index >= 0 ? index : 0];
-            if (!suggestion) return;
+        async selectAddressSuggestion(index) {
+            const rawSuggestion = this.addressSuggestions[index >= 0 ? index : 0];
+            if (!rawSuggestion) return;
+
+            let suggestion = rawSuggestion;
+
+            if (rawSuggestion.source === 'arcgis' && rawSuggestion.magicKey) {
+                try {
+                    const resolvedSuggestion = await this.resolveArcGisSuggestion(rawSuggestion);
+
+                    if (resolvedSuggestion) {
+                        suggestion = resolvedSuggestion;
+                    }
+                } catch (e) {
+                    console.error('Error al resolver sugerencia:', e);
+                }
+            }
+
+            if (!suggestion.lat || !suggestion.lon) {
+                return;
+            }
+
             this.property.address = suggestion.display_name;
             this.property.map_lat = parseFloat(suggestion.lat).toFixed(6);
             this.property.map_lng = parseFloat(suggestion.lon).toFixed(6);
@@ -691,15 +848,13 @@ export default {
                 const lat = parseFloat(suggestion.lat);
                 const lng = parseFloat(suggestion.lon);
                 this.leafletMap.setView([lat, lng], 16);
-<<<<<<< HEAD
                 this.syncMapMarker();
-=======
                 if (this.leafletMarker) {
                     this.leafletMarker.setLatLng([lat, lng]);
                 } else {
                     this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
                 }
->>>>>>> 60fbd34612abb217cd0297f081857ff1c4651f8d
+
             }
         },
 
@@ -785,12 +940,36 @@ export default {
                 this.saving = false;
             }
         },
+
+        async approveProperty() {
+            if (!this.savedPropertyId) {
+                return;
+            }
+
+            this.saving = true;
+
+            try {
+                const response = await axios.patch(`/property/${this.savedPropertyId}/approve`, {
+                    action: 'approve'
+                });
+
+                this.property.status = response.data?.property?.status || 'Disponible';
+                this.property.approved_by = response.data?.property?.approved_by || true;
+                this.$toastr.s(response.data?.message || 'Propiedad aprobada correctamente');
+            } catch (error) {
+                console.error(error);
+                this.$toastr.e(error.response?.data?.message || 'No se pudo aprobar la propiedad');
+            } finally {
+                this.saving = false;
+            }
+        },
     },
 
     beforeDestroy() {
         if (this.leafletMap) {
             this.leafletMap.remove();
             this.leafletMap = null;
+            this.leafletTileLayer = null;
             this.leafletMarker = null;
         }
 
@@ -798,3 +977,28 @@ export default {
     }
 };
 </script>
+
+<style>
+#property-map.leaflet-container {
+    background: #e9ecef;
+}
+
+#property-map .leaflet-marker-pane img,
+#property-map .leaflet-marker-icon,
+#property-map .leaflet-marker-shadow {
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+}
+
+#property-map .leaflet-tile {
+    max-width: none !important;
+    max-height: none !important;
+}
+
+#property-map .leaflet-control-container .leaflet-top,
+#property-map .leaflet-control-container .leaflet-bottom {
+    z-index: 800;
+}
+</style>

@@ -186,7 +186,7 @@ export default {
          * for close add edit modal
          */
         closeAddEditModal() {
-            $("#demo-add-edit-Modal").modal('hide');
+            $("#activity-add-edit-modal").modal('hide');
             this.isAddEditModalActive = false;
             this.searchAndSelectFilterOptions();
             this.reSetData();

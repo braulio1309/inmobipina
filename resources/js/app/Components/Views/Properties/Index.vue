@@ -1,6 +1,19 @@
 <template>
     <div class="content-wrapper">
-        <app-breadcrumb :page-title="'Listado de Propiedades'" :directory="$t('datatables')" :icon="'grid'"/>
+        <div class="row">
+            <div class="col-sm-12 col-md-6">
+                <app-breadcrumb :page-title="'Listado de Propiedades'" :directory="$t('datatables')" :icon="'grid'"/>
+            </div>
+            <div class="col-sm-12 col-md-6 breadcrumb-side-button">
+                <div class="float-md-right mb-3 mb-sm-3 mb-md-0">
+                    <button type="button"
+                            class="btn btn-primary btn-with-shadow"
+                            @click="goToCreateProperty">
+                        Registrar propiedad
+                    </button>
+                </div>
+            </div>
+        </div>
         <div class="mb-primary col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
             <app-table :id="'default-filter-table'" :options="options" @action="handleAction"/>
         </div>
@@ -194,6 +207,9 @@
             this.searchAndSelectFilterOptions();
         },
         methods: {
+            goToCreateProperty() {
+                window.location.href = '/properties/create';
+            },
             handleAction(rowData, actionObj) {
                 if (actionObj.title === 'Editar') {
                     window.location.href = `/properties/create?id=${rowData.id}`;

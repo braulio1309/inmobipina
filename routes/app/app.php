@@ -14,6 +14,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\App\ReportController;
+use Illuminate\Support\Facades\Route;
 
 
 Route::view('/properties', 'properties.index');
@@ -33,6 +34,8 @@ Route::group(['prefix' => 'app/reports'], function () {
 });
 Route::get('property/listar', [PropertyController::class, 'listado'])->name('property.listar');
 Route::get('property/map-data', [PropertyController::class, 'getMapProperties'])->name('property.map-data');
+Route::get('property/map-tiles/{z}/{x}/{y}', [PropertyController::class, 'getMapTile'])->name('property.map-tiles');
+Route::get('property/address-search', [PropertyController::class, 'searchAddress'])->name('property.address-search');
 Route::get('property/{id}', [PropertyController::class, 'show'])->name('property.show');
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');
 Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->name('property.approve');

@@ -57,10 +57,11 @@
 <script>
     import {FormMixin} from '../../../../../core/mixins/form/FormMixin.js';
     import * as actions from '../../../../Config/ApiUrl';
+    import {UserAndRoleMixin} from '../Mixins/UserAndRoleMixin';
 
     export default {
         name: "CreateUserModal",
-        mixins: [FormMixin],
+        mixins: [FormMixin, UserAndRoleMixin],
         props: {
             modalId: {
                 type: String,
@@ -98,16 +99,57 @@
                     this.preloader = false;
                 });
             },
-            submit() {
-                if (this.form.role_id) {
-                    this.form.roles = [this.form.role_id];
+            normalizeRoleId(role) {
+                if (!role) {
+                    return '';
                 }
-                this.save(this.form);
+
+                if (typeof role === 'object') {
+                    return role.id || role.value || '';
+                }
+
+                return role;
+            },
+            submit() {
+                const roleId = this.normalizeRoleId(this.form.role_id);
+
+                if (!this.form.first_name || !this.form.email || !this.form.password || !roleId) {
+                    this.$toastr.e('Completa nombre, correo, contraseña y rol antes de guardar.');
+                    return;
+                }
+
+                const payload = {
+                    first_name: this.form.first_name,
+                    last_name: this.form.last_name,
+                    email: this.form.email,
+                    password: this.form.password,
+                    roles: [roleId],
+                };
+
+                this.preloader = true;
+
+                this.axiosPost({
+                    url: 'admin/auth/users',
+                    data: payload,
+                }).then((res) => {
+                    this.afterSuccess(res);
+                }).catch((error) => {
+                    this.afterError(error.response);
+                }).finally(() => {
+                    this.preloader = false;
+                });
             },
             afterSuccess(res) {
                 this.$toastr.s(res.data.message);
-                this.$hub.$emit('reload-users-table');
+                this.reLoadTable();
                 this.$emit('close-modal');
+            },
+            afterError(response) {
+                const message = response?.data?.message
+                    || Object.values(response?.data?.errors || {}).flat()[0]
+                    || 'No se pudo guardar el usuario.';
+
+                this.$toastr.e(message);
             },
         }
     }
