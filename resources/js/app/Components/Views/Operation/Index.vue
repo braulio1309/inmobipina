@@ -2,7 +2,7 @@
     <div class="content-wrapper">
         <app-breadcrumb :page-title="'Historial de operaciones'" :directory="$t('datatables')" :icon="'grid'"/>
         <div class="mb-primary col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-            <app-table :id="'default-filter-table'" :options="options" :action="getAction"/>
+            <app-table :id="'default-filter-table'" :options="options" @action="getAction"/>
         </div>
     </div>
 </template>
@@ -141,10 +141,6 @@
                             title: this.$t('edit'),
                             type: 'none',
                         },
-                        {
-                            title: 'Descargar contrato',
-                            type: 'none',
-                        },
                     ],
                 },
             }
@@ -178,17 +174,8 @@
                     this.selectedUrl = `${actions.INVITE_USER}/${rowData.id}`;
                     this.operationForUserInvitation();
 
-                } else if (actionObj.title == 'Descargar contrato') {
-
-                    if (rowData.contract_url) {
-                        window.open(rowData.contract_url, '_blank');
-                    } else {
-                        window.location.href = `/operations/${rowData.id}/download-contract`;
-                    }
-
                 } else if(actionObj.title == this.$t('edit')) {
-                    console.log('epaaa')
-                    this.$router.push({ name: 'EditUser', params: { id: rowData.id } });
+                    window.location.href = `/create/operations?id=${rowData.id}`;
 
                 } else if (actionObj.title == this.$t('active')) {
 

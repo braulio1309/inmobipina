@@ -251,9 +251,18 @@ export default {
         },
 
         searchAndSelectFilterOptions() {
-            this.axiosGet(actions.DATATABLE_SEARCH_SELECT).then(response => {
+            this.options.filters = this.options.filters.filter(filter => filter.key !== 'asesor');
 
-                // No dynamic filters to populate
+            this.axiosGet('admin/auth/users').then(response => {
+                this.options.filters.push({
+                    title: 'Asesores',
+                    type: 'drop-down-filter',
+                    key: 'asesor',
+                    option: response.data.map(asesor => ({
+                        id: asesor.id,
+                        value: asesor.name || asesor.value,
+                    }))
+                });
             });
         }
     },

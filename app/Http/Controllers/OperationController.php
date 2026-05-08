@@ -27,44 +27,48 @@ class OperationController extends Controller
 
     public function listado()
     {
-        return (new AppUserFilter(
-        $this->service->with(['sellers', 'property'])
-            ->filters($this->filter)
-            ->latest()
-    ))
-    ->filter()
-    ->paginate(request()->get('per_page', 10))
-    ->through(function ($item) {
-        // Agregar sellers_names con sus comisiones
-        $item->sellers_names = $item->sellers
-            ->map(fn($s) => trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? '')))
+        /** @var \Illuminate\Pagination\LengthAwarePaginator $operations */
+        $operations = (new AppUserFilter(
+            $this->service->with(['sellers', 'property'])
+                ->filters($this->filter)
+                ->latest()
+        ))
             ->filter()
-            ->implode(', ');
+            ->paginate(request()->get('per_page', 10));
 
-        // Detalle de comisiones por involucrado
-        $item->commission_details = $item->sellers->map(function ($s) {
-            $name = trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? ''));
-            return [
-                'name'       => $name ?: ($s->email ?? '—'),
-                'percentage' => $s->pivot->commission_percentage ?? 0,
-                'amount'     => $s->pivot->commission_amount ?? 0,
-            ];
-        })->values()->toArray();
+        $operations->getCollection()->transform(function ($item) {
+            $item->sellers_names = $item->sellers
+                ->map(fn ($s) => trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? '')))
+                ->filter()
+                ->implode(', ');
 
-        $item->property_title = $item->property ? $item->property->title : '';
+            $item->commission_details = $item->sellers->map(function ($s) {
+                $name = trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? ''));
 
-        $item->contract_url = $item->contract_path
-            ? Storage::url('contracts/' . $item->contract_path)
-            : null;
+                return [
+                    'name' => $name ?: ($s->email ?? '—'),
+                    'percentage' => $s->pivot->commission_percentage ?? 0,
+                    'amount' => $s->pivot->commission_amount ?? 0,
+                ];
+            })->values()->toArray();
 
-        return $item;
-    });
+            $item->property_title = $item->property ? $item->property->title : '';
+            $item->contract_url = $item->contract_path
+                ? Storage::url('contracts/' . $item->contract_path)
+                : null;
 
+            return $item;
+        });
+
+        return $operations;
     }
 
     public function create(Request $request)
 {
-    if (!Auth::user()->isAdmin()) {
+    /** @var \App\Models\Core\Auth\User|null $authUser */
+    $authUser = Auth::user();
+
+    if (!$authUser || !$authUser->isAdmin()) {
         return response()->json(['message' => 'No tienes permiso para crear cierres.'], 403);
     }
 
@@ -167,16 +171,63 @@ class OperationController extends Controller
 
     public function edit(Request $request, $id)
     {
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
 
-        $Operation = Operation::where('id', $id)->first();
-        $Operation->update($request->all());
+        if (!$authUser || !$authUser->isAdmin()) {
+            return response()->json(['message' => 'No tienes permiso para editar cierres.'], 403);
+        }
+
+        $operation = Operation::where('id', $id)->firstOrFail();
+
+        $amount = $request->amount ?? 0;
+        $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
+        $numSellers = count($sellers);
+        $numParties = $numSellers + 1;
+        $eachPartyPct = $numSellers > 0 ? round(5 / $numParties, 4) : 0;
+        $eachPartyAmt = round($amount * $eachPartyPct / 100, 2);
+
+        $operation->update(array_merge(
+            $request->only(['type', 'property_id', 'amount', 'start_date', 'end_date', 'notes']),
+            [
+                'company_commission_percentage' => $eachPartyPct,
+                'company_commission_amount' => $eachPartyAmt,
+            ]
+        ));
+
+        $operation->clients()->sync($request->input('buyers', []));
+
+        if ($numSellers > 0) {
+            $syncData = [];
+            foreach ($sellers as $sellerId) {
+                $syncData[$sellerId] = [
+                    'commission_percentage' => $eachPartyPct,
+                    'commission_amount' => $eachPartyAmt,
+                ];
+            }
+            $operation->sellers()->sync($syncData);
+        } else {
+            $operation->sellers()->sync([]);
+        }
 
         return created_responses('Transaction');
     }
 
-    public function show(Operation $Operation)
+    public function show($id)
     {
-        return response()->json($Operation);
+        $operation = Operation::with(['clients', 'sellers', 'property'])->findOrFail($id);
+
+        return response()->json([
+            'id' => $operation->id,
+            'type' => $operation->type,
+            'property_id' => (string) $operation->property_id,
+            'amount' => $operation->amount,
+            'start_date' => $operation->start_date,
+            'end_date' => $operation->end_date,
+            'notes' => $operation->notes,
+            'buyers' => $operation->clients->pluck('id')->map(fn ($item) => (string) $item)->values(),
+            'sellers' => $operation->sellers->pluck('id')->map(fn ($item) => (string) $item)->values(),
+        ]);
     }
 
     public function formData()

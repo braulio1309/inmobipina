@@ -44,6 +44,15 @@ class ActivityFilter extends FilterBuilder
         });
     }
 
+    public function asesor($asesor = null)
+    {
+        $asesor = $asesor ?: request()->input('asesor');
+
+        $this->builder->when($asesor, function (Builder $builder) use ($asesor) {
+            $builder->where('user_id', $asesor);
+        });
+    }
+
     public function search($search = null)
     {
         return $this->builder->when($search, function (Builder $builder) use ($search) {

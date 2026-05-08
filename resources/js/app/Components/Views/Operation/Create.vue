@@ -1,7 +1,7 @@
 <template>
 <div class="container mt-4">
 
-    <h3 class="mb-3">Registrar Operación</h3>
+    <h3 class="mb-3">{{ formTitle }}</h3>
 
     <div class="border rounded p-3">
 
@@ -171,7 +171,7 @@
     <!-- BOTÓN -->
     <div class="mt-3 text-end">
         <button class="btn btn-primary" @click="saveOperation">
-            Guardar Operación
+            {{ submitLabel }}
         </button>
     </div>
 
@@ -189,6 +189,7 @@ export default {
 
     data() {
         return {
+            operationId: null,
             propertiesList: [],
             buyersList: [],
             sellersList: [],
@@ -223,9 +224,21 @@ export default {
 
     async created() {
         await this.loadData();
+
+        const operationId = new URLSearchParams(window.location.search).get('id');
+        if (operationId) {
+            this.operationId = operationId;
+            await this.loadOperation();
+        }
     },
 
     computed: {
+        formTitle() {
+            return this.operationId ? 'Editar Operación' : 'Registrar Operación';
+        },
+        submitLabel() {
+            return this.operationId ? 'Actualizar Operación' : 'Guardar Operación';
+        },
         eachPartyPercentage() {
             const numSellers = this.sellersCommissions.length;
             return parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4));
@@ -275,36 +288,63 @@ export default {
                 ];
         },
 
-        onPropertySelected(val) {
+        async loadOperation() {
+            const response = await this.axiosGet(`/operations/${this.operationId}`);
+            const operation = response.data;
+
+            this.operation = {
+                property_id: operation.property_id || '',
+                type: operation.type || '',
+                amount: operation.amount || '',
+                start_date: operation.start_date || '',
+                end_date: operation.end_date || '',
+                buyers: operation.buyers || [],
+                sellers: operation.sellers || [],
+                notes: operation.notes || '',
+            };
+
+            this.setSelectedPropertyPrice(this.operation.property_id);
+            this.applyTypeState(true);
+            this.onSellersChanged(this.operation.sellers || []);
+        },
+
+        setSelectedPropertyPrice(val) {
             const selected = this.propertiesList.find(p => p.id === val);
             if (!selected) return;
+
             this.selectedPropertyPrice = selected.price;
-            this.updateAmountByType();
+        },
+
+        onPropertySelected(val) {
+            this.setSelectedPropertyPrice(val);
+            this.applyTypeState();
         },
 
         onTypeChange() {
-            this.updateAmountByType();
+            this.applyTypeState();
         },
 
-        updateAmountByType() {
-            if (!this.selectedPropertyPrice) return;
+        applyTypeState(preserveAmount = false) {
+            if (this.operation.type === "exclusividad") {
+                this.showAmount = false;
+                this.suggestedMessage = "";
+                if (!preserveAmount) {
+                    this.operation.amount = "";
+                }
+                return;
+            }
+
+            this.showAmount = true;
+            this.suggestedMessage = this.selectedPropertyPrice ? "Precio sugerido" : "";
+
+            if (!this.selectedPropertyPrice || preserveAmount) {
+                return;
+            }
 
             if (this.operation.type === "venta") {
                 this.operation.amount = this.selectedPropertyPrice;
-                this.showAmount = true;
-                this.suggestedMessage = "Precio sugerido";
-            }
-
-            if (this.operation.type === "reserva") {
+            } else if (this.operation.type === "reserva") {
                 this.operation.amount = (this.selectedPropertyPrice * 0.10).toFixed(2);
-                this.showAmount = true;
-                this.suggestedMessage = "Precio sugerido";
-            }
-
-            if (this.operation.type === "exclusividad") {
-                this.operation.amount = "";
-                this.showAmount = false;
-                this.suggestedMessage = "";
             }
 
             this.recalculateCommissions();
@@ -358,8 +398,14 @@ export default {
                     sellers: this.operation.sellers,
                 };
 
-                const response = await axios.post("/operations/create", payload);
-                this.$toastr.s("Operación creada correctamente");
+                let response;
+                if (this.operationId) {
+                    response = await axios.post(`/edit/operations/${this.operationId}`, payload);
+                    this.$toastr.s("Operación actualizada correctamente");
+                } else {
+                    response = await axios.post("/operations/create", payload);
+                    this.$toastr.s("Operación creada correctamente");
+                }
 
                 // Si es exclusividad y se generó un contrato, ofrecer descarga
                 if (response.data.pdf_url) {
@@ -367,18 +413,20 @@ export default {
                 }
 
                 // Reiniciar formulario
-                this.operation = {
-                    property_id: "",
-                    type: "",
-                    amount: "",
-                    start_date: "",
-                    end_date: "",
-                    buyers: [],
-                    sellers: [],
-                    notes: "",
-                };
-                this.selectedPropertyPrice = null;
-                this.sellersCommissions = [];
+                if (!this.operationId) {
+                    this.operation = {
+                        property_id: "",
+                        type: "",
+                        amount: "",
+                        start_date: "",
+                        end_date: "",
+                        buyers: [],
+                        sellers: [],
+                        notes: "",
+                    };
+                    this.selectedPropertyPrice = null;
+                    this.sellersCommissions = [];
+                }
 
             } catch (error) {
                 this.$toastr.e("Error al guardar la operación");
