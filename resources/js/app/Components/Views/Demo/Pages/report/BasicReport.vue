@@ -34,7 +34,7 @@ export default {
 
     inject: {
         reportFilters: {
-            default: () => ({ startDate: '', endDate: '', reportUnit: 'count' }),
+            default: () => ({ startDate: '', endDate: '' }),
         },
     },
 
@@ -75,12 +75,12 @@ export default {
                         key: 'name',
                     },
                     {
-                        title: this.$t('reports.count'),
+                        title: this.$t('reports.sales_count'),
                         type: 'text',
                         key: 'count'
                     },
                     {
-                        title: this.$t('reports.value'),
+                        title: this.$t('reports.amount_usd'),
                         type: 'custom-html',
                         key: 'value',
                         modifier: (value) => {
@@ -119,7 +119,7 @@ export default {
             let midIndex = Math.ceil(top10Data.length / 2);
             top10Data.forEach((item, index) => {
                 if (index === midIndex) {
-                    this.reportChart.labels.push(this.$t('average'));
+                    this.reportChart.labels.push(this.$t('reports.average'));
                     this.reportChart.dataSets[0].backgroundColor.push('#4FE892');
                     this.reportChart.dataSets[0].data.push(this.getAverageValue());
                 }
