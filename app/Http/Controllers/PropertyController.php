@@ -44,8 +44,16 @@ class PropertyController extends Controller
         ]);
         $data['created_by'] = Auth::id();
 
-        $data['status'] = 'pending';
-        unset($data['approved_by']);
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
+
+        if ($authUser && $authUser->isAppAdmin()) {
+            $data['status'] = 'Disponible';
+            $data['approved_by'] = Auth::id();
+        } else {
+            $data['status'] = 'pending';
+            unset($data['approved_by']);
+        }
 
         // Normaliza el campo exclusivity: puede llegar como array (checkbox) o boolean
         if (isset($data['exclusivity'])) {
@@ -167,6 +175,17 @@ class PropertyController extends Controller
     {
         $property = Property::where('id', $id)->firstOrFail();
         $data = $request->except(['exclusivity_data']);
+
+        $requestedStatus = $request->input('status');
+
+        unset($data['approved_by']);
+
+        if ($requestedStatus === 'Disponible') {
+            $data['status'] = 'Disponible';
+            $data['approved_by'] = Auth::id();
+        } else {
+            unset($data['status']);
+        }
 
         if (array_key_exists('exclusivity', $data)) {
             if (is_array($data['exclusivity'])) {
