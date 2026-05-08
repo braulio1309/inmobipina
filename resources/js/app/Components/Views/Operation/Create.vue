@@ -358,8 +358,13 @@ export default {
                     sellers: this.operation.sellers,
                 };
 
-                await axios.post("/operations/create", payload);
+                const response = await axios.post("/operations/create", payload);
                 this.$toastr.s("Operación creada correctamente");
+
+                // Si es exclusividad y se generó un contrato, ofrecer descarga
+                if (response.data.pdf_url) {
+                    window.open(response.data.pdf_url, '_blank');
+                }
 
                 // Reiniciar formulario
                 this.operation = {

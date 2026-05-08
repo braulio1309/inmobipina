@@ -4,17 +4,8 @@
 
 <script>
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { PROPERTY_MAP_DATA } from '../../../../../Config/ApiUrl';
 import { FormMixin } from '../../../../../../core/mixins/form/FormMixin';
-
-// Fix leaflet default icon paths broken by webpack
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-    iconUrl: require('leaflet/dist/images/marker-icon.png'),
-    shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-});
 
 export default {
     name: 'PropertiesMap',

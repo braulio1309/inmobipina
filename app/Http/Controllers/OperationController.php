@@ -53,6 +53,10 @@ class OperationController extends Controller
 
         $item->property_title = $item->property ? $item->property->title : '';
 
+        $item->contract_url = $item->contract_path
+            ? Storage::url('contracts/' . $item->contract_path)
+            : null;
+
         return $item;
     });
 
@@ -190,5 +194,28 @@ class OperationController extends Controller
             'clients'    => Client::select('id', 'name as value')->get(),
             'users'      => $users,
         ]);
+    }
+
+    public function downloadContract($id)
+    {
+        $operation = Operation::findOrFail($id);
+
+        if (!$operation->contract_path) {
+            return response()->json(['message' => 'No hay contrato disponible para esta operación.'], 404);
+        }
+
+        // Use basename() to prevent path traversal
+        $fileName = basename($operation->contract_path);
+        $filePath = 'public/contracts/' . $fileName;
+
+        if (!Storage::exists($filePath)) {
+            return response()->json(['message' => 'El archivo del contrato no fue encontrado.'], 404);
+        }
+
+        return response()->download(
+            storage_path('app/' . $filePath),
+            $fileName,
+            ['Content-Type' => 'application/pdf']
+        );
     }
 }
