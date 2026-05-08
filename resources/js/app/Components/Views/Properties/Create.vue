@@ -336,8 +336,12 @@
 
 <script>
 import axios from "axios";
+<<<<<<< HEAD
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+=======
+import L from 'leaflet';
+>>>>>>> 60fbd34612abb217cd0297f081857ff1c4651f8d
     import {FormMixin} from "../../../../../js/core/mixins/form/FormMixin.js";
 
 
@@ -577,12 +581,15 @@ export default {
             const mapEl = document.getElementById('property-map');
             if (!mapEl) return;
 
+<<<<<<< HEAD
             if (this.leafletMap) {
                 this.refreshMapSize();
                 this.syncMapMarker();
                 return;
             }
 
+=======
+>>>>>>> 60fbd34612abb217cd0297f081857ff1c4651f8d
             // Default center: Puerto Ordaz, Bolívar, Venezuela
             const hasCoordinates = this.hasValidCoordinates(this.property.map_lat, this.property.map_lng);
             const defaultLat = hasCoordinates ? parseFloat(this.property.map_lat) : 8.2830;
@@ -684,7 +691,15 @@ export default {
                 const lat = parseFloat(suggestion.lat);
                 const lng = parseFloat(suggestion.lon);
                 this.leafletMap.setView([lat, lng], 16);
+<<<<<<< HEAD
                 this.syncMapMarker();
+=======
+                if (this.leafletMarker) {
+                    this.leafletMarker.setLatLng([lat, lng]);
+                } else {
+                    this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
+                }
+>>>>>>> 60fbd34612abb217cd0297f081857ff1c4651f8d
             }
         },
 
