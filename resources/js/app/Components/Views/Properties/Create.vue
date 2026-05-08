@@ -86,7 +86,6 @@
                         v-model="property.address" 
                         type="text" 
                         class="form-control"
-                        placeholder="Escribe el nombre de la calle o dirección"
                         @input="onAddressInput"
                         @keydown.down.prevent="moveAddressSuggestion(1)"
                         @keydown.up.prevent="moveAddressSuggestion(-1)"
@@ -113,7 +112,7 @@
                 </label>
                 <p class="text-muted small mb-2">Haz clic en el mapa para marcar la ubicación, o busca por nombre de calle arriba.</p>
                 <div id="property-map" style="height: 350px; border-radius: 10px; border: 1px solid #dee2e6;"></div>
-            </div>
+            </div>      
         </div>
 
         <!-- TAB 3: Extras -->
@@ -127,10 +126,8 @@
                     type="select"
                     v-model="property.type_sale"
                     :list="listForSelect"
-                    placeholder="Selecciona el tipo de propiedad"
                 />
             </div>
-
             <div class="mb-3">
                 <label class="form-label">Precio (USD)</label>
                 <input 
@@ -313,7 +310,11 @@
                 </div>
             </div>
 
-            <div v-if="savedPropertyId" class="mt-3">
+            <div v-if="hasExclusivityData && isExclusivityDirty" class="alert alert-warning mt-3 mb-0">
+                Detectamos cambios en los datos de exclusividad. Debes presionar Guardar o Actualizar Propiedad para volver a habilitar la descarga del contrato.
+            </div>
+
+            <div v-else-if="canDownloadExclusivityPdf" class="mt-3">
                 <a :href="'/property/' + savedPropertyId + '/exclusivity-pdf'" target="_blank" class="btn btn-success">
                     <i class="fas fa-file-pdf"></i> Descargar Contrato de Exclusividad PDF
                 </a>
@@ -335,7 +336,17 @@
 
 <script>
 import axios from "axios";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
     import {FormMixin} from "../../../../../js/core/mixins/form/FormMixin.js";
+
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 
 export default {
@@ -396,6 +407,7 @@ export default {
                 start_date: "",
                 end_date: "",
             },
+            savedExclusivityData: null,
 
               listForSelect: [
                     {
@@ -459,8 +471,34 @@ export default {
             if (newTab === 1) {
                 this.$nextTick(() => {
                     this.initMap();
+                    this.refreshMapSize();
                 });
             }
+        }
+    },
+
+    computed: {
+        hasExclusivityData() {
+            return Object.values(this.exclusivityData)
+                .some(value => value !== "" && value !== null);
+        },
+
+        isExclusivityDirty() {
+            if (!this.hasExclusivityData) {
+                return false;
+            }
+
+            return JSON.stringify(this.normalizeExclusivityData(this.exclusivityData)) !== JSON.stringify(this.savedExclusivitySnapshot);
+        },
+
+        savedExclusivitySnapshot() {
+            return this.savedExclusivityData
+                ? this.normalizeExclusivityData(this.savedExclusivityData)
+                : this.normalizeExclusivityData({});
+        },
+
+        canDownloadExclusivityPdf() {
+            return Boolean(this.savedPropertyId) && this.hasExclusivityData && !this.isExclusivityDirty;
         }
     },
 
@@ -478,6 +516,8 @@ export default {
             try {
                 const res = await axios.get(`/property/${id}`);
                 const p = res.data;
+                const latestExclusivity = p.exclusivities && p.exclusivities.length ? p.exclusivities[0] : null;
+
                 this.property.title = p.title || '';
                 this.property.description = p.description || '';
                 this.property.bathrooms = p.bathrooms || '';
@@ -490,69 +530,115 @@ export default {
                 this.property.price = p.price || '';
                 this.property.exclusivity = p.exclusivity || false;
                 this.property.type_sale = p.type_sale || '';
+
+                if (latestExclusivity) {
+                    this.exclusivityData = {
+                        ...this.exclusivityData,
+                        propietario_nombre: latestExclusivity.propietario_nombre || '',
+                        propietario_ci: latestExclusivity.propietario_ci || '',
+                        propietario_rif: latestExclusivity.propietario_rif || '',
+                        propietario_email: latestExclusivity.propietario_email || '',
+                        propietario_telefono: latestExclusivity.propietario_telefono || '',
+                        inmueble_descripcion: latestExclusivity.inmueble_descripcion || '',
+                        parroquia: latestExclusivity.parroquia || 'Cachamay',
+                        registro_numero: latestExclusivity.registro_numero || '',
+                        registro_folio: latestExclusivity.registro_folio || '',
+                        registro_tomo: latestExclusivity.registro_tomo || '',
+                        registro_protocolo: latestExclusivity.registro_protocolo || '',
+                        registro_anio: latestExclusivity.registro_anio || '',
+                        registro_fecha: latestExclusivity.registro_fecha || '',
+                        precio_venta: latestExclusivity.precio_venta || '',
+                        fecha_firma: latestExclusivity.fecha_firma || '',
+                        start_date: latestExclusivity.start_date || '',
+                        end_date: latestExclusivity.end_date || '',
+                    };
+
+                    this.savedExclusivityData = { ...this.exclusivityData };
+                } else {
+                    this.savedExclusivityData = this.normalizeExclusivityData({});
+                }
+
                 if (p.images && p.images.length) {
                     this.uploadedImages = p.images;
                 }
+
+                this.$nextTick(() => {
+                    this.syncMapMarker();
+                    if (this.activeTab === 1) {
+                        this.initMap();
+                        this.refreshMapSize();
+                    }
+                });
             } catch (e) {
                 console.error('Error al cargar la propiedad:', e);
             }
         },
-        loadLeaflet() {
-            return new Promise((resolve) => {
-                if (window.L) {
-                    resolve(window.L);
-                    return;
-                }
-                // Load Leaflet CSS
-                if (!document.getElementById('leaflet-css')) {
-                    const link = document.createElement('link');
-                    link.id = 'leaflet-css';
-                    link.rel = 'stylesheet';
-                    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                    document.head.appendChild(link);
-                }
-                // Load Leaflet JS
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                script.onload = () => resolve(window.L);
-                document.head.appendChild(script);
-            });
-        },
-
-        async initMap() {
+        initMap() {
             const mapEl = document.getElementById('property-map');
-            if (!mapEl || this.leafletMap) return;
+            if (!mapEl) return;
 
-            const L = await this.loadLeaflet();
+            if (this.leafletMap) {
+                this.refreshMapSize();
+                this.syncMapMarker();
+                return;
+            }
 
             // Default center: Puerto Ordaz, Bolívar, Venezuela
-            const defaultLat = this.property.map_lat ? parseFloat(this.property.map_lat) : 8.2830;
-            const defaultLng = this.property.map_lng ? parseFloat(this.property.map_lng) : -62.7244;
-            const defaultZoom = this.property.map_lat ? 15 : 14;
+            const hasCoordinates = this.hasValidCoordinates(this.property.map_lat, this.property.map_lng);
+            const defaultLat = hasCoordinates ? parseFloat(this.property.map_lat) : 8.2830;
+            const defaultLng = hasCoordinates ? parseFloat(this.property.map_lng) : -62.7244;
+            const defaultZoom = hasCoordinates ? 15 : 14;
 
             this.leafletMap = L.map('property-map').setView([defaultLat, defaultLng], defaultZoom);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            L.tileLayer('', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                 maxZoom: 19,
             }).addTo(this.leafletMap);
 
-            // Place existing marker if coordinates are saved
-            if (this.property.map_lat && this.property.map_lng) {
-                this.leafletMarker = L.marker([defaultLat, defaultLng]).addTo(this.leafletMap);
-            }
+            this.syncMapMarker();
 
             // Click to set marker
             this.leafletMap.on('click', (e) => {
                 const { lat, lng } = e.latlng;
                 this.property.map_lat = lat.toFixed(6);
                 this.property.map_lng = lng.toFixed(6);
+                this.syncMapMarker();
+            });
 
-                if (this.leafletMarker) {
-                    this.leafletMarker.setLatLng([lat, lng]);
-                } else {
-                    this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
-                }
+            this.refreshMapSize();
+        },
+
+        hasValidCoordinates(lat, lng) {
+            return Number.isFinite(parseFloat(lat)) && Number.isFinite(parseFloat(lng));
+        },
+
+        syncMapMarker() {
+            if (!this.leafletMap || !this.hasValidCoordinates(this.property.map_lat, this.property.map_lng)) {
+                return;
+            }
+
+            const lat = parseFloat(this.property.map_lat);
+            const lng = parseFloat(this.property.map_lng);
+
+            if (this.leafletMarker) {
+                this.leafletMarker.setLatLng([lat, lng]);
+            } else {
+                this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
+            }
+
+            this.leafletMap.setView([lat, lng], this.leafletMap.getZoom() < 15 ? 15 : this.leafletMap.getZoom());
+        },
+
+        refreshMapSize() {
+            if (!this.leafletMap) {
+                return;
+            }
+
+            this.$nextTick(() => {
+                window.requestAnimationFrame(() => {
+                    this.leafletMap.invalidateSize();
+                });
             });
         },
 
@@ -570,12 +656,10 @@ export default {
 
         async searchAddress(query) {
             try {
-                const response = await fetch(
-                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5&viewbox=-63.1,8.0,-62.3,8.6&bounded=1`,
-                    { headers: { 'Accept-Language': 'es' } }
-                );
-                const data = await response.json();
-                this.addressSuggestions = data;
+                const response = await axios.get('/property/address-search', {
+                    params: { q: query }
+                });
+                this.addressSuggestions = response.data;
             } catch (e) {
                 this.addressSuggestions = [];
             }
@@ -600,12 +684,7 @@ export default {
                 const lat = parseFloat(suggestion.lat);
                 const lng = parseFloat(suggestion.lon);
                 this.leafletMap.setView([lat, lng], 16);
-                if (this.leafletMarker) {
-                    this.leafletMarker.setLatLng([lat, lng]);
-                } else {
-                    const L = window.L;
-                    if (L) this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
-                }
+                this.syncMapMarker();
             }
         },
 
@@ -637,15 +716,36 @@ export default {
             }
         },
 
+        normalizeExclusivityData(source = {}) {
+            return {
+                propietario_nombre: source.propietario_nombre || '',
+                propietario_ci: source.propietario_ci || '',
+                propietario_rif: source.propietario_rif || '',
+                propietario_email: source.propietario_email || '',
+                propietario_telefono: source.propietario_telefono || '',
+                inmueble_descripcion: source.inmueble_descripcion || '',
+                parroquia: source.parroquia || 'Cachamay',
+                registro_numero: source.registro_numero || '',
+                registro_folio: source.registro_folio || '',
+                registro_tomo: source.registro_tomo || '',
+                registro_protocolo: source.registro_protocolo || '',
+                registro_anio: source.registro_anio || '',
+                registro_fecha: source.registro_fecha || '',
+                precio_venta: source.precio_venta || '',
+                fecha_firma: source.fecha_firma || '',
+                start_date: source.start_date || '',
+                end_date: source.end_date || '',
+            };
+        },
+
         async saveProperty() {
             this.saving = true;
             try {
-                const hasExclusivityData = Object.values(this.exclusivityData)
-                    .some(v => v !== "" && v !== null);
+                const normalizedExclusivityData = this.normalizeExclusivityData(this.exclusivityData);
 
                 const payload = {
                     ...this.property,
-                    exclusivity_data: hasExclusivityData ? this.exclusivityData : undefined,
+                    exclusivity_data: this.hasExclusivityData ? normalizedExclusivityData : undefined,
                 };
 
                 let response;
@@ -656,12 +756,11 @@ export default {
                     response = await axios.post("/property/create", payload);
                     this.savedPropertyId = response.data.data.id;
                     this.$toastr.s('Propiedad guardada exitosamente');
-
-                    // Si tiene datos de exclusividad, descargar el PDF automáticamente
-                    if (hasExclusivityData && this.savedPropertyId) {
-                        window.location.href = '/property/' + this.savedPropertyId + '/exclusivity-pdf';
-                    }
                 }
+
+                this.savedExclusivityData = this.hasExclusivityData
+                    ? { ...normalizedExclusivityData }
+                    : this.normalizeExclusivityData({});
 
                 console.log(response.data);
             } catch (error) {
@@ -672,5 +771,15 @@ export default {
             }
         },
     },
+
+    beforeDestroy() {
+        if (this.leafletMap) {
+            this.leafletMap.remove();
+            this.leafletMap = null;
+            this.leafletMarker = null;
+        }
+
+        clearTimeout(this.addressSearchTimeout);
+    }
 };
 </script>

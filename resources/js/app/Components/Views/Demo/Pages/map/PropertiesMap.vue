@@ -1,11 +1,19 @@
 <template>
-    <div id="properties-map-container" class="properties-map"></div>
+    <div ref="mapContainer" class="properties-map"></div>
 </template>
 
 <script>
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { PROPERTY_MAP_DATA } from '../../../../../Config/ApiUrl';
 import { FormMixin } from '../../../../../../core/mixins/form/FormMixin';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 export default {
     name: 'PropertiesMap',
@@ -33,18 +41,31 @@ export default {
 
     methods: {
         initMap() {
-            const mapEl = document.getElementById('properties-map-container');
+            const mapEl = this.$refs.mapContainer;
             if (!mapEl || this.leafletMap) return;
 
             // Center on Puerto Ordaz, Bolívar, Venezuela (default)
-            this.leafletMap = L.map('properties-map-container').setView([8.2830, -62.7244], 12);
+            this.leafletMap = L.map(mapEl).setView([8.2830, -62.7244], 12);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                 maxZoom: 19,
             }).addTo(this.leafletMap);
 
+            this.refreshMapSize();
             this.loadProperties();
+        },
+
+        refreshMapSize() {
+            if (!this.leafletMap) {
+                return;
+            }
+
+            this.$nextTick(() => {
+                window.requestAnimationFrame(() => {
+                    this.leafletMap.invalidateSize();
+                });
+            });
         },
 
         loadProperties() {
@@ -101,6 +122,7 @@ export default {
 
             if (bounds.length > 0) {
                 this.leafletMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+                this.refreshMapSize();
             }
         },
     },

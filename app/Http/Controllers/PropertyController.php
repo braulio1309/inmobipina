@@ -125,7 +125,15 @@ class PropertyController extends Controller
         Storage::put($filePath, $pdf->output());
         $exclusivity->update(['contract_path' => $fileName]);
 
-        return response()->download(storage_path('app/' . $filePath), $fileName);
+        if (!Storage::exists($filePath)) {
+            return response()->json(['message' => 'El archivo del contrato no fue encontrado.'], 404);
+        }
+
+        return Storage::download(
+            $filePath,
+            $fileName,
+            ['Content-Type' => 'application/pdf']
+        );
     }
 
     public function approve(Request $request, $id)
@@ -155,15 +163,46 @@ class PropertyController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $Property = Property::where('id', $id)->first();
-        $Property->update($request->all());
+        $property = Property::where('id', $id)->firstOrFail();
+        $data = $request->except(['exclusivity_data']);
+
+        if (array_key_exists('exclusivity', $data)) {
+            if (is_array($data['exclusivity'])) {
+                $data['exclusivity'] = !empty($data['exclusivity']);
+            } else {
+                $data['exclusivity'] = filter_var($data['exclusivity'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                $data['exclusivity'] = $data['exclusivity'] ?? (bool) $data['exclusivity'];
+            }
+        }
+
+        $property->update($data);
+
+        if ($request->has('exclusivity_data') && is_array($request->exclusivity_data)) {
+            $exData = $request->exclusivity_data;
+            $exData['property_id'] = $property->id;
+            $exData['user_id'] = Auth::id();
+
+            $existingExclusivity = $property->exclusivities()->latest()->first();
+
+            if ($existingExclusivity) {
+                $existingExclusivity->update($exData);
+            } else {
+                Exclusivity::create($exData);
+            }
+        }
 
         return created_responses('Transaction');
     }
 
     public function show($id)
     {
-        $property = Property::with('images')->findOrFail($id);
+        $property = Property::with([
+            'images',
+            'exclusivities' => function ($query) {
+                $query->latest();
+            }
+        ])->findOrFail($id);
+
         return response()->json($property);
     }
 
