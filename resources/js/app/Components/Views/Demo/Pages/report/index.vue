@@ -1,16 +1,16 @@
 <template>
     <div class="content-wrapper">
         <app-breadcrumb
-            :page-title="$t('report')"
+            :page-title="$t('reports.title')"
             :directory="$t('reports.title')"
             :icon="'bar-chart-2'"
         />
 
-        <!-- Global Filters Panel: persistent across all report tabs -->
+        <!-- Panel de Filtros Global: persiste en todas las pestañas -->
         <div class="card card-with-shadow border-0 mb-primary">
             <div class="card-body p-primary">
                 <div class="row align-items-end">
-                    <div class="col-12 col-md-3 mb-2 mb-md-0">
+                    <div class="col-12 col-md-4 mb-2 mb-md-0">
                         <label class="d-block mb-1">{{ $t('reports.start_date') }}</label>
                         <app-input
                             type="date"
@@ -18,7 +18,7 @@
                             @input="applyFilters"
                         />
                     </div>
-                    <div class="col-12 col-md-3 mb-2 mb-md-0">
+                    <div class="col-12 col-md-4 mb-2 mb-md-0">
                         <label class="d-block mb-1">{{ $t('reports.end_date') }}</label>
                         <app-input
                             type="date"
@@ -26,15 +26,7 @@
                             @input="applyFilters"
                         />
                     </div>
-                    <div class="col-12 col-md-4 mb-2 mb-md-0">
-                        <p class="mb-1">{{ $t('reports.order_report_by') }}</p>
-                        <app-input
-                            type="radio-buttons"
-                            v-model="filters.reportUnit"
-                            :list="unitList"
-                        />
-                    </div>
-                    <div class="col-12 col-md-2">
+                    <div class="col-12 col-md-4">
                         <button
                             class="btn btn-secondary btn-block"
                             @click="clearFilters"
@@ -46,7 +38,7 @@
             </div>
         </div>
 
-        <!-- Tab Views -->
+        <!-- Vistas de Pestañas -->
         <app-tab-group :tabs="tabs" />
     </div>
 </template>
@@ -56,8 +48,8 @@ import { FormMixin } from "../../../../../../core/mixins/form/FormMixin.js";
 
 export default {
     name: 'ReportView',
-        mixins: [FormMixin],
-    
+    mixins: [FormMixin],
+
     provide() {
         return {
             reportFilters: this.filters,
@@ -69,33 +61,28 @@ export default {
             filters: {
                 startDate: '',
                 endDate: '',
-                reportUnit: 'count',
             },
-            unitList: [
-                { id: 'count', value: this.$t('reports.count') },
-                { id: 'value', value: this.$t('reports.value') },
-            ],
             tabs: {
                 global: {
-                    label: 'Report',
+                    label: this.$t('reports.title'),
                     items: [
                         {
-                            name: this.$t('basic_report'),
-                            title: this.$t('basic_report'),
+                            name: this.$t('reports.top_sellers_tab'),
+                            title: this.$t('reports.top_sellers_tab'),
                             component: 'basic-report',
                             props: {},
                             headerHide: true,
                         },
                         {
-                            name: this.$t('overview'),
-                            title: this.$t('overview'),
+                            name: this.$t('reports.sales_tab'),
+                            title: this.$t('reports.sales_tab'),
                             component: 'overview',
                             props: {},
                             headerHide: true,
                         },
                         {
-                            name: this.$t('job_overview'),
-                            title: this.$t('job_overview'),
+                            name: this.$t('reports.advisor_data_tab'),
+                            title: this.$t('reports.advisor_data_tab'),
                             component: 'job-overview',
                             props: {},
                             headerHide: true,
@@ -113,7 +100,6 @@ export default {
         clearFilters() {
             this.filters.startDate = '';
             this.filters.endDate = '';
-            this.filters.reportUnit = 'count';
             this.applyFilters();
         },
     },

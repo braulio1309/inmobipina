@@ -25,4 +25,9 @@ return [
     'name' => 'Nombre',
     'performance_summary' => 'Resumen de Rendimiento',
     'my_commission' => 'Mi Comisión',
+    'top_sellers_tab' => 'Top de vendedores',
+    'sales_tab' => 'Ventas',
+    'advisor_data_tab' => 'Datos de Asesores',
+    'amount_usd' => 'Monto (USD)',
+    'sales_count' => 'Ventas',
 ];

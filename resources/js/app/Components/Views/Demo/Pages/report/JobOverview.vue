@@ -134,7 +134,7 @@ export default {
 
     inject: {
         reportFilters: {
-            default: () => ({ startDate: '', endDate: '', reportUnit: 'count' }),
+            default: () => ({ startDate: '', endDate: '' }),
         },
     },
 

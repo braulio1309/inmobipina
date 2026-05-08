@@ -14,7 +14,6 @@ class SidebarComposer
 
         $menu = [
             [
-                'id' => 'dashboard-samples',
                 'icon' => 'pie-chart',
                 'name' => __t('dashboard'),
                 'permission' => true,

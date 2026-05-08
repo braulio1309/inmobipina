@@ -3,8 +3,18 @@
 </template>
 
 <script>
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { PROPERTY_MAP_DATA } from '../../../../../Config/ApiUrl';
 import { FormMixin } from '../../../../../../core/mixins/form/FormMixin';
+
+// Fix leaflet default icon paths broken by webpack
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+    iconUrl: require('leaflet/dist/images/marker-icon.png'),
+    shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
 
 export default {
     name: 'PropertiesMap',
@@ -18,7 +28,7 @@ export default {
     },
 
     mounted() {
-        this.loadLeaflet().then(() => {
+        this.$nextTick(() => {
             this.initMap();
         });
     },
@@ -31,28 +41,7 @@ export default {
     },
 
     methods: {
-        loadLeaflet() {
-            return new Promise((resolve) => {
-                if (window.L) {
-                    resolve(window.L);
-                    return;
-                }
-                if (!document.getElementById('leaflet-css')) {
-                    const link = document.createElement('link');
-                    link.id = 'leaflet-css';
-                    link.rel = 'stylesheet';
-                    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                    document.head.appendChild(link);
-                }
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                script.onload = () => resolve(window.L);
-                document.head.appendChild(script);
-            });
-        },
-
         initMap() {
-            const L = window.L;
             const mapEl = document.getElementById('properties-map-container');
             if (!mapEl || this.leafletMap) return;
 
@@ -79,8 +68,7 @@ export default {
         },
 
         placeMarkers(properties) {
-            const L = window.L;
-            if (!L || !this.leafletMap) return;
+            if (!this.leafletMap) return;
 
             // Clear existing markers
             this.markers.forEach(m => m.remove());

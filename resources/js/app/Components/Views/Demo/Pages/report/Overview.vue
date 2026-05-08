@@ -91,7 +91,7 @@ export default {
     mixins: [FormMixin],
     inject: {
         reportFilters: {
-            default: () => ({ startDate: '', endDate: '', reportUnit: 'count' }),
+            default: () => ({ startDate: '', endDate: '' }),
         },
     },
     data() {
