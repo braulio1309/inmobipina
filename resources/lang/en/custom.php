@@ -838,7 +838,7 @@ return [
     'report' => 'Reporte',
     'count' => 'Cantidad',
     'average' => 'Promedio',
-    'order_report_by' => 'Ordenar reporte por :',
+    'order_report_by' => 'Ordenar reporte por:',
     'start_date' => 'Fecha inicial',
     'end_date' => 'Fecha final',
     'kanban_view' => 'Vista Kanban',

@@ -531,7 +531,7 @@ return array_merge([
         'end_date' => 'Fecha final',
         'count' => 'Cantidad',
         'average' => 'Promedio',
-        'order_report_by' => 'Ordenar reporte por :',
+        'order_report_by' => 'Ordenar reporte por:',
         'value' => 'Valor',
         'name' => 'Nombre',
         'performance_summary' => 'Resumen de Rendimiento',
