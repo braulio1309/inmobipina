@@ -21,6 +21,10 @@ class OperationFilter extends FilterContact
             $this->query->whereHas('sellers', function ($q) use ($userId) {
                 $q->where('users.id', $userId);
             });
+            // Advisors should not see operations for reserved or sold properties
+            $this->query->whereHas('property', function ($q) {
+                $q->whereNotIn('status', ['Reservado', 'Vendido']);
+            });
         }
 
         return $this->query;

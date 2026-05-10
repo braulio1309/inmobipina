@@ -2,7 +2,7 @@
   <div class="container mt-4">
     <div class="card shadow">
       <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Registrar nuevo cliente</h5>
+        <h5 class="mb-0">{{ clientId ? 'Editar cliente' : 'Registrar nuevo cliente' }}</h5>
       </div>
 
       <div class="card-body">
@@ -17,7 +17,7 @@
           <!-- Email -->
           <div class="mb-3">
             <label class="form-label">Email</label>
-            <input type="email" v-model="client.email" class="form-control" required>
+            <input type="email" v-model="client.email" class="form-control">
           </div>
 
           <!-- Teléfono -->
@@ -26,15 +26,35 @@
             <input type="text" v-model="client.phone" class="form-control" required>
           </div>
 
-
           <!-- Asesor asignado -->
           <div class="mb-3">
             <label class="form-label">Asesor asignado</label>
             <app-input
-              type="select"
+              type="search-select"
               v-model="client.assigned_to"
               :list="agentsList"
-              placeholder="Selecciona un asesor"
+              placeholder="Buscar asesor..."
+            />
+          </div>
+
+          <!-- Medio de captación -->
+          <div class="mb-3">
+            <label class="form-label">Medio de captación</label>
+            <app-input
+              type="select"
+              v-model="client.source"
+              :list="sourceOptions"
+              placeholder="¿Por qué medio llegó?"
+            />
+          </div>
+
+          <!-- Estatus -->
+          <div class="mb-3">
+            <label class="form-label">Estatus</label>
+            <app-input
+              type="select"
+              v-model="client.status"
+              :list="statusOptions"
             />
           </div>
 
@@ -53,7 +73,7 @@
           <div class="mt-3 text-end">
             <button class="btn btn-success" type="submit">
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-              Guardar Cliente
+              {{ clientId ? 'Actualizar Cliente' : 'Guardar Cliente' }}
             </button>
           </div>
 
@@ -73,23 +93,39 @@ export default {
   data() {
     return {
       loading: false,
+      clientId: null,
       client: {
         name: "",
         email: "",
         phone: "",
         notes: "",
+        assigned_to: "",
+        source: "",
+        status: "potencial",
       },
-      clientTypes: [
+      sourceOptions: [
         { id: "", value: "Elige uno" },
-        { id: "regular", value: "Regular" },
-        { id: "vip", value: "VIP" },
-        { id: "empresa", value: "Empresa" },
+        { id: "telefono", value: "Por teléfono" },
+        { id: "instagram", value: "Instagram" },
+        { id: "tu_inmueble", value: "Tu Inmueble" },
+        { id: "pendon", value: "Pendón" },
+      ],
+      statusOptions: [
+        { id: "potencial", value: "Potencial" },
+        { id: "no potencial", value: "No potencial" },
+        { id: "atendido", value: "Atendido" },
+        { id: "cerrado", value: "Cerrado" },
       ],
       agentsList: [{ id: "", value: "Elige uno" }],
     };
   },
   async created() {
     await this.loadAgents();
+    const clientId = new URLSearchParams(window.location.search).get('id');
+    if (clientId) {
+      this.clientId = clientId;
+      await this.loadClient(clientId);
+    }
   },
   methods: {
     async loadAgents() {
@@ -107,19 +143,43 @@ export default {
       }
     },
 
+    async loadClient(id) {
+      try {
+        const res = await axios.get(`/client/${id}`);
+        const c = res.data;
+        this.client = {
+          name: c.name || "",
+          email: c.email || "",
+          phone: c.phone || "",
+          notes: c.notes || "",
+          assigned_to: c.assigned_to ? c.assigned_to.toString() : "",
+          source: c.source || "",
+          status: c.status || "potencial",
+        };
+      } catch (error) {
+        console.error("Error cargando cliente", error);
+      }
+    },
+
     async saveClient() {
       this.loading = true;
       try {
-        await axios.post("/client/create", this.client);
-        this.$toastr.s("Cliente registrado correctamente");
-
-        // Reset formulario
-        this.client = {
-          name: "",
-          email: "",
-          phone: "",
-          notes: "",
-        };
+        if (this.clientId) {
+          await axios.post(`/edit/client/${this.clientId}`, this.client);
+          this.$toastr.s("Cliente actualizado correctamente");
+        } else {
+          await axios.post("/client/create", this.client);
+          this.$toastr.s("Cliente registrado correctamente");
+          this.client = {
+            name: "",
+            email: "",
+            phone: "",
+            notes: "",
+            assigned_to: "",
+            source: "",
+            status: "potencial",
+          };
+        }
       } catch (error) {
         console.error(error);
         this.$toastr.e("Error al guardar cliente");

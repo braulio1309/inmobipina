@@ -3,6 +3,10 @@
 
     <h3 class="mb-3">{{ formTitle }}</h3>
 
+    <div v-if="isLocked" class="alert alert-warning mb-3">
+        <strong>Este cierre es de solo lectura.</strong> El inmueble ya está {{ propertyStatus }} y no puede modificarse.
+    </div>
+
     <div class="border rounded p-3">
 
         <!-- PROPIEDAD -->
@@ -14,6 +18,7 @@
                 :list="propertiesList"
                 placeholder="Buscar propiedad..."
                 @input="onPropertySelected"
+                :disabled="isLocked"
             />
         </div>
 
@@ -26,6 +31,7 @@
                 :list="operationTypes"
                 placeholder="Selecciona el tipo"
                 @change="onTypeChange"
+                :disabled="isLocked"
             />
         </div>
 
@@ -38,6 +44,7 @@
                 class="form-control"
                 placeholder="Monto de la operación"
                 @input="recalculateCommissions"
+                :readonly="isLocked"
             >
             <small class="text-muted" v-if="suggestedMessage">
                 {{ suggestedMessage }}
@@ -52,6 +59,7 @@
                     type="date"
                     class="form-control"
                     v-model="operation.start_date"
+                    :readonly="isLocked"
                 >
             </div>
 
@@ -61,6 +69,7 @@
                     type="date"
                     class="form-control"
                     v-model="operation.end_date"
+                    :readonly="isLocked"
                 >
             </div>
         </div>
@@ -73,6 +82,7 @@
                 v-model="operation.buyers"
                 :list="buyersList"
                 placeholder="Selecciona compradores"
+                :disabled="isLocked"
             />
         </div>
 
@@ -85,12 +95,13 @@
                 :list="sellersList"
                 placeholder="Selecciona asesores..."
                 @input="onSellersChanged"
+                :disabled="isLocked"
             />
         </div>
 
         <!-- COMISIONES -->
         <div v-if="operation.sellers.length > 0 && showAmount" class="mb-3 border rounded p-3 bg-light">
-            <h6 class="mb-3">Distribución de Comisiones (5% del monto)</h6>
+            <h6 class="mb-3">Distribución de Comisiones ({{ COMMISSION_RATE }}% del monto)</h6>
 
             <!-- Comisión Inmobiliaria -->
             <div class="row mb-2 align-items-center">
@@ -137,6 +148,7 @@
                             max="100"
                             step="0.01"
                             @input="onCommissionChanged"
+                            :readonly="isLocked"
                         >
                         <span class="input-group-text">%</span>
                     </div>
@@ -163,6 +175,7 @@
                 rows="4"
                 v-model="operation.notes"
                 placeholder="Notas adicionales..."
+                :readonly="isLocked"
             ></textarea>
         </div>
 
@@ -170,7 +183,7 @@
 
     <!-- BOTÓN -->
     <div class="mt-3 text-end">
-        <button class="btn btn-primary" @click="saveOperation">
+        <button v-if="!isLocked" class="btn btn-primary" @click="saveOperation">
             {{ submitLabel }}
         </button>
     </div>
@@ -197,8 +210,10 @@ export default {
             selectedPropertyPrice: null,
             showAmount: true,
             suggestedMessage: "",
+            isLocked: false,
+            propertyStatus: null,
 
-            COMMISSION_RATE: 5, // Total commission percentage (split equally among advisors)
+            COMMISSION_RATE: 5,
 
             operationTypes: [
                 { id: "venta", value: "Venta" },
@@ -206,7 +221,6 @@ export default {
                 { id: "exclusividad", value: "Exclusividad" },
             ],
 
-            // Per-seller commission tracking [{id, name, percentage}]
             sellersCommissions: [],
 
             operation: {
@@ -234,6 +248,7 @@ export default {
 
     computed: {
         formTitle() {
+            if (this.isLocked) return 'Ver Operación';
             return this.operationId ? 'Editar Operación' : 'Registrar Operación';
         },
         submitLabel() {
@@ -269,7 +284,6 @@ export default {
                     }))
                 ];
 
-                // Propiedades
                 this.propertiesList = [
                     { id: "", value: "Elige uno" },
                     ...properties.map(p => ({
@@ -279,7 +293,6 @@ export default {
                     }))
                 ];
 
-                // Usuarios (vendedores) — incluye Asesor Externo
                 this.sellersList = [
                     ...users.map(u => ({
                         id: u.id.toString(),
@@ -291,6 +304,21 @@ export default {
         async loadOperation() {
             const response = await this.axiosGet(`/operations/${this.operationId}`);
             const operation = response.data;
+
+            this.isLocked = operation.is_locked || false;
+            this.propertyStatus = operation.property_status || null;
+
+            // If the property is locked, add it to propertiesList so it displays correctly
+            if (operation.property_id) {
+                const exists = this.propertiesList.find(p => p.id === operation.property_id);
+                if (!exists) {
+                    this.propertiesList.push({
+                        id: operation.property_id,
+                        value: operation.property_title || `Propiedad #${operation.property_id}`,
+                        price: operation.amount,
+                    });
+                }
+            }
 
             this.operation = {
                 property_id: operation.property_id || '',
@@ -305,7 +333,7 @@ export default {
 
             this.setSelectedPropertyPrice(this.operation.property_id);
             this.applyTypeState(true);
-            this.onSellersChanged(this.operation.sellers || []);
+            this.onSellersChanged(this.operation.sellers || [], operation.sellers_commissions || []);
         },
 
         setSelectedPropertyPrice(val) {
@@ -350,8 +378,7 @@ export default {
             this.recalculateCommissions();
         },
 
-        onSellersChanged(selectedIds) {
-            // Each party (advisor OR company) gets 5% / (numSellers + 1)
+        onSellersChanged(selectedIds, existingCommissions = []) {
             const numSellers = selectedIds.length;
             const equalPct = numSellers > 0
                 ? parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4))
@@ -359,16 +386,16 @@ export default {
 
             this.sellersCommissions = selectedIds.map(id => {
                 const seller = this.sellersList.find(s => s.id === id);
+                const existing = existingCommissions.find(c => c.id === id);
                 return {
                     id: id,
                     name: seller ? seller.value : id,
-                    percentage: equalPct,
+                    percentage: existing ? parseFloat(existing.percentage) : equalPct,
                 };
             });
         },
 
         recalculateCommissions() {
-            // Re-distribute equally: 5% / (numSellers + 1) per party
             const numSellers = this.sellersCommissions.length;
             if (numSellers === 0) return;
             const equalPct = parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4));
@@ -379,7 +406,7 @@ export default {
         },
 
         onCommissionChanged() {
-            // Allow manual override — no auto recalculation
+            // Allow manual override
         },
 
         sellerCommissionAmount(pct) {
@@ -396,6 +423,10 @@ export default {
                 const payload = {
                     ...this.operation,
                     sellers: this.operation.sellers,
+                    sellers_commissions: this.sellersCommissions.map(s => ({
+                        id: s.id,
+                        percentage: s.percentage,
+                    })),
                 };
 
                 let response;
@@ -407,12 +438,10 @@ export default {
                     this.$toastr.s("Operación creada correctamente");
                 }
 
-                // Si es exclusividad y se generó un contrato, ofrecer descarga
                 if (response.data.pdf_url) {
                     window.open(response.data.pdf_url, '_blank');
                 }
 
-                // Reiniciar formulario
                 if (!this.operationId) {
                     this.operation = {
                         property_id: "",
@@ -429,7 +458,8 @@ export default {
                 }
 
             } catch (error) {
-                this.$toastr.e("Error al guardar la operación");
+                const msg = error.response?.data?.message || "Error al guardar la operación";
+                this.$toastr.e(msg);
                 console.error(error);
             }
         }

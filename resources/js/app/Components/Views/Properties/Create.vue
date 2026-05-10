@@ -72,6 +72,17 @@
                         placeholder="Ej: 120"
                     >
                 </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Estacionamientos</label>
+                    <input 
+                        v-model="property.parking_spots" 
+                        type="number" 
+                        class="form-control"
+                        placeholder="Puestos de estacionamiento"
+                        min="0"
+                    >
+                </div>
             </div>
         </div>
 
@@ -411,6 +422,7 @@ export default {
                 bathrooms: "",
                 bedrooms: "",
                 square_meters: "",
+                parking_spots: "",
                 address: "",
                 map_lat: "",
                 map_lng: "",
@@ -561,6 +573,7 @@ export default {
                 this.property.bathrooms = p.bathrooms || '';
                 this.property.bedrooms = p.bedrooms || '';
                 this.property.square_meters = p.square_meters || '';
+                this.property.parking_spots = p.parking_spots || '';
                 this.property.address = p.address || '';
                 this.property.map_lat = p.map_lat || '';
                 this.property.map_lng = p.map_lng || '';

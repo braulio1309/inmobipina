@@ -20,6 +20,8 @@ class PropertyFilter extends FilterContact
             $userId = auth()->id();
             $this->query->where(function ($q) use ($userId) {
                 $q->where('status', '!=', 'pending')
+                  ->where('status', '!=', 'Reservado')
+                  ->where('status', '!=', 'Vendido')
                   ->orWhere(function ($q2) use ($userId) {
                       $q2->where('status', 'pending')
                          ->where('created_by', $userId);
