@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Filters\Common\Auth\ClientFilter as AppUserFilter;
 use App\Filters\Core\ClientFilter;
 use App\Services\Core\Auth\ClientService;
+use Illuminate\Support\Facades\Auth;
 
 class ClientController extends Controller
 {
@@ -19,7 +20,6 @@ class ClientController extends Controller
 
     public function listado()
     {
-        $user = Auth()->user();
         return (new AppUserFilter(
             $this->service
                 ->filters($this->filter)
@@ -30,17 +30,34 @@ class ClientController extends Controller
 
     public function create(Request $request)
     {
-        $Client = Client::create($request->all());
+        $data = $request->only(['name', 'email', 'phone', 'notes', 'source', 'status', 'assigned_to']);
+        $data['user_id'] = Auth::id();
+        if (empty($data['status'])) {
+            $data['status'] = 'potencial';
+        }
+        $Client = Client::create($data);
         return created_responses('Client');
     }
 
     public function edit(Request $request, $id)
     {
-
         $Client = Client::where('id', $id)->first();
-        $Client->update($request->all());
+        $data = $request->only(['name', 'email', 'phone', 'notes', 'source', 'status', 'assigned_to']);
+        $Client->update($data);
 
         return created_responses('Transaction');
+    }
+
+    public function changeStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:potencial,no potencial,atendido,cerrado',
+        ]);
+
+        $client = Client::findOrFail($id);
+        $client->update(['status' => $request->status]);
+
+        return response()->json(['message' => 'Estatus actualizado correctamente.']);
     }
 
     public function show(Client $Client)
@@ -48,3 +65,4 @@ class ClientController extends Controller
         return response()->json($Client);
     }
 }
+

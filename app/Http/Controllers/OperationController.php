@@ -81,6 +81,11 @@ class OperationController extends Controller
     $eachPartyPct = round(5 / $numParties, 4);
     $eachPartyAmt = round($amount * $eachPartyPct / 100, 2);
 
+    // Use per-seller percentages if provided
+    $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
+        ? $request->sellers_commissions
+        : [];
+
     // 1. Crear la Operación
     $operation = Operation::create(array_merge(
         $request->only(['type', 'property_id', 'amount', 'start_date', 'end_date', 'notes']),
@@ -95,16 +100,32 @@ class OperationController extends Controller
         $operation->clients()->sync($request->buyers);
     }
 
-    // Guardar sellers con comisiones iguales
+    // Guardar sellers con comisiones
     if ($numSellers > 0) {
         $syncData = [];
         foreach ($sellers as $sellerId) {
+            $customPct = null;
+            foreach ($sellersWithPct as $sc) {
+                if ((string)($sc['id'] ?? '') === (string)$sellerId) {
+                    $customPct = $sc['percentage'] ?? null;
+                    break;
+                }
+            }
+            $pct = $customPct !== null ? (float)$customPct : $eachPartyPct;
+            $amt = round($amount * $pct / 100, 2);
             $syncData[$sellerId] = [
-                'commission_percentage' => $eachPartyPct,
-                'commission_amount'     => $eachPartyAmt,
+                'commission_percentage' => $pct,
+                'commission_amount'     => $amt,
             ];
         }
         $operation->sellers()->sync($syncData);
+    }
+
+    // Actualizar status de la propiedad según tipo de operación
+    if ($operation->type === 'reserva') {
+        Property::where('id', $operation->property_id)->update(['status' => 'Reservado']);
+    } elseif ($operation->type === 'venta') {
+        Property::where('id', $operation->property_id)->update(['status' => 'Vendido']);
     }
 
     // *************************************************************************
@@ -180,12 +201,23 @@ class OperationController extends Controller
 
         $operation = Operation::where('id', $id)->firstOrFail();
 
+        // Block editing if the property is already Reservado or Vendido
+        $property = Property::find($operation->property_id);
+        if ($property && in_array($property->status, ['Reservado', 'Vendido'])) {
+            return response()->json(['message' => 'Este cierre no puede editarse porque el inmueble ya está ' . $property->status . '.'], 403);
+        }
+
         $amount = $request->amount ?? 0;
         $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
         $numSellers = count($sellers);
         $numParties = $numSellers + 1;
         $eachPartyPct = $numSellers > 0 ? round(5 / $numParties, 4) : 0;
         $eachPartyAmt = round($amount * $eachPartyPct / 100, 2);
+
+        // Use per-seller percentages if provided
+        $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
+            ? $request->sellers_commissions
+            : [];
 
         $operation->update(array_merge(
             $request->only(['type', 'property_id', 'amount', 'start_date', 'end_date', 'notes']),
@@ -200,9 +232,18 @@ class OperationController extends Controller
         if ($numSellers > 0) {
             $syncData = [];
             foreach ($sellers as $sellerId) {
+                $customPct = null;
+                foreach ($sellersWithPct as $sc) {
+                    if ((string)($sc['id'] ?? '') === (string)$sellerId) {
+                        $customPct = $sc['percentage'] ?? null;
+                        break;
+                    }
+                }
+                $pct = $customPct !== null ? (float)$customPct : $eachPartyPct;
+                $amt = round($amount * $pct / 100, 2);
                 $syncData[$sellerId] = [
-                    'commission_percentage' => $eachPartyPct,
-                    'commission_amount' => $eachPartyAmt,
+                    'commission_percentage' => $pct,
+                    'commission_amount' => $amt,
                 ];
             }
             $operation->sellers()->sync($syncData);
@@ -217,17 +258,106 @@ class OperationController extends Controller
     {
         $operation = Operation::with(['clients', 'sellers', 'property'])->findOrFail($id);
 
+        $propertyStatus = $operation->property ? $operation->property->status : null;
+        $isLocked = in_array($propertyStatus, ['Reservado', 'Vendido']);
+
         return response()->json([
             'id' => $operation->id,
             'type' => $operation->type,
             'property_id' => (string) $operation->property_id,
+            'property_title' => $operation->property ? $operation->property->title : null,
+            'property_status' => $propertyStatus,
+            'is_locked' => $isLocked,
             'amount' => $operation->amount,
             'start_date' => $operation->start_date,
             'end_date' => $operation->end_date,
             'notes' => $operation->notes,
             'buyers' => $operation->clients->pluck('id')->map(fn ($item) => (string) $item)->values(),
             'sellers' => $operation->sellers->pluck('id')->map(fn ($item) => (string) $item)->values(),
+            'sellers_commissions' => $operation->sellers->map(fn ($s) => [
+                'id' => (string) $s->id,
+                'percentage' => $s->pivot->commission_percentage ?? 0,
+            ])->values(),
         ]);
+    }
+
+    public function confirmSale(Request $request, $id)
+    {
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser || !$authUser->isAdmin()) {
+            return response()->json(['message' => 'No tienes permiso para confirmar ventas.'], 403);
+        }
+
+        $operation = Operation::with(['clients', 'sellers', 'property'])->findOrFail($id);
+
+        if ($operation->type !== 'reserva') {
+            return response()->json(['message' => 'Solo se puede confirmar venta de operaciones de tipo reserva.'], 422);
+        }
+
+        $amount = $request->amount ?? $operation->amount ?? 0;
+        $sellers = $operation->sellers->pluck('id')->toArray();
+        $numSellers = count($sellers);
+        $numParties = $numSellers + 1;
+        $eachPartyPct = $numSellers > 0 ? round(5 / $numParties, 4) : 0;
+
+        // Use per-seller percentages if provided, otherwise recalculate
+        $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
+            ? $request->sellers_commissions
+            : [];
+
+        $eachPartyAmt = round($amount * $eachPartyPct / 100, 2);
+
+        $operation->update([
+            'type'                          => 'venta',
+            'amount'                        => $amount,
+            'company_commission_percentage' => $eachPartyPct,
+            'company_commission_amount'     => $eachPartyAmt,
+        ]);
+
+        // Update sellers commissions
+        if ($numSellers > 0) {
+            $syncData = [];
+            foreach ($sellers as $sellerId) {
+                $customPct = null;
+                foreach ($sellersWithPct as $sc) {
+                    if ((string)($sc['id'] ?? '') === (string)$sellerId) {
+                        $customPct = $sc['percentage'] ?? null;
+                        break;
+                    }
+                }
+                $pct = $customPct !== null ? (float)$customPct : $eachPartyPct;
+                $amt = round($amount * $pct / 100, 2);
+                $syncData[$sellerId] = [
+                    'commission_percentage' => $pct,
+                    'commission_amount'     => $amt,
+                ];
+            }
+            $operation->sellers()->sync($syncData);
+        }
+
+        // Update property price if provided and mark as Vendido
+        if ($operation->property_id) {
+            $updateData = ['status' => 'Vendido'];
+            if ($request->has('amount')) {
+                $updateData['price'] = $amount;
+            }
+            Property::where('id', $operation->property_id)->update($updateData);
+        }
+
+        // Create Sale record
+        $buyers = $operation->clients->pluck('id')->toArray();
+        Sale::create([
+            'property_id'  => $operation->property_id,
+            'buyer_id'     => $buyers[0] ?? null,
+            'seller_id'    => $sellers[0] ?? null,
+            'total_amount' => $amount,
+            'date'         => now(),
+            'notes'        => $operation->notes,
+        ]);
+
+        return response()->json(['message' => 'Venta confirmada correctamente.', 'data' => $operation]);
     }
 
     public function formData()
@@ -240,8 +370,13 @@ class OperationController extends Controller
                 'value' => trim($u->first_name . ' ' . $u->last_name),
             ]);
 
+        // Only show properties that are not reserved or sold (for new operations)
+        $properties = Property::select('id', 'title as value', 'price', 'status')
+            ->whereNotIn('status', ['Reservado', 'Vendido'])
+            ->get();
+
         return response()->json([
-            'properties' => Property::select('id', 'title as value', 'price')->get(),
+            'properties' => $properties,
             'clients'    => Client::select('id', 'name as value')->get(),
             'users'      => $users,
         ]);

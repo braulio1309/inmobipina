@@ -38,7 +38,7 @@ class PropertyController extends Controller
     {
         $data = $request->only([
             'agent_id', 'title', 'description', 'price',
-            'bathrooms', 'bedrooms', 'square_meters', 'address',
+            'bathrooms', 'bedrooms', 'square_meters', 'parking_spots', 'address',
             'type', 'type_sale', 'status', 'map_lat', 'map_lng',
             'exclusivity', 'created_by', 'approved_by',
         ]);

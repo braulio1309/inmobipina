@@ -46,6 +46,8 @@ Route::get('property/{id}/exclusivity-pdf', [PropertyController::class, 'generat
 Route::get('client/listar', [ClientController::class, 'listado'])->name('client.listar');
 Route::post('client/create', [ClientController::class, 'create'])->name('client.crear');
 Route::post('edit/client/{id}', [ClientController::class, 'edit'])->name('client.edit');
+Route::patch('client/{id}/status', [ClientController::class, 'changeStatus'])->name('client.status');
+Route::get('client/{client}', [ClientController::class, 'show'])->name('client.show');
 
 Route::get('activities/listar', [ActivityController::class, 'listado'])->name('Activity.listar');
 Route::post('activities/create', [ActivityController::class, 'create'])->name('Activity.crear');
@@ -54,6 +56,7 @@ Route::post('edit/activities/{id}', [ActivityController::class, 'edit'])->name('
 Route::get('operations/listar', [OperationController::class, 'listado'])->name('operation.listar');
 Route::post('operations/create', [OperationController::class, 'create'])->name('operations.crear');
 Route::post('edit/operations/{id}', [OperationController::class, 'edit'])->name('operations.edit');
+Route::post('operations/{id}/confirm-sale', [OperationController::class, 'confirmSale'])->name('operations.confirm-sale');
 Route::get('/operations/form-data', [\App\Http\Controllers\OperationController::class, 'formData']);
 Route::get('operations/{id}', [OperationController::class, 'show'])->name('operations.show');
 Route::get('operations/{id}/download-contract', [OperationController::class, 'downloadContract'])->name('operations.download-contract');
