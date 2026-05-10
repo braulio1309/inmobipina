@@ -31,6 +31,7 @@ Route::view('/report/advisor', 'reports.advisor');
 Route::group(['prefix' => 'app/reports'], function () {
     Route::get('/advisor', [ReportController::class, 'getAdvisorReports']);
     Route::get('/advisors', [ReportController::class, 'getAdvisors']);
+    Route::get('/clients-by-advisor', [ReportController::class, 'getClientsByAdvisor']);
 });
 Route::get('property/listar', [PropertyController::class, 'listado'])->name('property.listar');
 Route::get('property/map-data', [PropertyController::class, 'getMapProperties'])->name('property.map-data');
@@ -50,8 +51,10 @@ Route::patch('client/{id}/status', [ClientController::class, 'changeStatus'])->n
 Route::get('client/{client}', [ClientController::class, 'show'])->name('client.show');
 
 Route::get('activities/listar', [ActivityController::class, 'listado'])->name('Activity.listar');
+Route::get('activities/export', [ActivityController::class, 'export'])->name('Activity.export');
 Route::post('activities/create', [ActivityController::class, 'create'])->name('Activity.crear');
 Route::post('edit/activities/{id}', [ActivityController::class, 'edit'])->name('Activity.edit');
+Route::get('activities/{activity}', [ActivityController::class, 'show'])->name('Activity.show');
 
 Route::get('operations/listar', [OperationController::class, 'listado'])->name('operation.listar');
 Route::post('operations/create', [OperationController::class, 'create'])->name('operations.crear');

@@ -7,6 +7,11 @@
             <div class="col-sm-12 col-md-6 breadcrumb-side-button">
                 <div class="float-md-right mb-3 mb-sm-3 mb-md-0">
                     <button type="button"
+                            class="btn btn-success btn-with-shadow mr-2"
+                            @click="exportActivities">
+                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                    </button>
+                    <button type="button"
                             class="btn btn-primary btn-with-shadow"
                             data-toggle="modal"
                             @click="openAddEditModal">
@@ -30,6 +35,12 @@
             @close-modal="closeAddEditModal"
         />
 
+        <activity-detail-modal
+            v-if="isDetailModalActive"
+            :activity-id="detailActivityId"
+            @close-modal="closeDetailModal"
+        />
+
         <app-delete-modal
             v-if="deleteConfirmationModalActive"
             :preloader="deleteLoader"
@@ -45,19 +56,24 @@ import * as actions from "../../../../../js/app/Config/ApiUrl";
 import {TableHelpers} from "../Demo/Tables/mixins/TableHelpers";
 import CoreLibrary from "../../../../../js/core/helpers/CoreLibrary";
 import AppFunction from "../../../../../js/core/helpers/app/AppFunction";
+import ActivityDetailModal from './ActivityDetail.vue';
 
 export default {
     extends: CoreLibrary,
     name: "GridView",
     mixins: [TableHelpers],
+    components: { ActivityDetailModal },
     data() {
         return {
             isAddEditModalActive: false,
+            isDetailModalActive: false,
             deleteConfirmationModalActive: false,
             deleteLoader: false,
             selectedUrl: '',
+            detailActivityId: null,
             tableId: 'grid-view-table2',
             rowData: {},
+            activeFilters: {},
             options: {
                 cardView: true,
                 cardViewComponent: 'grid-view',
@@ -73,7 +89,7 @@ export default {
                         mediaSubtitleKey: 'email',
                         default: AppFunction.getAppUrl('images/avatar-demo.jpg'),
                         modifier: (value, row) => {
-                            return value; // imag url
+                            return value;
                         },
                         isVisible: true
                     },
@@ -106,7 +122,7 @@ export default {
                         key: 'date',
                         isVisible: true,
                         modifier: (value, row) => {
-                            return value; // imag url
+                            return value;
                         },
                     },
                     {
@@ -115,11 +131,18 @@ export default {
                         key: 'result',
                         isVisible: true,
                         modifier: (value, row) => {
-                            return value; // imag url
+                            return value;
                         },
                     },
                 ],
                 actions: [
+                    {
+                        title: 'Ver detalle',
+                        icon: 'eye',
+                        type: 'none',
+                        component: 'app-add-modal',
+                        modalId: 'activity-detail-modal',
+                    },
                     {
                         title: this.$t('edit'),
                         icon: 'edit',
@@ -171,20 +194,13 @@ export default {
     },
 
     created() {
-        //this.options.columns = [...this.options.columns, this.actionObj];
         this.searchAndSelectFilterOptions();
     },
     methods: {
-        /**
-         * for open add edit modal
-         */
         openAddEditModal() {
             this.isAddEditModalActive = true;
         },
 
-        /**
-         * for close add edit modal
-         */
         closeAddEditModal() {
             $("#activity-add-edit-modal").modal('hide');
             this.isAddEditModalActive = false;
@@ -192,33 +208,34 @@ export default {
             this.reSetData();
         },
 
-        /**
-         * $emit Form datatable action
-         */
-        getListAction(rowData, actionObj, active) {
+        openDetailModal(activityId) {
+            this.detailActivityId = activityId;
+            this.isDetailModalActive = true;
+        },
 
+        closeDetailModal() {
+            $("#activity-detail-modal").modal('hide');
+            this.isDetailModalActive = false;
+            this.detailActivityId = null;
+        },
+
+        getListAction(rowData, actionObj, active) {
             this.rowData = rowData;
 
-            if (actionObj.title == 'Delete') {
-
+            if (actionObj.title === 'Delete' || actionObj.title === this.$t('delete')) {
                 this.openDeleteModal();
-            } else if (actionObj.title == this.$t('edit')) {
-
+            } else if (actionObj.title === this.$t('edit')) {
                 this.selectedUrl = `${actions.DATATABLE_DATA}/${rowData.id}`;
                 this.openAddEditModal();
+            } else if (actionObj.title === 'Ver detalle') {
+                this.openDetailModal(rowData.id);
             }
         },
 
-        /**
-         * for open confirmation modal
-         */
         openDeleteModal() {
             this.deleteConfirmationModalActive = true;
         },
 
-        /**
-         * confirmed $emit Form confirmation modal
-         */
         confirmed() {
             let url = `${actions.DATATABLE_DATA}/${this.rowData.id}`;
             this.deleteLoader = true;
@@ -237,9 +254,6 @@ export default {
             });
         },
 
-        /**
-         * cancelled $emit Form confirmation modal
-         */
         cancelled() {
             this.deleteConfirmationModalActive = false;
             this.reSetData();
@@ -254,17 +268,29 @@ export default {
             this.options.filters = this.options.filters.filter(filter => filter.key !== 'asesor');
 
             this.axiosGet('admin/auth/users').then(response => {
+                const users = Array.isArray(response.data) ? response.data : (response.data.data || []);
                 this.options.filters.push({
                     title: 'Asesores',
                     type: 'drop-down-filter',
                     key: 'asesor',
-                    option: response.data.map(asesor => ({
+                    option: users.map(asesor => ({
                         id: asesor.id,
-                        value: asesor.name || asesor.value,
+                        value: asesor.first_name
+                            ? (asesor.first_name + ' ' + (asesor.last_name || '')).trim()
+                            : (asesor.name || asesor.value || 'Sin nombre'),
                     }))
                 });
             });
-        }
+        },
+
+        exportActivities() {
+            // Build query string from current URL params (table uses query params)
+            const urlParams = new URLSearchParams(window.location.search);
+            // Also capture any active query params from the datatable's last request
+            const exportUrl = '/activities/export?' + urlParams.toString();
+            window.open(exportUrl, '_blank');
+        },
     },
 }
 </script>
+

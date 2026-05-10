@@ -32,7 +32,7 @@ class Activity extends Model
         UserStatus,
         HasFactory;
 
-    protected $fillable = ['user_id', 'client_id', 'property_id', 'result', 'type', 'description', 'date'];
+    protected $fillable = ['user_id', 'client_id', 'property_id', 'result', 'type', 'description', 'date', 'image_path', 'latitude', 'longitude'];
 
 
     public function user()

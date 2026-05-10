@@ -234,4 +234,60 @@ class ReportController extends Controller
 
         return $query;
     }
+
+    /**
+     * Clientes asignados por asesor con breakdown por medio de captación
+     */
+    public function getClientsByAdvisor(Request $request)
+    {
+        /** @var \App\Models\Core\Auth\User $authUser */
+        $authUser = auth()->user();
+
+        if (!$authUser->isAdmin()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+
+        $query = DB::table('clients')
+            ->join('users', 'clients.assigned_to', '=', 'users.id')
+            ->select(
+                'users.id as advisor_id',
+                DB::raw("CONCAT(users.first_name, ' ', COALESCE(users.last_name, '')) as advisor_name"),
+                'clients.source',
+                DB::raw('COUNT(clients.id) as total')
+            )
+            ->whereNotNull('clients.assigned_to')
+            ->groupBy('users.id', 'users.first_name', 'users.last_name', 'clients.source')
+            ->orderBy('advisor_name');
+
+        if ($startDate) {
+            $query->whereDate('clients.created_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('clients.created_at', '<=', $endDate);
+        }
+
+        $rows = $query->get();
+
+        // Group by advisor
+        $advisors = [];
+        foreach ($rows as $row) {
+            $id = $row->advisor_id;
+            if (!isset($advisors[$id])) {
+                $advisors[$id] = [
+                    'id' => $id,
+                    'name' => trim($row->advisor_name),
+                    'total' => 0,
+                    'by_source' => [],
+                ];
+            }
+            $source = $row->source ?: 'Sin especificar';
+            $advisors[$id]['total'] += $row->total;
+            $advisors[$id]['by_source'][$source] = ($advisors[$id]['by_source'][$source] ?? 0) + $row->total;
+        }
+
+        return response()->json(array_values($advisors));
+    }
 }

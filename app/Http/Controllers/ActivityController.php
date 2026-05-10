@@ -7,8 +7,10 @@ use App\Models\Activity;
 use App\Filters\Common\Auth\ActivityFilter as AppUserFilter;
 use App\Filters\Core\ActivityFilter;
 use App\Services\Core\Auth\ActivityService;
+use App\Exports\ActivityExport;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 
 class ActivityController extends Controller
@@ -33,26 +35,58 @@ class ActivityController extends Controller
 
     public function create(Request $request)
     {
-        $Activity = Activity::create([
-            'result' => $request->input('result'),
-            'type' => $request->input('type'),
-            'user_id' => Auth::user()->id,
-            'date' => Carbon::parse($request->input('date')),
-        ]);
+        $data = $request->only(['result', 'type', 'description', 'date', 'client_id', 'property_id']);
+        $data['user_id'] = Auth::user()->id;
+        if (!empty($data['date'])) {
+            $data['date'] = Carbon::parse($data['date']);
+        }
+
+        // Handle geolocation
+        if ($request->filled('latitude') && $request->filled('longitude')) {
+            $data['latitude'] = $request->input('latitude');
+            $data['longitude'] = $request->input('longitude');
+        }
+
+        $Activity = Activity::create($data);
+
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('activity_images', 'public');
+            $Activity->update(['image_path' => $path]);
+        }
+
         return created_responses('Activity');
     }
 
     public function edit(Request $request, $id)
     {
+        $Activity = Activity::where('id', $id)->firstOrFail();
+        $data = $request->only(['result', 'type', 'description', 'date', 'client_id', 'property_id']);
 
-        $Activity = Activity::where('id', $id)->first();
-        $Activity->update($request->all());
+        if (!empty($data['date'])) {
+            $data['date'] = Carbon::parse($data['date']);
+        }
 
-        return created_responses('Transaction');
+        // Handle image upload on edit
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('activity_images', 'public');
+            $data['image_path'] = $path;
+        }
+
+        $Activity->update($data);
+
+        return created_responses('Activity');
     }
 
     public function show(Activity $Activity)
     {
-        return response()->json($Activity);
+        return response()->json($Activity->load('user', 'client', 'property'));
+    }
+
+    public function export(Request $request)
+    {
+        $fileName = 'actividades_' . now()->format('Y-m-d_H-i') . '.xlsx';
+        return Excel::download(new ActivityExport($request), $fileName);
     }
 }
+

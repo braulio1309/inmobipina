@@ -152,6 +152,50 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Sección: Clientes por Asesor y Medio de Captación -->
+            <div class="card border-0 shadow-sm rounded-3 mt-4" v-if="clientsByAdvisor.length > 0">
+                <div class="card-body">
+                    <h5 class="fw-semibold mb-4">
+                        <i class="fas fa-users mr-2 text-primary"></i>
+                        Clientes por Asesor y Medio de Captación
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-7 mb-4">
+                            <div class="chart-card p-3 shadow-sm rounded-3">
+                                <h6 class="fw-semibold mb-3">
+                                    <i class="fas fa-chart-bar mr-2 text-success"></i>
+                                    Total de Clientes por Asesor
+                                </h6>
+                                <canvas ref="advisorClientsChart" height="220"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-5 mb-4">
+                            <div class="chart-card p-3 shadow-sm rounded-3">
+                                <h6 class="fw-semibold mb-3">
+                                    <i class="fas fa-chart-pie mr-2 text-success"></i>
+                                    Medios de Captación
+                                </h6>
+                                <canvas ref="sourcesPieChart" height="220"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detalle por asesor -->
+                    <div v-for="advisor in clientsByAdvisor" :key="advisor.id" class="advisor-clients-row mb-2 p-3 border rounded">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold">{{ advisor.name }}</span>
+                            <span class="badge badge-primary badge-pill">{{ advisor.total }} clientes</span>
+                        </div>
+                        <div class="d-flex flex-wrap">
+                            <span v-for="(count, source) in advisor.by_source" :key="source"
+                                  class="badge badge-light border mr-2 mb-1" style="font-size:11px;">
+                                {{ source }}: <strong>{{ count }}</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -200,6 +244,9 @@ export default {
                 '#4facfe', '#43e97b', '#667eea', '#fa709a', '#f7971e',
                 '#38f9d7', '#764ba2', '#fee140', '#f5576c', '#00f2fe',
             ],
+            clientsByAdvisor: [],
+            advisorClientsChartInstance: null,
+            sourcesPieChartInstance: null,
         }
     },
     
@@ -216,8 +263,7 @@ export default {
     },
 
     mounted() {
-            this.loadAdvisors();
-        
+        this.loadAdvisors();
         this.loadReports();
     },
     
@@ -260,6 +306,91 @@ export default {
                 .finally(() => {
                     this.preloader = false;
                 });
+
+            this.loadClientsByAdvisor();
+        },
+
+        async loadClientsByAdvisor() {
+            const params = {};
+            if (this.filterStartDate) params.start_date = this.filterStartDate;
+            if (this.filterEndDate) params.end_date = this.filterEndDate;
+
+            this.axiosGet('/app/reports/clients-by-advisor', { params })
+                .then(response => {
+                    this.clientsByAdvisor = response.data || [];
+                    this.$nextTick(() => {
+                        this.renderAdvisorClientsCharts();
+                    });
+                })
+                .catch(error => {
+                    console.error('Error al cargar clientes por asesor:', error);
+                });
+        },
+
+        renderAdvisorClientsCharts() {
+            const advisors = this.clientsByAdvisor;
+            if (!advisors || advisors.length === 0) return;
+
+            const labels = advisors.map(a => a.name);
+            const totals = advisors.map(a => a.total);
+            const colors = labels.map((_, i) => this.chartColors[i % this.chartColors.length]);
+
+            // Bar chart - clients per advisor
+            if (this.$refs.advisorClientsChart) {
+                if (this.advisorClientsChartInstance) this.advisorClientsChartInstance.destroy();
+                this.advisorClientsChartInstance = new Chart(this.$refs.advisorClientsChart.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Clientes Asignados',
+                            data: totals,
+                            backgroundColor: colors,
+                            borderRadius: 6,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        legend: { display: false },
+                        scales: {
+                            yAxes: [{ ticks: { beginAtZero: true, stepSize: 1 } }],
+                            xAxes: [{ gridLines: { display: false } }]
+                        },
+                    }
+                });
+            }
+
+            // Pie chart - by source (aggregate all advisors)
+            const sourceMap = {};
+            advisors.forEach(a => {
+                Object.entries(a.by_source).forEach(([source, count]) => {
+                    sourceMap[source] = (sourceMap[source] || 0) + count;
+                });
+            });
+            const sourceLabels = Object.keys(sourceMap);
+            const sourceValues = Object.values(sourceMap);
+            const sourceColors = sourceLabels.map((_, i) => this.chartColors[i % this.chartColors.length]);
+
+            if (this.$refs.sourcesPieChart) {
+                if (this.sourcesPieChartInstance) this.sourcesPieChartInstance.destroy();
+                this.sourcesPieChartInstance = new Chart(this.$refs.sourcesPieChart.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: sourceLabels,
+                        datasets: [{
+                            data: sourceValues,
+                            backgroundColor: sourceColors,
+                            borderWidth: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        legend: { position: 'bottom', labels: { fontSize: 11, padding: 10 } },
+                    }
+                });
+            }
         },
 
         renderCharts() {

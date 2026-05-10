@@ -44,6 +44,7 @@ Vue.component('create-clients', require('./Components/Views/Clients/Create').def
 
 //Actividades
 Vue.component('activities', require('./Components/Views/Activities/Index').default);
+Vue.component('activity-detail-modal', require('./Components/Views/Activities/ActivityDetail').default);
 
 // Reports
 Vue.component('advisor-reports', require('./Components/Views/Reports/AdvisorReports').default);
