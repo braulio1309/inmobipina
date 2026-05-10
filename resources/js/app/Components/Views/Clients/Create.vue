@@ -131,11 +131,12 @@ export default {
     async loadAgents() {
       try {
         const res = await axios.get("/admin/auth/users");
+        const users = Array.isArray(res.data) ? res.data : (res.data.data || []);
         this.agentsList = [
           { id: "", value: "Elige uno" },
-          ...res.data.map(a => ({
+          ...users.map(a => ({
             id: a.id.toString(),
-            value: a.first_name + " " + (a.last_name ?? ""),
+            value: (a.first_name || "") + " " + (a.last_name ?? ""),
           }))
         ];
       } catch (error) {

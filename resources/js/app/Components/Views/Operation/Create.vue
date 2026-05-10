@@ -35,8 +35,56 @@
             />
         </div>
 
-        <!-- AMOUNT -->
-        <div v-if="showAmount" class="mb-3">
+        <!-- RESERVA: precio propiedad + monto reserva por separado -->
+        <div v-if="showAmount && operation.type === 'reserva'" class="mb-3">
+            <div class="alert alert-info py-2 mb-2">
+                <i class="fas fa-info-circle mr-1"></i>
+                <strong>Operación de Reserva:</strong> Puedes ajustar el precio de la propiedad y el monto de la reserva.
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">
+                        💰 Precio de la Propiedad
+                        <small class="text-muted font-weight-normal">(modificable)</small>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input
+                            v-model="operation.property_price"
+                            type="number"
+                            class="form-control"
+                            placeholder="Precio de la propiedad"
+                            @input="onPropertyPriceChanged"
+                            :readonly="isLocked"
+                        >
+                    </div>
+                    <small class="text-muted">Precio original del inmueble</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">
+                        📋 Monto de la Reserva
+                        <small class="text-muted font-weight-normal">(modificable)</small>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input
+                            v-model="operation.amount"
+                            type="number"
+                            class="form-control"
+                            placeholder="Monto a cobrar por reserva"
+                            @input="recalculateCommissions"
+                            :readonly="isLocked"
+                        >
+                    </div>
+                    <small class="text-success" v-if="operation.property_price">
+                        Sugerido: ${{ formatAmount(operation.property_price * 0.10) }} (10% del precio)
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- AMOUNT para venta/alquiler -->
+        <div v-if="showAmount && operation.type !== 'reserva'" class="mb-3">
             <label class="form-label">Monto</label>
             <input
                 v-model="operation.amount"
@@ -227,6 +275,7 @@ export default {
                 property_id: "",
                 type: "",
                 amount: "",
+                property_price: "",
                 start_date: "",
                 end_date: "",
                 buyers: [],
@@ -324,6 +373,7 @@ export default {
                 property_id: operation.property_id || '',
                 type: operation.type || '',
                 amount: operation.amount || '',
+                property_price: operation.property_price || '',
                 start_date: operation.start_date || '',
                 end_date: operation.end_date || '',
                 buyers: operation.buyers || [],
@@ -358,6 +408,7 @@ export default {
                 this.suggestedMessage = "";
                 if (!preserveAmount) {
                     this.operation.amount = "";
+                    this.operation.property_price = "";
                 }
                 return;
             }
@@ -371,11 +422,20 @@ export default {
 
             if (this.operation.type === "venta") {
                 this.operation.amount = this.selectedPropertyPrice;
+                this.operation.property_price = "";
             } else if (this.operation.type === "reserva") {
+                this.operation.property_price = this.selectedPropertyPrice;
                 this.operation.amount = (this.selectedPropertyPrice * 0.10).toFixed(2);
             }
 
             this.recalculateCommissions();
+        },
+
+        onPropertyPriceChanged() {
+            if (this.operation.type === 'reserva' && this.operation.property_price) {
+                // Recalculate commissions based on amount (not property_price)
+                this.recalculateCommissions();
+            }
         },
 
         onSellersChanged(selectedIds, existingCommissions = []) {
@@ -447,6 +507,7 @@ export default {
                         property_id: "",
                         type: "",
                         amount: "",
+                        property_price: "",
                         start_date: "",
                         end_date: "",
                         buyers: [],
