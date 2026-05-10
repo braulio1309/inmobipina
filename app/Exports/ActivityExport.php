@@ -91,7 +91,7 @@ class ActivityExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     {
         return [
             $row->id,
-            $row->user ? trim($row->user->first_name . ' ' . $row->user->last_name) : 'N/A',
+            $row->user ? trim($row->user->first_name . ' ' . ($row->user->last_name ?? '')) : 'N/A',
             $row->type,
             $row->description,
             $row->result,
