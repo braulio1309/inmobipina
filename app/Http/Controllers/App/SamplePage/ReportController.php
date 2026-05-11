@@ -11,6 +11,67 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    private function applyDateRangeFilter($query, $column, $startDate = null, $endDate = null)
+    {
+        if ($startDate) {
+            $query->where($column, '>=', Carbon::parse($startDate)->startOfDay());
+        }
+
+        if ($endDate) {
+            $query->where($column, '<=', Carbon::parse($endDate)->endOfDay());
+        }
+
+        return $query;
+    }
+
+    private function getAdvisorCommissionsRows(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $user = User::query()->findOrFail(auth()->id());
+
+        $assignedClientsQuery = DB::table('clients')
+            ->select(
+                'assigned_to',
+                DB::raw('COUNT(id) as assigned_clients_count')
+            )
+            ->whereNotNull('assigned_to')
+            ->groupBy('assigned_to');
+
+        $this->applyDateRangeFilter($assignedClientsQuery, 'created_at', $startDate, $endDate);
+
+        $query = DB::table('operation_user')
+            ->join('users', 'operation_user.user_id', '=', 'users.id')
+            ->join('operations', 'operation_user.operation_id', '=', 'operations.id')
+            ->leftJoinSub($assignedClientsQuery, 'assigned_clients', function ($join) {
+                $join->on('users.id', '=', 'assigned_clients.assigned_to');
+            })
+            ->select(
+                'users.id',
+                DB::raw("CONCAT(users.first_name, ' ', users.last_name) as name"),
+                DB::raw('COUNT(operation_user.operation_id) as count'),
+                DB::raw('SUM(operation_user.commission_amount) as value'),
+                DB::raw('COALESCE(MAX(assigned_clients.assigned_clients_count), 0) as assigned_clients_count')
+            )
+            ->groupBy('users.id', 'users.first_name', 'users.last_name');
+
+        if (!$user->isAdmin()) {
+            $query->where('operation_user.user_id', $user->id);
+        }
+
+        $this->applyDateRangeFilter($query, 'operations.created_at', $startDate, $endDate);
+
+        return $query->orderByDesc('value')->get()->map(function ($row) {
+            return [
+                'id' => $row->id,
+                'name' => $row->name,
+                'count' => (int) $row->count,
+                'value' => (float) $row->value,
+                'assigned_clients_count' => (int) $row->assigned_clients_count,
+            ];
+        })->values();
+    }
+
     public function index()
     {
         return Report::paginate(request('per_page', 10));
@@ -24,7 +85,7 @@ class ReportController extends Controller
     {
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
-        $user = auth()->user();
+        $user = User::query()->findOrFail(auth()->id());
 
         // Query to get top sellers
         $query = DB::table('sales')
@@ -72,43 +133,34 @@ class ReportController extends Controller
      */
     public function advisorCommissions(Request $request)
     {
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-        $user = auth()->user();
-
-        $query = DB::table('operation_user')
-            ->join('users', 'operation_user.user_id', '=', 'users.id')
-            ->join('operations', 'operation_user.operation_id', '=', 'operations.id')
-            ->select(
-                'users.id',
-                DB::raw("CONCAT(users.first_name, ' ', users.last_name) as name"),
-                DB::raw('COUNT(operation_user.operation_id) as count'),
-                DB::raw('SUM(operation_user.commission_amount) as value')
-            )
-            ->groupBy('users.id', 'users.first_name', 'users.last_name');
-
-        if (!$user->isAdmin()) {
-            $query->where('operation_user.user_id', $user->id);
-        }
-
-        if ($startDate) {
-            $query->where('operations.created_at', '>=', $startDate);
-        }
-        if ($endDate) {
-            $query->where('operations.created_at', '<=', $endDate . ' 23:59:59');
-        }
-
-        $results = $query->orderByDesc('value')->get();
-
         return response()->json([
-            'data' => $results->map(function ($row) {
-                return [
-                    'id'    => $row->id,
-                    'name'  => $row->name,
-                    'count' => (int) $row->count,
-                    'value' => (float) $row->value,
-                ];
-            })
+            'data' => $this->getAdvisorCommissionsRows($request)
+        ]);
+    }
+
+    public function exportAdvisorCommissions(Request $request)
+    {
+        $rows = $this->getAdvisorCommissionsRows($request);
+        $fileName = 'top_vendedores_' . now()->format('Y-m-d_H-i') . '.csv';
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            fputcsv($handle, ['Nombre', 'Ventas', 'Monto USD', 'Clientes asignados']);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row['name'],
+                    $row['count'],
+                    number_format($row['value'], 2, '.', ''),
+                    $row['assigned_clients_count'],
+                ]);
+            }
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 

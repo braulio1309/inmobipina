@@ -7,6 +7,7 @@ use App\Http\Controllers\App\SamplePage\ReportController;
 use App\Http\Controllers\App\SamplePage\CalendarController;
 use App\Http\Controllers\App\SamplePage\KanbanView\TaskController;
 use App\Http\Controllers\App\SamplePage\KanbanView\StageController;
+use Illuminate\Support\Facades\Route;
 
 Route::view('chat', 'sample-pages.chat');
 Route::view('maps', 'sample-pages.map');
@@ -25,6 +26,7 @@ Route::resource('calendars', CalendarController::class);
 Route::get('reports', [ReportController::class, 'index'])->name('report.index');
 Route::get('reports/top-sellers', [ReportController::class, 'topSellers'])->name('report.top-sellers');
 Route::get('reports/advisor-commissions', [ReportController::class, 'advisorCommissions'])->name('report.advisor-commissions');
+Route::get('reports/advisor-commissions/export', [ReportController::class, 'exportAdvisorCommissions'])->name('report.advisor-commissions.export');
 Route::get('reports/overview-stats', [ReportController::class, 'overviewStats'])->name('report.overview-stats');
 Route::get('reports/performance-chart', [ReportController::class, 'performanceChart'])->name('report.performance-chart');
 Route::get('reports/activities-by-type', [ReportController::class, 'activitiesByType'])->name('report.activities-by-type');

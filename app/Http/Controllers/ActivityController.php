@@ -16,6 +16,25 @@ use Maatwebsite\Excel\Facades\Excel;
 class ActivityController extends Controller
 {
 
+    protected function normalizeActivityDate($date)
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        if ($date instanceof \DateTimeInterface) {
+            return Carbon::instance($date)->startOfDay();
+        }
+
+        $date = trim((string) $date);
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return Carbon::createFromFormat('Y-m-d', $date)->startOfDay();
+        }
+
+        return Carbon::parse($date)->startOfDay();
+    }
+
     public function __construct(ActivityService $Transaction, ActivityFilter $filter)
     {
         $this->service = $Transaction;
@@ -38,7 +57,7 @@ class ActivityController extends Controller
         $data = $request->only(['result', 'type', 'description', 'date', 'client_id', 'property_id']);
         $data['user_id'] = Auth::user()->id;
         if (!empty($data['date'])) {
-            $data['date'] = Carbon::parse($data['date']);
+            $data['date'] = $this->normalizeActivityDate($data['date']);
         }
 
         // Handle geolocation
@@ -64,7 +83,12 @@ class ActivityController extends Controller
         $data = $request->only(['result', 'type', 'description', 'date', 'client_id', 'property_id']);
 
         if (!empty($data['date'])) {
-            $data['date'] = Carbon::parse($data['date']);
+            $data['date'] = $this->normalizeActivityDate($data['date']);
+        }
+
+        if ($request->filled('latitude') && $request->filled('longitude')) {
+            $data['latitude'] = $request->input('latitude');
+            $data['longitude'] = $request->input('longitude');
         }
 
         // Handle image upload on edit

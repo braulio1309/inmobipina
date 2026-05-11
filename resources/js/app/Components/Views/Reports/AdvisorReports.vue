@@ -13,7 +13,7 @@
                 <div class="card-body">
                     <h6 class="fw-semibold mb-3"><i class="fas fa-filter mr-2"></i> Filtrar Reporte</h6>
                     <div class="row align-items-end">
-                        <div  class="col-md-4 mb-3 mb-md-0">
+                        <div v-if="canFilterAdvisors" class="col-md-4 mb-3 mb-md-0">
                             <label class="form-label fw-semibold">{{ $t('reports.select_advisor') }}</label>
                             <app-input
                                 type="search-select"
@@ -22,11 +22,11 @@
                                 :placeholder="$t('reports.my_reports')"
                             />
                         </div>
-                        <div class="col-md-3 mb-3 mb-md-0">
+                        <div :class="canFilterAdvisors ? 'col-md-3' : 'col-md-5'" class="mb-3 mb-md-0">
                             <label class="form-label fw-semibold">{{ $t('reports.start_date') }}</label>
                             <input type="date" class="form-control" v-model="filterStartDate">
                         </div>
-                        <div class="col-md-3 mb-3 mb-md-0">
+                        <div :class="canFilterAdvisors ? 'col-md-3' : 'col-md-5'" class="mb-3 mb-md-0">
                             <label class="form-label fw-semibold">{{ $t('reports.end_date') }}</label>
                             <input type="date" class="form-control" v-model="filterEndDate">
                         </div>
@@ -158,11 +158,11 @@
                 <div class="card-body">
                     <h5 class="fw-semibold mb-4">
                         <i class="fas fa-users mr-2 text-primary"></i>
-                        {{ selectedAdvisorId ? 'Clientes de ' + (reports.advisor && reports.advisor.name || 'Asesor') + ' por Medio de Captación' : 'Clientes por Asesor y Medio de Captación' }}
+                        {{ canFilterAdvisors && selectedAdvisorId ? 'Clientes de ' + (reports.advisor && reports.advisor.name || 'Asesor') + ' por Medio de Captación' : 'Clientes por Asesor y Medio de Captación' }}
                     </h5>
                     <div class="row">
                         <!-- Bar chart: totals per advisor (or total for single advisor, hidden) -->
-                        <div v-if="!selectedAdvisorId" class="col-md-7 mb-4">
+                        <div v-if="canFilterAdvisors && !selectedAdvisorId" class="col-md-5 mb-4">
                             <div class="chart-card p-3 shadow-sm rounded-3">
                                 <h6 class="fw-semibold mb-3">
                                     <i class="fas fa-chart-bar mr-2 text-success"></i>
@@ -172,19 +172,33 @@
                             </div>
                         </div>
                         <!-- Pie chart: by source -->
-                        <div :class="selectedAdvisorId ? 'col-md-8' : 'col-md-5'" class="mb-4">
+                        <div :class="canFilterAdvisors ? (selectedAdvisorId ? 'col-md-7' : 'col-md-4') : 'col-md-8'" class="mb-4">
                             <div class="chart-card p-3 shadow-sm rounded-3">
                                 <h6 class="fw-semibold mb-3">
                                     <i class="fas fa-chart-pie mr-2 text-success"></i>
-                                    {{ selectedAdvisorId ? 'Clientes por Medio de Captación' : 'Distribución por Medio (todos los asesores)' }}
+                                    {{ canFilterAdvisors && selectedAdvisorId ? 'Clientes por Medio de Captación' : 'Distribución por Medio (todos los asesores)' }}
                                 </h6>
                                 <canvas ref="sourcesPieChart" height="220"></canvas>
+                            </div>
+                        </div>
+                        <div :class="canFilterAdvisors ? (selectedAdvisorId ? 'col-md-5' : 'col-md-3') : 'col-md-4'" class="mb-4">
+                            <div class="chart-card p-3 shadow-sm rounded-3 advisor-summary-card h-100">
+                                <h6 class="fw-semibold mb-3">
+                                    <i class="fas fa-list mr-2 text-success"></i>
+                                    {{ canFilterAdvisors ? 'Asesores y clientes asignados' : 'Tus clientes asignados' }}
+                                </h6>
+                                <div class="advisor-summary-list">
+                                    <div v-for="advisor in clientsByAdvisor" :key="`summary-${advisor.id}`" class="advisor-summary-item">
+                                        <span class="advisor-summary-name">{{ advisor.name }}</span>
+                                        <span class="badge badge-primary badge-pill">{{ advisor.total }}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Detalle por asesor -->
-                    <div v-for="advisor in clientsByAdvisor" :key="advisor.id" class="advisor-clients-row mb-2 p-3 border rounded">
+                    <div v-if="canFilterAdvisors" v-for="advisor in clientsByAdvisor" :key="advisor.id" class="advisor-clients-row mb-2 p-3 border rounded">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <span class="fw-bold">{{ advisor.name }}</span>
                             <span class="badge badge-primary badge-pill">{{ advisor.total }} clientes</span>
@@ -238,6 +252,7 @@ export default {
             activityIcons: {
                 'demostración': 'fas fa-eye',
                 'captación': 'fas fa-building',
+                'publicidad': 'fas fa-bullhorn',
                 'venta': 'fas fa-dollar-sign',
                 'alquiler': 'fas fa-key',
                 'reserva': 'fas fa-calendar-check',
@@ -253,6 +268,9 @@ export default {
     },
     
     computed: {
+        canFilterAdvisors() {
+            return Boolean(this.isAdmin);
+        },
         advisorSelectList() {
             return [
                 { id: '', value: 'Todos los Asesores' },
@@ -265,7 +283,9 @@ export default {
     },
 
     mounted() {
-        this.loadAdvisors();
+        if (this.canFilterAdvisors) {
+            this.loadAdvisors();
+        }
         this.loadReports();
     },
     
@@ -284,7 +304,7 @@ export default {
             this.preloader = true;
             
             const params = {};
-            if (this.selectedAdvisorId) {
+            if (this.canFilterAdvisors && this.selectedAdvisorId) {
                 params.user_id = this.selectedAdvisorId;
             }
             if (this.filterStartDate) {
@@ -316,7 +336,7 @@ export default {
             const params = {};
             if (this.filterStartDate) params.start_date = this.filterStartDate;
             if (this.filterEndDate) params.end_date = this.filterEndDate;
-            if (this.selectedAdvisorId) params.user_id = this.selectedAdvisorId;
+            if (this.canFilterAdvisors && this.selectedAdvisorId) params.user_id = this.selectedAdvisorId;
 
             this.axiosGet('/app/reports/clients-by-advisor', { params })
                 .then(response => {
@@ -580,5 +600,31 @@ export default {
     background: #ffffff;
     border-radius: 16px;
     min-height: 260px;
+}
+
+.advisor-summary-card {
+    min-height: 260px;
+}
+
+.advisor-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.advisor-summary-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #edf0f2;
+}
+
+.advisor-summary-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-right: 12px;
 }
 </style>

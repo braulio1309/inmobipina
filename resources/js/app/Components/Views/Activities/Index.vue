@@ -102,6 +102,7 @@ export default {
                             let ClassName = 'captación';
 
                             if (value === 'demostración') ClassName = `success`;
+                            else if (value === 'publicidad') ClassName = `info`;
                             else if (value === 'reserva') ClassName = `warning`;
 
                             return `<span class="badge badge-sm badge-pill badge-${ClassName}">${value}</span>`;
@@ -170,6 +171,7 @@ export default {
                         "option": [
                             {id: 'demostración', value: 'Demostración'},
                             {id: 'captación', value: 'Captación'},
+                            {id: 'publicidad', value: 'Publicidad'},
                             {id: 'reserva', value: 'Reserva'},
                             {id: 'venta', value: 'Venta'},
                             {id: 'alquiler', value: 'Alquiler'},

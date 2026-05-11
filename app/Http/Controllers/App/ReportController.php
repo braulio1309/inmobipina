@@ -243,13 +243,13 @@ class ReportController extends Controller
         /** @var \App\Models\Core\Auth\User $authUser */
         $authUser = auth()->user();
 
-        if (!$authUser->isAdmin()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $startDate = $request->get('start_date');
         $endDate   = $request->get('end_date');
         $userId    = $request->get('user_id');
+
+        if (!$authUser->isAdmin()) {
+            $userId = $authUser->id;
+        }
 
         $query = DB::table('clients')
             ->join('users', 'clients.assigned_to', '=', 'users.id')

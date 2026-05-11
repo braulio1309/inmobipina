@@ -30,6 +30,7 @@ export const EMPLOYEE_OVERVIEW = 'employee-overview';
 export const REPORTS = 'reports';
 export const TOP_SELLERS_REPORT = 'reports/top-sellers';
 export const ADVISOR_COMMISSIONS_REPORT = 'reports/advisor-commissions';
+export const ADVISOR_COMMISSIONS_REPORT_EXPORT = 'reports/advisor-commissions/export';
 export const OVERVIEW_STATS = 'reports/overview-stats';
 export const PERFORMANCE_CHART = 'reports/performance-chart';
 export const ACTIVITIES_BY_TYPE_REPORT = 'reports/activities-by-type';

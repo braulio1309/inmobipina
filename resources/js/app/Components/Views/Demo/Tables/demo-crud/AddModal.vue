@@ -144,6 +144,7 @@ export default {
                 {id: '', value: "Seleccione un tipo"},
                 {id: 'demostración', value: "Demostración"},
                 {id: 'captación', value: "Captación"},
+                {id: 'publicidad', value: "Publicidad"},
                 {id: 'reserva', value: "Reserva"},
                 {id: 'venta', value: "Venta"},
                 {id: 'alquiler', value: "Alquiler"},
@@ -180,6 +181,12 @@ export default {
                 if (!silent) this.$toastr.w('La geolocalización no está disponible en este dispositivo.');
                 return;
             }
+
+            if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                if (!silent) this.$toastr.w('El navegador bloqueó la geolocalización porque la página no está en un contexto seguro (HTTPS o localhost).');
+                return;
+            }
+
             this.locationLoading = true;
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -190,10 +197,67 @@ export default {
                 },
                 (error) => {
                     this.locationLoading = false;
-                    if (!silent) this.$toastr.w('No se pudo obtener la ubicación: ' + error.message);
+
+                    if (!silent) {
+                        const geolocationErrors = {
+                            1: 'Debes permitir el acceso a la ubicación para usar la ubicación actual.',
+                            2: 'No se pudo determinar tu ubicación actual.',
+                            3: 'La solicitud de ubicación tardó demasiado tiempo.',
+                        };
+
+                        this.$toastr.w(geolocationErrors[error.code] || ('No se pudo obtener la ubicación: ' + error.message));
+                    }
                 },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
+        },
+
+        normalizeDateForRequest(value) {
+            if (!value) return '';
+
+            if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                return value.toISOString().slice(0, 10);
+            }
+
+            if (typeof value === 'string') {
+                const trimmedValue = value.trim();
+
+                if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+                    return trimmedValue;
+                }
+
+                const parsedDate = new Date(trimmedValue);
+                if (!Number.isNaN(parsedDate.getTime())) {
+                    return parsedDate.toISOString().slice(0, 10);
+                }
+
+                return trimmedValue;
+            }
+
+            return value;
+        },
+
+        normalizeDateForInput(value) {
+            if (!value) return '';
+
+            if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                return value;
+            }
+
+            if (typeof value === 'string') {
+                const trimmedValue = value.trim();
+
+                if (/^\d{4}-\d{2}-\d{2}/.test(trimmedValue)) {
+                    return trimmedValue.slice(0, 10);
+                }
+
+                const parsedDate = new Date(trimmedValue);
+                if (!Number.isNaN(parsedDate.getTime())) {
+                    return parsedDate;
+                }
+            }
+
+            return value;
         },
 
         submit() {
@@ -201,9 +265,13 @@ export default {
             formData.append('type', this.inputs.type || '');
             formData.append('description', this.inputs.description || '');
             formData.append('result', this.inputs.result || '');
-            formData.append('date', this.inputs.date || '');
-            if (this.inputs.latitude) formData.append('latitude', this.inputs.latitude);
-            if (this.inputs.longitude) formData.append('longitude', this.inputs.longitude);
+            formData.append('date', this.normalizeDateForRequest(this.inputs.date));
+            if (this.inputs.latitude !== null && this.inputs.latitude !== undefined && this.inputs.latitude !== '') {
+                formData.append('latitude', this.inputs.latitude);
+            }
+            if (this.inputs.longitude !== null && this.inputs.longitude !== undefined && this.inputs.longitude !== '') {
+                formData.append('longitude', this.inputs.longitude);
+            }
             if (this.imageFile) formData.append('image', this.imageFile);
 
             const isEdit = !!this.selectedUrl;
@@ -233,6 +301,7 @@ export default {
         afterSuccessFromGetEditData(response) {
             this.inputs = {
                 ...response.data,
+                date: this.normalizeDateForInput(response.data.date),
                 latitude: response.data.latitude || null,
                 longitude: response.data.longitude || null,
                 image_path: response.data.image_path || null,

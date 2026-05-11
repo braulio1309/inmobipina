@@ -102,8 +102,33 @@ export default {
     },
 
     methods: {
+        normalizeDateValue(value) {
+            if (!value) return '';
+
+            if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                return value.toISOString().slice(0, 10);
+            }
+
+            if (typeof value === 'string') {
+                const trimmedValue = value.trim();
+
+                if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+                    return trimmedValue;
+                }
+
+                const parsedDate = new Date(trimmedValue);
+                if (!Number.isNaN(parsedDate.getTime())) {
+                    return parsedDate.toISOString().slice(0, 10);
+                }
+            }
+
+            return '';
+        },
         applyFilters() {
-            this.$hub.$emit('report-filters-changed', { ...this.filters });
+            this.$hub.$emit('report-filters-changed', {
+                startDate: this.normalizeDateValue(this.filters.startDate),
+                endDate: this.normalizeDateValue(this.filters.endDate),
+            });
         },
         clearFilters() {
             this.filters.startDate = '';

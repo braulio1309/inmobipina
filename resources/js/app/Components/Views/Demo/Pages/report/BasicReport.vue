@@ -13,6 +13,11 @@
                 </div>
 
                 <hr class="mx-minus-primary my-primary">
+                <div class="d-flex justify-content-end mb-primary">
+                    <button class="btn btn-primary" @click="exportReport">
+                        Exportar lista
+                    </button>
+                </div>
                 <app-table
                     class="remove-datatable-x-padding"
                     :id="reportTableId"
@@ -25,7 +30,7 @@
 
 <script>
 import {FormMixin} from "../../../../../../core/mixins/form/FormMixin";
-import {ADVISOR_COMMISSIONS_REPORT} from "../../../../../Config/ApiUrl";
+import {ADVISOR_COMMISSIONS_REPORT, ADVISOR_COMMISSIONS_REPORT_EXPORT} from "../../../../../Config/ApiUrl";
 
 
 export default {
@@ -41,6 +46,10 @@ export default {
     data() {
         return {
             preloader: false,
+            currentFilters: {
+                startDate: '',
+                endDate: '',
+            },
             reportChart: {
                 labels: [],
                 dataSets: [
@@ -86,6 +95,11 @@ export default {
                         modifier: (value) => {
                             return this.formatCurrency(value);
                         }
+                    },
+                    {
+                        title: 'Clientes asignados',
+                        type: 'text',
+                        key: 'assigned_clients_count'
                     }
                 ],
             }
@@ -103,6 +117,10 @@ export default {
         this.preloader = true;
     },
     methods: {
+        syncFilters(filters = {}) {
+            this.currentFilters.startDate = filters.startDate || '';
+            this.currentFilters.endDate = filters.endDate || '';
+        },
         setupChartForTable({data}){
             this.reportChartData = data;
             this.getChartData();
@@ -142,9 +160,27 @@ export default {
             return total / list.length;
         },
         loadReportData() {
-            this.options.queryParams.start_date = this.reportFilters.startDate;
-            this.options.queryParams.end_date = this.reportFilters.endDate;
+            this.options.queryParams.start_date = this.currentFilters.startDate;
+            this.options.queryParams.end_date = this.currentFilters.endDate;
             this.$hub.$emit(`reload-${this.reportTableId}`);
+        },
+        exportReport() {
+            const params = new URLSearchParams();
+
+            if (this.currentFilters.startDate) {
+                params.set('start_date', this.currentFilters.startDate);
+            }
+
+            if (this.currentFilters.endDate) {
+                params.set('end_date', this.currentFilters.endDate);
+            }
+
+            const queryString = params.toString();
+            const exportUrl = queryString
+                ? `/${ADVISOR_COMMISSIONS_REPORT_EXPORT}?${queryString}`
+                : `/${ADVISOR_COMMISSIONS_REPORT_EXPORT}`;
+
+            window.open(exportUrl, '_blank');
         },
         formatCurrency(value) {
             if (!value && value !== 0) return '-';
@@ -157,6 +193,17 @@ export default {
                 minimumFractionDigits: 2
             }).format(value);
         }
+    }
+    ,
+    mounted() {
+        this.syncFilters(this.reportFilters);
+        this.$hub.$on('report-filters-changed', this.syncFilters);
+        this.$hub.$on('report-filters-changed', this.loadReportData);
+        this.loadReportData();
+    },
+    beforeDestroy() {
+        this.$hub.$off('report-filters-changed', this.syncFilters);
+        this.$hub.$off('report-filters-changed', this.loadReportData);
     }
 }
 </script>

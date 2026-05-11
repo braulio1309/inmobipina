@@ -121,6 +121,7 @@ export default {
                 'demostración': 'badge-success',
                 'reserva': 'badge-warning',
                 'captación': 'badge-primary',
+                'publicidad': 'badge-info',
                 'venta': 'badge-info',
                 'alquiler': 'badge-secondary',
             };

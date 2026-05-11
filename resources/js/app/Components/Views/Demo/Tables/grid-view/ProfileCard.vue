@@ -60,7 +60,7 @@ export default {
     },
     methods: {
         callAction(action) {
-            this.$emit('action-' + this.id, this.profile, action, true)
+            this.$emit('action-grid-view-table', this.profile, action, true)
         },
         getImageUrl(profile) {
             if (profile.profile_picture) {
@@ -71,6 +71,7 @@ export default {
         statusClass(status) {
             let ClassName = 'primary';
             if (status === 'demostración') ClassName = `success`;
+            else if (status === 'publicidad') ClassName = `info`;
             else if (status === 'captación') ClassName = `warning`;
             return ClassName;
         }

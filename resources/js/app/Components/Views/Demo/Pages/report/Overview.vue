@@ -97,6 +97,10 @@ export default {
     data() {
         return {
             preloader: true,
+            currentFilters: {
+                startDate: '',
+                endDate: '',
+            },
             overview: null,
             performance: {
                 labels: [],
@@ -117,10 +121,14 @@ export default {
         'reportFilters.endDate': 'reloadAll',
     },
     methods: {
+        syncFilters(filters = {}) {
+            this.currentFilters.startDate = filters.startDate || '';
+            this.currentFilters.endDate = filters.endDate || '';
+        },
         buildQuery() {
             return {
-                start_date: this.reportFilters.startDate || '',
-                end_date: this.reportFilters.endDate || '',
+                start_date: this.currentFilters.startDate || '',
+                end_date: this.currentFilters.endDate || '',
             };
         },
         genBarChartData(data) {
@@ -210,7 +218,14 @@ export default {
         },
     },
     mounted() {
+        this.syncFilters(this.reportFilters);
+        this.$hub.$on('report-filters-changed', this.syncFilters);
+        this.$hub.$on('report-filters-changed', this.reloadAll);
         this.reloadAll();
+    },
+    beforeDestroy() {
+        this.$hub.$off('report-filters-changed', this.syncFilters);
+        this.$hub.$off('report-filters-changed', this.reloadAll);
     }
 }
 </script>

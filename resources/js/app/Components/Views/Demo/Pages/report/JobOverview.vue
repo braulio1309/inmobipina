@@ -150,6 +150,10 @@ export default {
 
     data() {
         return {
+            currentFilters: {
+                startDate: '',
+                endDate: '',
+            },
             reports: {
                 advisor: { name: '' },
                 metrics: {
@@ -185,10 +189,17 @@ export default {
     },
 
     mounted() {
+        this.syncFilters(this.reportFilters);
+        this.$hub.$on('report-filters-changed', this.syncFilters);
+        this.$hub.$on('report-filters-changed', this.loadReports);
         if (this.canFilterAdvisors) {
             this.loadAdvisors();
         }
         this.loadReports();
+    },
+    beforeDestroy() {
+        this.$hub.$off('report-filters-changed', this.syncFilters);
+        this.$hub.$off('report-filters-changed', this.loadReports);
     },
 
     watch: {
@@ -200,6 +211,10 @@ export default {
     },
 
     methods: {
+        syncFilters(filters = {}) {
+            this.currentFilters.startDate = filters.startDate || '';
+            this.currentFilters.endDate = filters.endDate || '';
+        },
         genChartData(data) {
             return [
                 {
@@ -233,11 +248,11 @@ export default {
             if (this.canFilterAdvisors && this.selectedAdvisorId) {
                 params.user_id = this.selectedAdvisorId;
             }
-            if (this.reportFilters.startDate) {
-                params.start_date = this.reportFilters.startDate;
+            if (this.currentFilters.startDate) {
+                params.start_date = this.currentFilters.startDate;
             }
-            if (this.reportFilters.endDate) {
-                params.end_date = this.reportFilters.endDate;
+            if (this.currentFilters.endDate) {
+                params.end_date = this.currentFilters.endDate;
             }
 
             this.axiosGet('/app/reports/advisor', { params })
