@@ -5,7 +5,12 @@
                 <app-breadcrumb :page-title="'Listado de Propiedades'" :directory="$t('datatables')" :icon="'grid'"/>
             </div>
             <div class="col-sm-12 col-md-6 breadcrumb-side-button">
-                <div class="float-md-right mb-3 mb-sm-3 mb-md-0">
+                <div class="float-md-right mb-3 mb-sm-3 mb-md-0 d-flex gap-2">
+                    <button type="button"
+                            class="btn btn-success btn-with-shadow mr-2"
+                            @click="exportProperties">
+                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                    </button>
                     <button type="button"
                             class="btn btn-primary btn-with-shadow"
                             @click="goToCreateProperty">
@@ -149,7 +154,17 @@
                             "option": ["today", "thisMonth", "last7Days", "lastYear"]
                         },
                         {
-                            "title": 'Tipo',
+                            "title": 'Rango de Precio (USD)',
+                            "type": "range-filter",
+                            "key": "price",
+                            "minRange": 0,
+                            "maxRange": 2000000,
+                            "minTitle": "Mínimo",
+                            "maxTitle": "Máximo",
+                            "sign": "$",
+                        },
+                        {
+                            "title": 'Tipo de Inmueble',
                             "type": "checkbox",
                             "key": "type",
                             "option": [
@@ -158,10 +173,14 @@
                                 {id: 'Terreno', value: 'Terreno'},
                                 {id: 'Galpon', value: 'Galpon'},
                                 {id: 'Local', value: 'Local'},
+                                {id: 'Townhouse', value: 'Townhouse'},
+                                {id: 'Oficina', value: 'Oficina'},
+                                {id: 'Finca', value: 'Finca'},
+                                {id: 'Consultorios', value: 'Consultorios'},
                             ],
                         },
                         {
-                            "title": 'Tipo de venta',
+                            "title": 'Tipo de Oferta',
                             "type": "checkbox",
                             "key": "type_sale",
                             "option": [
@@ -209,6 +228,11 @@
         methods: {
             goToCreateProperty() {
                 window.location.href = '/properties/create';
+            },
+            exportProperties() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const exportUrl = '/property/export?' + urlParams.toString();
+                window.open(exportUrl, '_blank');
             },
             handleAction(rowData, actionObj) {
                 if (actionObj.title === 'Editar') {

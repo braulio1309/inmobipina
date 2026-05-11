@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Property;
 use App\Models\PropertyImage;
+use App\Models\PropertyDocument;
 use App\Models\Exclusivity;
 use App\Filters\Common\Auth\PropertyFilter as AppUserFilter;
 use App\Filters\Core\PropertyFilter;
@@ -14,6 +15,8 @@ use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\PropertyExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PropertyController extends Controller
 {
@@ -219,6 +222,7 @@ class PropertyController extends Controller
     {
         $property = Property::with([
             'images',
+            'documents',
             'exclusivities' => function ($query) {
                 $query->latest();
             }
@@ -255,6 +259,47 @@ class PropertyController extends Controller
 
             return response()->json(['message' => 'No se pudieron cargar las calles del mapa.'], 502);
         }
+    }
+
+    public function uploadDocuments(Request $request, $id)
+    {
+        $property = Property::findOrFail($id);
+
+        $request->validate([
+            'documents.*' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp|max:10240',
+        ]);
+
+        $saved = [];
+        foreach ($request->file('documents', []) as $file) {
+            $path = $file->store('property_documents', 'public');
+            $document = PropertyDocument::create([
+                'property_id' => $property->id,
+                'name'        => $file->getClientOriginalName(),
+                'path'        => $path,
+                'mime_type'   => $file->getMimeType(),
+            ]);
+            $saved[] = $document;
+        }
+
+        return response()->json(['message' => 'Documentos subidos.', 'data' => $saved], 201);
+    }
+
+    public function deleteDocument(Request $request, $propertyId, $documentId)
+    {
+        $document = PropertyDocument::where('property_id', $propertyId)
+            ->where('id', $documentId)
+            ->firstOrFail();
+
+        Storage::disk('public')->delete($document->path);
+        $document->delete();
+
+        return response()->json(['message' => 'Documento eliminado.']);
+    }
+
+    public function export(Request $request)
+    {
+        $fileName = 'propiedades_' . now()->format('Y-m-d_H-i') . '.xlsx';
+        return Excel::download(new PropertyExport($request), $fileName);
     }
 
     public function searchAddress(Request $request)

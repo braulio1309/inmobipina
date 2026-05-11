@@ -131,7 +131,7 @@
             <h5 class="mb-3">Información Extra</h5>
 
             <div class="mb-3">
-                <label class="form-label">Tipo de Propiedad</label>
+                <label class="form-label">Tipo de Oferta</label>
                 <app-input 
                     class=""
                     type="select"
@@ -161,13 +161,13 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Tipo de Oferta</label>
+                <label class="form-label">Tipo de Inmueble</label>
                 <app-input 
                     class=""
                     type="select"
                     v-model="property.type"
                     :list="listOffer"
-                    placeholder="Selecciona el tipo de oferta"
+                    placeholder="Selecciona el tipo de inmueble"
                 />
             </div>
         </div>
@@ -217,8 +217,88 @@
             </div>
         </div>
 
-        <!-- TAB 5: Exclusividad -->
+        <!-- TAB 5: Documentos -->
         <div v-if="activeTab === 4">
+            <h5 class="mb-3">Documentos del Inmueble</h5>
+
+            <div v-if="!savedPropertyId" class="alert alert-info">
+                Guarda primero la propiedad (botón inferior) y luego sube los documentos aquí.
+            </div>
+
+            <div v-else>
+                <div class="mb-3">
+                    <label class="form-label" for="property-documents-input">Seleccionar documentos</label>
+                    <input
+                        id="property-documents-input"
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"
+                        class="form-control"
+                        @change="onDocumentsSelected"
+                    >
+                    <small class="text-muted">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, imágenes. Máx. 10MB por archivo.</small>
+                </div>
+
+                <div v-if="selectedDocuments.length > 0" class="mb-3">
+                    <ul class="list-group mb-2">
+                        <li class="list-group-item d-flex align-items-center justify-content-between"
+                            v-for="(file, idx) in selectedDocuments" :key="idx">
+                            <span><i class="fas fa-file mr-2 text-secondary"></i>{{ file.name }}</span>
+                            <small class="text-muted">{{ (file.size / 1024).toFixed(1) }} KB</small>
+                        </li>
+                    </ul>
+                    <button class="btn btn-secondary btn-sm" @click.prevent="uploadDocuments">
+                        <i class="fas fa-upload mr-1"></i> Subir Documentos
+                    </button>
+                </div>
+
+                <div v-if="uploadedDocuments.length > 0" class="mt-3">
+                    <h6>Documentos guardados:</h6>
+                    <ul class="list-group">
+                        <li class="list-group-item d-flex align-items-center justify-content-between"
+                            v-for="(doc, idx) in uploadedDocuments" :key="idx">
+                            <div class="d-flex align-items-center">
+                                <i :class="docIcon(doc.mime_type)" class="mr-2 fa-lg text-secondary"></i>
+                                <div>
+                                    <div>{{ doc.name }}</div>
+                                    <small class="text-muted">{{ doc.created_at ? doc.created_at.substring(0, 10) : '' }}</small>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a
+                                    v-if="doc.mime_type === 'application/pdf'"
+                                    :href="'/storage/' + doc.path"
+                                    target="_blank"
+                                    class="btn btn-sm btn-outline-primary mr-1"
+                                    title="Previsualizar"
+                                >
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a
+                                    :href="'/storage/' + doc.path"
+                                    target="_blank"
+                                    class="btn btn-sm btn-outline-secondary mr-1"
+                                    :download="doc.name"
+                                    title="Descargar"
+                                >
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <button
+                                    class="btn btn-sm btn-outline-danger"
+                                    @click.prevent="deleteDocument(doc, idx)"
+                                    title="Eliminar"
+                                >
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: Exclusividad -->
+        <div v-if="activeTab === 5">
             <h5 class="mb-3">Datos del Contrato de Exclusividad</h5>
             <p class="text-muted mb-3">
                 Complete estos datos para generar el Contrato de Exclusividad de Bien Inmueble.
@@ -402,6 +482,8 @@ export default {
             selectedFiles: [],
             filePreviews: [],
             uploadedImages: [],
+            selectedDocuments: [],
+            uploadedDocuments: [],
             leafletMap: null,
             leafletTileLayer: null,
             leafletMarker: null,
@@ -413,6 +495,7 @@ export default {
                 { label: "Ubicación" },
                 { label: "Extras" },
                 { label: "Fotos" },
+                { label: "Documentos" },
                 { label: "Exclusividad" },
             ],
 
@@ -498,6 +581,22 @@ export default {
                     {
                         id: 'Terreno',
                         value: 'Terreno'
+                    },
+                    {
+                        id: 'Townhouse',
+                        value: 'Townhouse'
+                    },
+                    {
+                        id: 'Oficina',
+                        value: 'Oficina'
+                    },
+                    {
+                        id: 'Finca',
+                        value: 'Finca'
+                    },
+                    {
+                        id: 'Consultorios',
+                        value: 'Consultorios'
                     },
                    
                 ],
@@ -613,6 +712,10 @@ export default {
 
                 if (p.images && p.images.length) {
                     this.uploadedImages = p.images;
+                }
+
+                if (p.documents && p.documents.length) {
+                    this.uploadedDocuments = p.documents;
                 }
 
                 this.$nextTick(() => {
@@ -897,6 +1000,49 @@ export default {
                 console.error(error);
                 this.$toastr.e('Error al subir las imágenes');
             }
+        },
+
+        onDocumentsSelected(event) {
+            this.selectedDocuments = Array.from(event.target.files);
+        },
+
+        async uploadDocuments() {
+            if (!this.savedPropertyId || this.selectedDocuments.length === 0) return;
+            const formData = new FormData();
+            this.selectedDocuments.forEach(file => formData.append('documents[]', file));
+            try {
+                const res = await axios.post(`/property/${this.savedPropertyId}/documents`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                this.uploadedDocuments = [...this.uploadedDocuments, ...res.data.data];
+                this.selectedDocuments = [];
+                document.getElementById('property-documents-input').value = '';
+                this.$toastr.s('Documentos subidos correctamente');
+            } catch (error) {
+                console.error(error);
+                this.$toastr.e('Error al subir los documentos');
+            }
+        },
+
+        async deleteDocument(doc, idx) {
+            if (!confirm(`¿Eliminar el documento "${doc.name}"?`)) return;
+            try {
+                await axios.delete(`/property/${this.savedPropertyId}/documents/${doc.id}`);
+                this.uploadedDocuments.splice(idx, 1);
+                this.$toastr.s('Documento eliminado');
+            } catch (error) {
+                console.error(error);
+                this.$toastr.e('Error al eliminar el documento');
+            }
+        },
+
+        docIcon(mimeType) {
+            if (!mimeType) return 'fas fa-file';
+            if (mimeType === 'application/pdf') return 'fas fa-file-pdf text-danger';
+            if (mimeType.startsWith('image/')) return 'fas fa-file-image text-info';
+            if (mimeType.includes('word') || mimeType.includes('document')) return 'fas fa-file-word text-primary';
+            if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'fas fa-file-excel text-success';
+            return 'fas fa-file';
         },
 
         normalizeExclusivityData(source = {}) {

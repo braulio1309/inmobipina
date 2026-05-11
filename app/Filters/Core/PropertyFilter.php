@@ -62,6 +62,27 @@ class PropertyFilter extends FilterBuilder
         });
     }
 
+    public function price($price = null)
+    {
+        $price = $price ?: request()->input('price');
+        $this->builder->when($price && is_array($price), function (Builder $builder) use ($price) {
+            if (isset($price['min']) && $price['min'] !== '') {
+                $builder->where('price', '>=', (float) $price['min']);
+            }
+            if (isset($price['max']) && $price['max'] !== '') {
+                $builder->where('price', '<=', (float) $price['max']);
+            }
+        });
+    }
+
+    public function asesor($asesorId = null)
+    {
+        $asesorId = $asesorId ?: request()->input('asesor');
+        $this->builder->when($asesorId, function (Builder $builder) use ($asesorId) {
+            $builder->where('created_by', $asesorId);
+        });
+    }
+
     public function search($search = null)
     {
         return $this->builder->when($search, function (Builder $builder) use ($search) {

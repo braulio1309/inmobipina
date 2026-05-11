@@ -151,17 +151,18 @@
         <div v-if="operation.sellers.length > 0 && showAmount" class="mb-3 border rounded p-3 bg-light">
             <h6 class="mb-3">Distribución de Comisiones ({{ COMMISSION_RATE }}% del monto)</h6>
 
-            <!-- Comisión Inmobiliaria -->
+            <!-- Comisión Inmobiliaria (siempre 2.5%) -->
             <div class="row mb-2 align-items-center">
                 <div class="col-md-4">
                     <strong>Inmobiliaria</strong>
+                    <small class="text-muted d-block">50% de la comisión total</small>
                 </div>
                 <div class="col-md-3">
                     <div class="input-group input-group-sm">
                         <input
                             type="number"
                             class="form-control"
-                            :value="eachPartyPercentage"
+                            :value="companyCommissionPct"
                             min="0"
                             max="100"
                             step="0.01"
@@ -210,8 +211,8 @@
 
             <small class="text-muted">
                 Total asesores: {{ totalAdvisorPercentage.toFixed(2) }}% — 
-                Inmobiliaria: {{ eachPartyPercentage.toFixed(2) }}% — 
-                Total: {{ (totalAdvisorPercentage + eachPartyPercentage).toFixed(2) }}%
+                Inmobiliaria: {{ companyCommissionPct.toFixed(2) }}% — 
+                Total: {{ (totalAdvisorPercentage + companyCommissionPct).toFixed(2) }}%
             </small>
         </div>
 
@@ -267,6 +268,7 @@ export default {
                 { id: "venta", value: "Venta" },
                 { id: "reserva", value: "Reserva" },
                 { id: "exclusividad", value: "Exclusividad" },
+                { id: "traspaso", value: "Traspaso" },
             ],
 
             sellersCommissions: [],
@@ -303,13 +305,17 @@ export default {
         submitLabel() {
             return this.operationId ? 'Actualizar Operación' : 'Guardar Operación';
         },
+        companyCommissionPct() {
+            return 2.5;
+        },
         eachPartyPercentage() {
+            // Kept for backward compatibility; advisors each get 2.5% / numSellers
             const numSellers = this.sellersCommissions.length;
-            return parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4));
+            return numSellers > 0 ? parseFloat((2.5 / numSellers).toFixed(4)) : 0;
         },
         companyCommissionAmount() {
             const amt = parseFloat(this.operation.amount) || 0;
-            return amt * this.eachPartyPercentage / 100;
+            return amt * this.companyCommissionPct / 100;
         },
         totalAdvisorPercentage() {
             return this.sellersCommissions.reduce((sum, s) => sum + (parseFloat(s.percentage) || 0), 0);
@@ -420,7 +426,7 @@ export default {
                 return;
             }
 
-            if (this.operation.type === "venta") {
+            if (this.operation.type === "venta" || this.operation.type === "traspaso") {
                 this.operation.amount = this.selectedPropertyPrice;
                 this.operation.property_price = "";
             } else if (this.operation.type === "reserva") {
@@ -441,7 +447,7 @@ export default {
         onSellersChanged(selectedIds, existingCommissions = []) {
             const numSellers = selectedIds.length;
             const equalPct = numSellers > 0
-                ? parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4))
+                ? parseFloat((2.5 / numSellers).toFixed(4))
                 : 0;
 
             this.sellersCommissions = selectedIds.map(id => {
@@ -458,7 +464,7 @@ export default {
         recalculateCommissions() {
             const numSellers = this.sellersCommissions.length;
             if (numSellers === 0) return;
-            const equalPct = parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4));
+            const equalPct = parseFloat((2.5 / numSellers).toFixed(4));
             this.sellersCommissions = this.sellersCommissions.map(s => ({
                 ...s,
                 percentage: equalPct,
