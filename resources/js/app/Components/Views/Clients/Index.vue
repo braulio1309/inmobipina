@@ -73,7 +73,7 @@
                             default: "",
                             isVisible: true,
                             modifier: (value, row) => {
-                                return row.name
+                                return value || row.name || 'Sin nombre';
                             }
                         },
                         {
