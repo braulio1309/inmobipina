@@ -37,11 +37,13 @@ class Operation extends Model
         'type',
         'property_id',
         'amount',
+        'property_price',
         'start_date',
         'end_date',
         'notes',
         'company_commission_percentage',
         'company_commission_amount',
+        'reservation_company_commission',
         'contract_path',
     ];
 
@@ -58,6 +60,6 @@ class Operation extends Model
     public function sellers()
     {
         return $this->belongsToMany(User::class, 'operation_user')
-            ->withPivot('commission_percentage', 'commission_amount');
+            ->withPivot('commission_percentage', 'commission_amount', 'reservation_commission_amount');
     }
 }

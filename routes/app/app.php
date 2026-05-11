@@ -57,6 +57,7 @@ Route::post('edit/activities/{id}', [ActivityController::class, 'edit'])->name('
 Route::get('activities/{activity}', [ActivityController::class, 'show'])->name('Activity.show');
 
 Route::get('operations/listar', [OperationController::class, 'listado'])->name('operation.listar');
+Route::get('operations/export', [OperationController::class, 'export'])->name('operations.export');
 Route::post('operations/create', [OperationController::class, 'create'])->name('operations.crear');
 Route::post('edit/operations/{id}', [OperationController::class, 'edit'])->name('operations.edit');
 Route::post('operations/{id}/confirm-sale', [OperationController::class, 'confirmSale'])->name('operations.confirm-sale');

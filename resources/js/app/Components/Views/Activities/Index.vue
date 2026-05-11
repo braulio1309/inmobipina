@@ -140,8 +140,6 @@ export default {
                         title: 'Ver detalle',
                         icon: 'eye',
                         type: 'none',
-                        component: 'app-add-modal',
-                        modalId: 'activity-detail-modal',
                     },
                     {
                         title: this.$t('edit'),

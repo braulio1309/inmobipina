@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
-use App\Models\Sale; 
+use App\Models\Sale;
+use App\Exports\OperationExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class OperationController extends Controller
 {
@@ -88,7 +90,7 @@ class OperationController extends Controller
 
     // 1. Crear la Operación
     $operation = Operation::create(array_merge(
-        $request->only(['type', 'property_id', 'amount', 'start_date', 'end_date', 'notes']),
+        $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
         [
             'company_commission_percentage' => $eachPartyPct,
             'company_commission_amount'     => $eachPartyAmt,
@@ -220,7 +222,7 @@ class OperationController extends Controller
             : [];
 
         $operation->update(array_merge(
-            $request->only(['type', 'property_id', 'amount', 'start_date', 'end_date', 'notes']),
+            $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
             [
                 'company_commission_percentage' => $eachPartyPct,
                 'company_commission_amount' => $eachPartyAmt,
@@ -269,6 +271,7 @@ class OperationController extends Controller
             'property_status' => $propertyStatus,
             'is_locked' => $isLocked,
             'amount' => $operation->amount,
+            'property_price' => $operation->property_price,
             'start_date' => $operation->start_date,
             'end_date' => $operation->end_date,
             'notes' => $operation->notes,
@@ -296,8 +299,15 @@ class OperationController extends Controller
             return response()->json(['message' => 'Solo se puede confirmar venta de operaciones de tipo reserva.'], 422);
         }
 
-        $amount = $request->amount ?? $operation->amount ?? 0;
-        $sellers = $operation->sellers->pluck('id')->toArray();
+        // Determine the net sale amount:
+        //   net_amount = property_price - reservation_amount
+        // The caller may override this via request, but we default to the computed value.
+        $propertyPrice   = (float) ($operation->property_price ?? 0);
+        $reservationAmt  = (float) ($operation->amount ?? 0);
+        $defaultNet      = max(0, $propertyPrice - $reservationAmt);
+        $netAmount       = $request->has('amount') ? (float) $request->amount : $defaultNet;
+
+        $sellers    = $operation->sellers->pluck('id')->toArray();
         $numSellers = count($sellers);
         $numParties = $numSellers + 1;
         $eachPartyPct = $numSellers > 0 ? round(5 / $numParties, 4) : 0;
@@ -307,16 +317,23 @@ class OperationController extends Controller
             ? $request->sellers_commissions
             : [];
 
-        $eachPartyAmt = round($amount * $eachPartyPct / 100, 2);
+        // Commission on the net sale amount
+        $salCompanyAmt = round($netAmount * $eachPartyPct / 100, 2);
+
+        // Preserve the reservation commission earned in the first phase and ADD
+        // the new sale commission so total earnings include both phases.
+        $reservationCompanyComm = (float) ($operation->company_commission_amount ?? 0);
+        $totalCompanyComm       = $reservationCompanyComm + $salCompanyAmt;
 
         $operation->update([
-            'type'                          => 'venta',
-            'amount'                        => $amount,
-            'company_commission_percentage' => $eachPartyPct,
-            'company_commission_amount'     => $eachPartyAmt,
+            'type'                           => 'venta',
+            'amount'                         => $netAmount,
+            'company_commission_percentage'  => $eachPartyPct,
+            'company_commission_amount'      => $totalCompanyComm,
+            'reservation_company_commission' => $reservationCompanyComm,
         ]);
 
-        // Update sellers commissions
+        // Update sellers commissions, accumulating reservation + sale
         if ($numSellers > 0) {
             $syncData = [];
             foreach ($sellers as $sellerId) {
@@ -328,10 +345,16 @@ class OperationController extends Controller
                     }
                 }
                 $pct = $customPct !== null ? (float)$customPct : $eachPartyPct;
-                $amt = round($amount * $pct / 100, 2);
+                $saleAmt = round($netAmount * $pct / 100, 2);
+
+                // Old reservation commission for this seller
+                $seller = $operation->sellers->firstWhere('id', $sellerId);
+                $reservationSellerAmt = (float) ($seller->pivot->commission_amount ?? 0);
+
                 $syncData[$sellerId] = [
-                    'commission_percentage' => $pct,
-                    'commission_amount'     => $amt,
+                    'commission_percentage'         => $pct,
+                    'commission_amount'             => $reservationSellerAmt + $saleAmt,
+                    'reservation_commission_amount' => $reservationSellerAmt,
                 ];
             }
             $operation->sellers()->sync($syncData);
@@ -340,9 +363,6 @@ class OperationController extends Controller
         // Update property price if provided and mark as Vendido
         if ($operation->property_id) {
             $updateData = ['status' => 'Vendido'];
-            if ($request->has('amount')) {
-                $updateData['price'] = $amount;
-            }
             Property::where('id', $operation->property_id)->update($updateData);
         }
 
@@ -352,12 +372,18 @@ class OperationController extends Controller
             'property_id'  => $operation->property_id,
             'buyer_id'     => $buyers[0] ?? null,
             'seller_id'    => $sellers[0] ?? null,
-            'total_amount' => $amount,
+            'total_amount' => $netAmount,
             'date'         => now(),
             'notes'        => $operation->notes,
         ]);
 
-        return response()->json(['message' => 'Venta confirmada correctamente.', 'data' => $operation]);
+        return response()->json([
+            'message' => 'Venta confirmada correctamente.',
+            'data'    => $operation,
+            'net_amount' => $netAmount,
+            'reservation_amount' => $reservationAmt,
+            'property_price' => $propertyPrice,
+        ]);
     }
 
     public function formData()
@@ -403,5 +429,11 @@ class OperationController extends Controller
             $fileName,
             ['Content-Type' => 'application/pdf']
         );
+    }
+
+    public function export(Request $request)
+    {
+        $fileName = 'cierres_' . now()->format('Y-m-d_H-i') . '.xlsx';
+        return Excel::download(new OperationExport($request), $fileName);
     }
 }

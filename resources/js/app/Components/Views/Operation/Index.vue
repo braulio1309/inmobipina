@@ -1,26 +1,65 @@
 <template>
     <div class="content-wrapper">
-        <app-breadcrumb :page-title="'Historial de operaciones'" :directory="$t('datatables')" :icon="'grid'"/>
+        <div class="row">
+            <div class="col-sm-12 col-md-6">
+                <app-breadcrumb :page-title="'Historial de operaciones'" :directory="$t('datatables')" :icon="'grid'"/>
+            </div>
+            <div class="col-sm-12 col-md-6 breadcrumb-side-button">
+                <div class="float-md-right mb-3 mb-sm-3 mb-md-0">
+                    <button type="button" class="btn btn-success btn-with-shadow" @click="exportOperations">
+                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Modal Confirmar Venta -->
-        <div v-if="showConfirmModal" class="modal-backdrop" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1050;display:flex;align-items:center;justify-content:center;">
-            <div class="card p-4" style="min-width:400px;z-index:1060;">
-                <h5 class="mb-3">Confirmar Venta</h5>
-                <p class="text-muted mb-3">Reserva #{{ confirmData.id }} — Propiedad: {{ confirmData.property_title }}</p>
+        <div v-if="showConfirmModal" class="modal-backdrop"
+             style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1050;display:flex;align-items:center;justify-content:center;">
+            <div class="card p-4" style="min-width:480px;max-width:600px;z-index:1060;max-height:90vh;overflow-y:auto;">
+                <h5 class="mb-1">Confirmar Venta</h5>
+                <p class="text-muted mb-3 small">Reserva #{{ confirmData.id }} — <strong>{{ confirmData.property_title }}</strong></p>
+
+                <!-- Desglose de montos -->
+                <div class="alert alert-info p-3 mb-3" style="font-size:0.93em;">
+                    <div class="mb-1">
+                        <i class="fas fa-home mr-1"></i>
+                        <strong>Precio total de la propiedad:</strong>
+                        <span class="float-right">${{ formatAmt(confirmData.property_price) }}</span>
+                    </div>
+                    <div class="mb-1">
+                        <i class="fas fa-calendar-check mr-1 text-warning"></i>
+                        <strong>Monto abonado en reserva:</strong>
+                        <span class="float-right text-warning">− ${{ formatAmt(confirmData.reservation_amount) }}</span>
+                    </div>
+                    <hr class="my-2">
+                    <div class="fw-bold">
+                        <i class="fas fa-equals mr-1 text-success"></i>
+                        <strong>Monto neto de la venta:</strong>
+                        <span class="float-right text-success">${{ formatAmt(confirmData.net_amount) }}</span>
+                    </div>
+                    <p class="text-muted mt-2 mb-0 small">
+                        Las comisiones se calculan sobre el <strong>monto neto</strong> de la venta.
+                        Las comisiones de la reserva ya están acumuladas automáticamente.
+                    </p>
+                </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Monto final de venta (USD)</label>
+                    <label class="form-label fw-semibold">
+                        Monto neto de venta (USD)
+                        <small class="text-muted ml-1">— puede ajustarse si es necesario</small>
+                    </label>
                     <input
                         v-model="confirmData.amount"
                         type="number"
                         class="form-control"
-                        placeholder="Precio final de venta"
+                        placeholder="Monto neto de venta"
                         @input="recalcConfirmCommissions"
                     >
                 </div>
 
                 <div v-if="confirmData.sellers_commissions.length > 0" class="mb-3 border rounded p-3 bg-light">
-                    <h6 class="mb-2">Comisiones ({{ COMMISSION_RATE }}% del monto)</h6>
+                    <h6 class="mb-2">Comisiones sobre monto neto ({{ COMMISSION_RATE }}% distribuido)</h6>
                     <div class="row mb-1 align-items-center">
                         <div class="col-5"><strong>Inmobiliaria</strong></div>
                         <div class="col-4">
@@ -48,7 +87,7 @@
                         <span v-if="confirmLoading" class="spinner-border spinner-border-sm me-1"></span>
                         Confirmar Venta
                     </button>
-                    <button class="btn btn-secondary btn-sm" @click="showConfirmModal = false">Cancelar</button>
+                    <button class="btn btn-secondary btn-sm ml-2" @click="showConfirmModal = false">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -77,6 +116,9 @@
                 confirmData: {
                     id: null,
                     property_title: '',
+                    property_price: 0,
+                    reservation_amount: 0,
+                    net_amount: 0,
                     amount: '',
                     sellers_commissions: [],
                 },
@@ -237,15 +279,19 @@
         },
         methods: {
             searchAndSelectFilterOptions() {
+                this.options.filters = this.options.filters.filter(f => f.key !== 'asesor');
                 this.axiosGet("admin/auth/users")
                 .then(response => {
+                    const users = Array.isArray(response.data) ? response.data : (response.data.data || []);
                     this.options.filters.push({
                         title: 'Asesores',
                         type: 'drop-down-filter',
                         key: 'asesor',
-                        option: response.data.map(asesor => ({
-                            id: asesor.id,
-                            value: asesor.name
+                        option: users.map(u => ({
+                            id: u.id,
+                            value: u.first_name
+                                ? (u.first_name + ' ' + (u.last_name || '')).trim()
+                                : (u.name || u.value || 'Sin nombre'),
                         }))
                     });
                 });
@@ -254,7 +300,12 @@
                 return (parseFloat(val) || 0).toFixed(2);
             },
             recalcConfirmCommissions() {
-                // Keep percentages as-is; amounts recalculated in template
+                // Trigger reactivity; amounts are computed inline in the template
+            },
+            exportOperations() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const exportUrl = '/operations/export?' + urlParams.toString();
+                window.open(exportUrl, '_blank');
             },
             async openConfirmSaleModal(rowData) {
                 try {
@@ -265,12 +316,15 @@
                         ? parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4))
                         : 0;
 
-                    // Try to get seller names from commission_details of the row
-                    const commissionDetails = rowData.commission_details || [];
+                    const propertyPrice    = parseFloat(op.property_price  || 0);
+                    const reservationAmt   = parseFloat(op.amount          || 0);
+                    const netAmount        = Math.max(0, propertyPrice - reservationAmt);
 
+                    // Build seller commission list using names from commission_details
+                    const commissionDetails = rowData.commission_details || [];
                     const sellersWithNames = (op.sellers || []).map((sellerId, idx) => {
                         const existing = (op.sellers_commissions || []).find(sc => sc.id === sellerId);
-                        const detail = commissionDetails[idx] || null;
+                        const detail   = commissionDetails[idx] || null;
                         return {
                             id: sellerId,
                             name: detail ? detail.name : `Asesor #${sellerId}`,
@@ -280,8 +334,11 @@
 
                     this.confirmData = {
                         id: rowData.id,
-                        property_title: op.property_title || rowData.property_title || `Propiedad #${op.property_id}`,
-                        amount: op.amount || '',
+                        property_title:    op.property_title || rowData.property_title || `Propiedad #${op.property_id}`,
+                        property_price:    propertyPrice,
+                        reservation_amount: reservationAmt,
+                        net_amount:         netAmount,
+                        amount:             netAmount > 0 ? netAmount : (op.amount || ''),
                         sellers_commissions: sellersWithNames,
                     };
                     this.showConfirmModal = true;

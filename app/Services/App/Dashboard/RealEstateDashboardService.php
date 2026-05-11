@@ -245,4 +245,43 @@ class RealEstateDashboardService
             'totalCaptaciones' => array_sum($captacionesCounts),
         ];
     }
+
+    /**
+     * Aggregate total clients grouped by their source (medio de captación).
+     * Used for the dashboard donut chart.
+     */
+    public function getClientsBySource($startDate = null, $endDate = null)
+    {
+        $colors = ['#713bdb', '#348cd4', '#f75320', '#4caf50', '#ff9800', '#e91e63', '#00bcd4', '#8bc34a'];
+
+        $query = DB::table('clients')
+            ->select('source', DB::raw('COUNT(*) as total'))
+            ->groupBy('source');
+
+        if ($startDate) {
+            $query->whereDate('created_at', '>=', Carbon::parse($startDate)->startOfDay());
+        }
+        if ($endDate) {
+            $query->whereDate('created_at', '<=', Carbon::parse($endDate)->endOfDay());
+        }
+
+        $rows = $query->get();
+
+        $labels     = [];
+        $data       = [];
+        $bgColors   = [];
+
+        foreach ($rows as $i => $row) {
+            $labels[]   = $row->source ?: 'Sin especificar';
+            $data[]     = (int) $row->total;
+            $bgColors[] = $colors[$i % count($colors)];
+        }
+
+        return [
+            'labels'     => $labels,
+            'data'       => $data,
+            'colors'     => $bgColors,
+            'total'      => array_sum($data),
+        ];
+    }
 }
