@@ -57,4 +57,12 @@ class HospitalDashboardController extends Controller
         
         return response()->json($this->realEstateService->getDashboardData($startDate, $endDate));
     }
+
+    public function getClientsBySource(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate   = $request->input('end_date');
+
+        return response()->json($this->realEstateService->getClientsBySource($startDate, $endDate));
+    }
 }

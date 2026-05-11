@@ -131,15 +131,19 @@ export default {
 
     mounted() {
         this.loadActivity();
-        this.$nextTick(() => {
-            $('#' + this.modalId).modal('show');
-        });
     },
 
     beforeDestroy() {
         if (this.leafletMap) {
             this.leafletMap.remove();
             this.leafletMap = null;
+        }
+        // Dispose the Bootstrap modal so it can be re-opened cleanly next time
+        try {
+            $('#' + this.modalId).modal('dispose');
+        } catch (e) {
+            // ignore if dispose not available (Bootstrap 3 doesn't have dispose)
+            $('#' + this.modalId).off('.bs.modal');
         }
     },
 

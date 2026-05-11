@@ -112,13 +112,53 @@
 
             <!-- Map Section -->
             <div class="row mb-primary" v-if="!mainPreloader">
-                <div class="col-12">
-                    <div class="card card-with-shadow border-0">
+                <div class="col-12 col-md-7">
+                    <div class="card card-with-shadow border-0 h-100">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
                             <h5 class="card-title d-inline-block mb-0">{{ 'Mapa de Propiedades' }}</h5>
                         </div>
                         <div class="card-body p-0">
                             <PropertiesMap />
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-5 mt-3 mt-md-0">
+                    <app-overlay-loader v-if="!isActiveClientSources"/>
+                    <div class="card card-with-shadow border-0 h-100" v-if="isActiveClientSources">
+                        <div class="card-header bg-transparent p-primary d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Clientes por Medio de Captación</h5>
+                            <small class="text-muted">Total: {{ clientSources.total }}</small>
+                        </div>
+                        <div class="card-body">
+                            <div v-if="clientSources.labels && clientSources.labels.length > 0">
+                                <app-chart class="mb-primary"
+                                           type="dough-chart"
+                                           :height="200"
+                                           :labels="clientSources.labels"
+                                           :data-sets="[{
+                                               borderWidth: 2,
+                                               backgroundColor: clientSources.colors,
+                                               data: clientSources.data
+                                           }]"/>
+                                <div class="chart-data-list">
+                                    <div class="row">
+                                        <div class="col-12"
+                                             v-for="(label, idx) in clientSources.labels"
+                                             :key="idx">
+                                            <div class="data-group-item"
+                                                 :style="'color:' + clientSources.colors[idx % clientSources.colors.length]">
+                                                <span class="square"
+                                                      :style="'background-color:' + clientSources.colors[idx % clientSources.colors.length]"/>
+                                                {{ label }}
+                                                <span class="value">{{ clientSources.data[idx] }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="text-center text-muted p-primary">
+                                Sin datos de fuente de clientes
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -218,6 +258,7 @@
                 isActiveHospitalActivity: false,
                 isActivePatientStatistics: false,
                 isActivedDefaultInfo: false,
+                isActiveClientSources: false,
                 /* end */
 
                 value: 'this_week',
@@ -228,6 +269,12 @@
                     latestSales: { data: [] },
                     topSellers: { data: [] },
                     salesOverTime: { labels: [], chartData: [], totalSales: 0, totalCaptaciones: 0 }
+                },
+                clientSources: {
+                    labels: [],
+                    data: [],
+                    colors: [],
+                    total: 0,
                 },
 
                 // Date filters
@@ -278,6 +325,7 @@
                 this.isActivedDefaultInfo = false;
                 this.isActiveHospitalActivity = false;
                 this.isActivePatientStatistics = false;
+                this.isActiveClientSources = false;
 
                 this.axiosGet(url, reqData).then(response => {
                     this.realEstateData = response.data;
@@ -292,6 +340,13 @@
                 }).finally(() => {
                     this.mainPreloader = false;
                     this.countCreatedResponse = 3;
+                });
+
+                this.axiosGet('clients-by-source', reqData).then(response => {
+                    this.clientSources = response.data;
+                    this.isActiveClientSources = true;
+                }).catch((error) => {
+                    console.error('Error cargando fuentes de clientes:', error);
                 });
             },
             numberFormat(value) {

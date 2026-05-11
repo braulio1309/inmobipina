@@ -158,10 +158,11 @@
                 <div class="card-body">
                     <h5 class="fw-semibold mb-4">
                         <i class="fas fa-users mr-2 text-primary"></i>
-                        Clientes por Asesor y Medio de Captación
+                        {{ selectedAdvisorId ? 'Clientes de ' + (reports.advisor && reports.advisor.name || 'Asesor') + ' por Medio de Captación' : 'Clientes por Asesor y Medio de Captación' }}
                     </h5>
                     <div class="row">
-                        <div class="col-md-7 mb-4">
+                        <!-- Bar chart: totals per advisor (or total for single advisor, hidden) -->
+                        <div v-if="!selectedAdvisorId" class="col-md-7 mb-4">
                             <div class="chart-card p-3 shadow-sm rounded-3">
                                 <h6 class="fw-semibold mb-3">
                                     <i class="fas fa-chart-bar mr-2 text-success"></i>
@@ -170,11 +171,12 @@
                                 <canvas ref="advisorClientsChart" height="220"></canvas>
                             </div>
                         </div>
-                        <div class="col-md-5 mb-4">
+                        <!-- Pie chart: by source -->
+                        <div :class="selectedAdvisorId ? 'col-md-8' : 'col-md-5'" class="mb-4">
                             <div class="chart-card p-3 shadow-sm rounded-3">
                                 <h6 class="fw-semibold mb-3">
                                     <i class="fas fa-chart-pie mr-2 text-success"></i>
-                                    Medios de Captación
+                                    {{ selectedAdvisorId ? 'Clientes por Medio de Captación' : 'Distribución por Medio (todos los asesores)' }}
                                 </h6>
                                 <canvas ref="sourcesPieChart" height="220"></canvas>
                             </div>
@@ -314,6 +316,7 @@ export default {
             const params = {};
             if (this.filterStartDate) params.start_date = this.filterStartDate;
             if (this.filterEndDate) params.end_date = this.filterEndDate;
+            if (this.selectedAdvisorId) params.user_id = this.selectedAdvisorId;
 
             this.axiosGet('/app/reports/clients-by-advisor', { params })
                 .then(response => {

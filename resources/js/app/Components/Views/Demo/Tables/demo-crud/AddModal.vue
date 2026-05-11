@@ -159,8 +159,9 @@ export default {
             this.modalTitle = "Editar Actividad";
             this.preloader = true;
         } else {
-            // Capture location automatically on new activity
-            this.captureLocation(true);
+            // Auto-capture location when opening for new activity.
+            // A non-silent call so the user sees a warning if it fails.
+            this.captureLocation(false);
         }
     },
 

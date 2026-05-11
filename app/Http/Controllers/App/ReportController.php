@@ -248,7 +248,8 @@ class ReportController extends Controller
         }
 
         $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
+        $endDate   = $request->get('end_date');
+        $userId    = $request->get('user_id');
 
         $query = DB::table('clients')
             ->join('users', 'clients.assigned_to', '=', 'users.id')
@@ -261,6 +262,10 @@ class ReportController extends Controller
             ->whereNotNull('clients.assigned_to')
             ->groupBy('users.id', 'users.first_name', 'users.last_name', 'clients.source')
             ->orderBy('advisor_name');
+
+        if ($userId) {
+            $query->where('users.id', $userId);
+        }
 
         if ($startDate) {
             $query->whereDate('clients.created_at', '>=', $startDate);

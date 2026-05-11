@@ -44,6 +44,16 @@ class OperationFilter extends FilterBuilder
         });
     }
 
+    public function asesor($asesorId = null)
+    {
+        $asesorId = $asesorId ?: request()->input('asesor');
+        $this->builder->when($asesorId, function (Builder $builder) use ($asesorId) {
+            $builder->whereHas('sellers', function ($q) use ($asesorId) {
+                $q->where('users.id', $asesorId);
+            });
+        });
+    }
+
     public function search($search = null)
     {
         return $this->builder->when($search, function (Builder $builder) use ($search) {
