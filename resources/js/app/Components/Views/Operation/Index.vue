@@ -241,6 +241,7 @@
                                 {id: 'venta', value: 'Venta'},
                                 {id: 'reserva', value: 'Reserva'},
                                 {id: 'exclusividad', value: 'Exclusividad'},
+                                {id: 'traspaso', value: 'Traspaso'},
                             ],
                         },
                        
@@ -266,8 +267,7 @@
         },
         computed: {
             confirmCompanyPct() {
-                const n = this.confirmData.sellers_commissions.length;
-                return parseFloat((this.COMMISSION_RATE / (n + 1)).toFixed(4));
+                return 2.5;
             },
             confirmCompanyAmt() {
                 const amt = parseFloat(this.confirmData.amount) || 0;
@@ -313,7 +313,7 @@
                     const op = res.data;
                     const numSellers = (op.sellers || []).length;
                     const equalPct = numSellers > 0
-                        ? parseFloat((this.COMMISSION_RATE / (numSellers + 1)).toFixed(4))
+                        ? parseFloat((2.5 / numSellers).toFixed(4))
                         : 0;
 
                     const propertyPrice    = parseFloat(op.property_price  || 0);

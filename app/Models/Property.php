@@ -74,4 +74,9 @@ class Property extends Model
     {
         return $this->hasMany(PropertyImage::class)->orderBy('order');
     }
+
+    public function documents()
+    {
+        return $this->hasMany(PropertyDocument::class)->latest();
+    }
 }

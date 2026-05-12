@@ -34,6 +34,7 @@ Route::group(['prefix' => 'app/reports'], function () {
     Route::get('/clients-by-advisor', [ReportController::class, 'getClientsByAdvisor']);
 });
 Route::get('property/listar', [PropertyController::class, 'listado'])->name('property.listar');
+Route::get('property/export', [PropertyController::class, 'export'])->name('property.export');
 Route::get('property/map-data', [PropertyController::class, 'getMapProperties'])->name('property.map-data');
 Route::get('property/map-tiles/{z}/{x}/{y}', [PropertyController::class, 'getMapTile'])->name('property.map-tiles');
 Route::get('property/address-search', [PropertyController::class, 'searchAddress'])->name('property.address-search');
@@ -42,6 +43,8 @@ Route::post('property/create', [PropertyController::class, 'create'])->name('pro
 Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->name('property.approve');
 Route::post('edit/property/{id}', [PropertyController::class, 'edit'])->name('property.edit');
 Route::post('property/{id}/images', [PropertyController::class, 'uploadImages'])->name('property.images');
+Route::post('property/{id}/documents', [PropertyController::class, 'uploadDocuments'])->name('property.documents');
+Route::delete('property/{propertyId}/documents/{documentId}', [PropertyController::class, 'deleteDocument'])->name('property.documents.delete');
 Route::get('property/{id}/exclusivity-pdf', [PropertyController::class, 'generateExclusivityPdf'])->name('property.exclusivity-pdf');
 
 Route::get('client/listar', [ClientController::class, 'listado'])->name('client.listar');

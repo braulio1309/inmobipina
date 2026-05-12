@@ -74,14 +74,13 @@ class OperationController extends Controller
         return response()->json(['message' => 'No tienes permiso para crear cierres.'], 403);
     }
 
-    // Total commission is always 5%, split equally among all parties:
-    // N advisors + 1 company → each gets 5% / (N + 1)
+    // Total commission is always 5%: company always gets 2.5%, advisors share the remaining 2.5%
     $amount = $request->amount ?? 0;
     $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
     $numSellers = count($sellers);
-    $numParties = $numSellers + 1; // advisors + company
-    $eachPartyPct = round(5 / $numParties, 4);
-    $eachPartyAmt = round($amount * $eachPartyPct / 100, 2);
+    $companyPct = 2.5;
+    $companyAmt = round($amount * $companyPct / 100, 2);
+    $eachAdvisorPct = $numSellers > 0 ? round(2.5 / $numSellers, 4) : 0;
 
     // Use per-seller percentages if provided
     $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
@@ -92,8 +91,8 @@ class OperationController extends Controller
     $operation = Operation::create(array_merge(
         $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
         [
-            'company_commission_percentage' => $eachPartyPct,
-            'company_commission_amount'     => $eachPartyAmt,
+            'company_commission_percentage' => $companyPct,
+            'company_commission_amount'     => $companyAmt,
         ]
     ));
 
@@ -113,7 +112,7 @@ class OperationController extends Controller
                     break;
                 }
             }
-            $pct = $customPct !== null ? (float)$customPct : $eachPartyPct;
+            $pct = $customPct !== null ? (float)$customPct : $eachAdvisorPct;
             $amt = round($amount * $pct / 100, 2);
             $syncData[$sellerId] = [
                 'commission_percentage' => $pct,
@@ -126,14 +125,14 @@ class OperationController extends Controller
     // Actualizar status de la propiedad según tipo de operación
     if ($operation->type === 'reserva') {
         Property::where('id', $operation->property_id)->update(['status' => 'Reservado']);
-    } elseif ($operation->type === 'venta') {
+    } elseif ($operation->type === 'venta' || $operation->type === 'traspaso') {
         Property::where('id', $operation->property_id)->update(['status' => 'Vendido']);
     }
 
     // *************************************************************************
-    // LOGICA PARA VENTA (Crear registro en tabla Sales)
+    // LOGICA PARA VENTA Y TRASPASO (Crear registro en tabla Sales)
     // *************************************************************************
-    if ($operation->type == 'venta') {
+    if ($operation->type == 'venta' || $operation->type == 'traspaso') {
         Sale::create([
             'property_id'  => $operation->property_id,
             'buyer_id'     => $request->buyers[0] ?? null,
@@ -212,9 +211,9 @@ class OperationController extends Controller
         $amount = $request->amount ?? 0;
         $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
         $numSellers = count($sellers);
-        $numParties = $numSellers + 1;
-        $eachPartyPct = $numSellers > 0 ? round(5 / $numParties, 4) : 0;
-        $eachPartyAmt = round($amount * $eachPartyPct / 100, 2);
+        $companyPct = 2.5;
+        $companyAmt = round($amount * $companyPct / 100, 2);
+        $eachAdvisorPct = $numSellers > 0 ? round(2.5 / $numSellers, 4) : 0;
 
         // Use per-seller percentages if provided
         $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
@@ -224,8 +223,8 @@ class OperationController extends Controller
         $operation->update(array_merge(
             $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
             [
-                'company_commission_percentage' => $eachPartyPct,
-                'company_commission_amount' => $eachPartyAmt,
+                'company_commission_percentage' => $companyPct,
+                'company_commission_amount' => $companyAmt,
             ]
         ));
 
@@ -241,7 +240,7 @@ class OperationController extends Controller
                         break;
                     }
                 }
-                $pct = $customPct !== null ? (float)$customPct : $eachPartyPct;
+                $pct = $customPct !== null ? (float)$customPct : $eachAdvisorPct;
                 $amt = round($amount * $pct / 100, 2);
                 $syncData[$sellerId] = [
                     'commission_percentage' => $pct,
@@ -309,8 +308,8 @@ class OperationController extends Controller
 
         $sellers    = $operation->sellers->pluck('id')->toArray();
         $numSellers = count($sellers);
-        $numParties = $numSellers + 1;
-        $eachPartyPct = $numSellers > 0 ? round(5 / $numParties, 4) : 0;
+        $companyPct = 2.5;
+        $eachAdvisorPct = $numSellers > 0 ? round(2.5 / $numSellers, 4) : 0;
 
         // Use per-seller percentages if provided, otherwise recalculate
         $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
@@ -318,7 +317,7 @@ class OperationController extends Controller
             : [];
 
         // Commission on the net sale amount
-        $salCompanyAmt = round($netAmount * $eachPartyPct / 100, 2);
+        $salCompanyAmt = round($netAmount * $companyPct / 100, 2);
 
         // Preserve the reservation commission earned in the first phase and ADD
         // the new sale commission so total earnings include both phases.
@@ -328,7 +327,7 @@ class OperationController extends Controller
         $operation->update([
             'type'                           => 'venta',
             'amount'                         => $netAmount,
-            'company_commission_percentage'  => $eachPartyPct,
+            'company_commission_percentage'  => $companyPct,
             'company_commission_amount'      => $totalCompanyComm,
             'reservation_company_commission' => $reservationCompanyComm,
         ]);
@@ -344,7 +343,7 @@ class OperationController extends Controller
                         break;
                     }
                 }
-                $pct = $customPct !== null ? (float)$customPct : $eachPartyPct;
+                $pct = $customPct !== null ? (float)$customPct : $eachAdvisorPct;
                 $saleAmt = round($netAmount * $pct / 100, 2);
 
                 // Old reservation commission for this seller
