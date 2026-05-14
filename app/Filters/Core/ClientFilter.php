@@ -62,6 +62,4 @@ class ClientFilter extends FilterBuilder
             $builder->where('status', $status);
         });
     }
-
-
 }
