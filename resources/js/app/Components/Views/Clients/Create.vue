@@ -27,7 +27,7 @@
           </div>
 
           <!-- Asesor asignado -->
-          <div class="mb-3">
+          <div v-if="isAdmin" class="mb-3">
             <label class="form-label">Asesor asignado</label>
             <app-input
               type="search-select"
@@ -101,6 +101,16 @@ import axios from "axios";
 export default {
   name: "ClientCreateCard",
   mixins: [FormMixin],
+  props: {
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    currentUserId: {
+      type: String,
+      default: "",
+    },
+  },
   data() {
     return {
       loading: false,
@@ -134,6 +144,8 @@ export default {
   },
   async created() {
     await this.loadFormData();
+    this.applyAdvisorDefaults();
+
     const clientId = new URLSearchParams(window.location.search).get('id');
     if (clientId) {
       this.clientId = clientId;
@@ -141,6 +153,12 @@ export default {
     }
   },
   methods: {
+    applyAdvisorDefaults() {
+      if (!this.isAdmin) {
+        this.client.assigned_to = this.currentUserId || "";
+      }
+    },
+
     async loadFormData() {
       try {
         const res = await axios.get('/client/form-data');
@@ -173,7 +191,9 @@ export default {
           email: c.email || "",
           phone: c.phone || "",
           notes: c.notes || "",
-          assigned_to: c.assigned_to ? c.assigned_to.toString() : "",
+          assigned_to: this.isAdmin
+            ? (c.assigned_to ? c.assigned_to.toString() : "")
+            : (this.currentUserId || (c.assigned_to ? c.assigned_to.toString() : "")),
           property_ids: Array.isArray(c.properties) ? c.properties.map(property => property.id.toString()) : [],
           source: c.source || "",
           status: c.status || "potencial",
@@ -197,7 +217,7 @@ export default {
             email: "",
             phone: "",
             notes: "",
-            assigned_to: "",
+            assigned_to: this.isAdmin ? "" : (this.currentUserId || ""),
             property_ids: [],
             source: "",
             status: "potencial",

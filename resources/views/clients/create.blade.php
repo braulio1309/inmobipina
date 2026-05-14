@@ -3,5 +3,10 @@
 @section('title', 'Clientes')
 
 @section('contents')
-    <create-clients></create-clients>
+    @php($isAdmin = auth()->user()->isAdmin())
+
+    <create-clients
+        :is-admin='@json($isAdmin)'
+        :current-user-id='@json((string) auth()->id())'
+    ></create-clients>
 @endsection

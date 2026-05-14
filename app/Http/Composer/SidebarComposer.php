@@ -3,6 +3,7 @@
 namespace App\Http\Composer;
 
 use App\Models\Core\Builder\Table\CustomTable;
+use App\Models\Core\Auth\User;
 use Illuminate\View\View;
 
 class SidebarComposer
@@ -10,7 +11,9 @@ class SidebarComposer
     public function compose(View $view)
     {
         $table = CustomTable::all();
-        $isAdmin = auth()->user()->isAdmin();
+        /** @var User $authUser */
+        $authUser = auth()->user();
+        $isAdmin = $authUser->isAdmin();
 
         $menu = [
             [
@@ -28,12 +31,12 @@ class SidebarComposer
                     [
                         'name' => 'Registrar captación',
                         'url' => request()->root() . '/properties/create',
-                        'permission' => auth()->user()->can('view_default'),
+                        'permission' => $authUser->can('view_default'),
                     ],
                     [
                         'name' => 'Listado',
                         'url' => request()->root() . '/properties',
-                        'permission' => auth()->user()->can('view_academy'),
+                        'permission' => $authUser->can('view_academy'),
                     ],
                 ]),
             ],
@@ -43,15 +46,15 @@ class SidebarComposer
                 'name' => 'Clientes',
                 'permission' => authorize_any(['view_default', 'view_academy', 'view_ecmommerce', 'view_hospital', 'view_hrm']),
                 'subMenu' => array_filter([
-                    $isAdmin ? [
+                    [
                         'name' => 'Registrar cliente',
                         'url' => request()->root() . '/clients/create',
-                        'permission' => auth()->user()->can('view_default'),
-                    ] : null,
+                        'permission' => $authUser->can('view_default'),
+                    ],
                     [
                         'name' => 'Listar',
                         'url' => request()->root() . '/clients',
-                        'permission' => auth()->user()->can('view_academy'),
+                        'permission' => $authUser->can('view_academy'),
                     ],
                 ]),
             ],
@@ -64,7 +67,7 @@ class SidebarComposer
                     [
                         'name' => 'Historial',
                         'url' => request()->root() . '/activities',
-                        'permission' => auth()->user()->can('view_academy'),
+                        'permission' => $authUser->can('view_academy'),
                     ],
                 ],
             ],
@@ -77,12 +80,12 @@ class SidebarComposer
                     [
                         'name' => 'Historial',
                         'url' => request()->root() . '/operations',
-                        'permission' => auth()->user()->can('view_academy'),
+                        'permission' => $authUser->can('view_academy'),
                     ],
                     $isAdmin ? [
                         'name' => 'Registrar',
                         'url' => request()->root() . '/create/operations',
-                        'permission' => auth()->user()->can('view_default'),
+                        'permission' => $authUser->can('view_default'),
                     ] : null,
                 ]),
             ],

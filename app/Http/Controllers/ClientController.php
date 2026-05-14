@@ -74,7 +74,14 @@ class ClientController extends Controller
     public function create(Request $request)
     {
         $data = $request->only(['name', 'email', 'phone', 'notes', 'source', 'status', 'assigned_to']);
-        $data['user_id'] = Auth::id();
+        /** @var User $authUser */
+        $authUser = Auth::user();
+
+        $data['user_id'] = $authUser->id;
+        $data['assigned_to'] = $authUser->isAdmin()
+            ? $this->normalizeAssignedTo($data['assigned_to'] ?? null)
+            : $authUser->id;
+
         if (empty($data['status'])) {
             $data['status'] = 'potencial';
         }
@@ -89,6 +96,13 @@ class ClientController extends Controller
     {
         $Client = Client::where('id', $id)->first();
         $data = $request->only(['name', 'email', 'phone', 'notes', 'source', 'status', 'assigned_to']);
+        /** @var User $authUser */
+        $authUser = Auth::user();
+
+        $data['assigned_to'] = $authUser->isAdmin()
+            ? $this->normalizeAssignedTo($data['assigned_to'] ?? null)
+            : $authUser->id;
+
         $Client->update($data);
         $Client->properties()->sync($this->normalizePropertyIds($request->input('property_ids', [])));
 
@@ -124,6 +138,15 @@ class ClientController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function normalizeAssignedTo($assignedTo): ?int
+    {
+        if ($assignedTo === null || $assignedTo === '') {
+            return null;
+        }
+
+        return (int) $assignedTo;
     }
 }
 
