@@ -91,7 +91,7 @@ class OperationController extends Controller
 
     // 1. Crear la Operación
     $operation = Operation::create(array_merge(
-        $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
+        $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes']),
         [
             'company_commission_percentage' => $companyPct,
             'company_commission_amount'     => $companyAmt,
@@ -220,7 +220,7 @@ class OperationController extends Controller
             : [];
 
         $operation->update(array_merge(
-            $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
+            $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes']),
             [
                 'company_commission_percentage' => $companyPct,
                 'company_commission_amount' => $companyAmt,
@@ -274,6 +274,7 @@ class OperationController extends Controller
             'property_price' => $operation->property_price,
             'start_date' => $operation->start_date,
             'end_date' => $operation->end_date,
+            'fecha_cierre' => $operation->fecha_cierre,
             'notes' => $operation->notes,
             'owner_client_id' => $resolvedOwnerClient?->id ? (string) $resolvedOwnerClient->id : '',
             'buyer_client_id' => $resolvedBuyerClient?->id ? (string) $resolvedBuyerClient->id : '',

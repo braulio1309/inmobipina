@@ -36,5 +36,32 @@ class ClientFilter extends FilterBuilder
         });
     }
 
+    public function date($date = null)
+    {
+        $date = $date ?: request()->input('date');
+        if (is_string($date)) {
+            $date = json_decode(htmlspecialchars_decode($date), true);
+        }
+        $this->builder->when($date && is_array($date) && isset($date['start']), function (Builder $builder) use ($date) {
+            $builder->whereBetween(DB::raw('DATE(created_at)'), [$date['start'], $date['end']]);
+        });
+    }
+
+    public function asesor($asesorId = null)
+    {
+        $asesorId = $asesorId ?: request()->input('asesor');
+        $this->builder->when($asesorId, function (Builder $builder) use ($asesorId) {
+            $builder->where('assigned_to', $asesorId);
+        });
+    }
+
+    public function status($status = null)
+    {
+        $status = $status ?: request()->input('status');
+        $this->builder->when($status, function (Builder $builder) use ($status) {
+            $builder->where('status', $status);
+        });
+    }
+
 
 }

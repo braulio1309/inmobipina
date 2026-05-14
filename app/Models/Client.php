@@ -41,6 +41,11 @@ class Client extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function advisor()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
     public function activities()
     {
         return $this->hasMany(Activity::class);

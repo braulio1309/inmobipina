@@ -50,6 +50,7 @@ Route::get('property/{id}/exclusivity-pdf', [PropertyController::class, 'generat
 Route::get('property/{id}/captation-pdf', [PropertyController::class, 'generateCaptationPdf'])->name('property.captation-pdf');
 
 Route::get('client/listar', [ClientController::class, 'listado'])->name('client.listar');
+Route::get('client/export', [ClientController::class, 'export'])->name('client.export');
 Route::get('client/form-data', [ClientController::class, 'formData'])->name('client.form-data');
 Route::post('client/create', [ClientController::class, 'create'])->name('client.crear');
 Route::post('edit/client/{id}', [ClientController::class, 'edit'])->name('client.edit');

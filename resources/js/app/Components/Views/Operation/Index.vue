@@ -219,6 +219,16 @@
                             }
                         },
                         {
+                            title: 'Fecha de Cierre',
+                            type: 'text',
+                            key: 'fecha_cierre',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value) => {
+                                return value ? value : '—';
+                            }
+                        },
+                        {
                             title: this.$t('action'),
                             type: 'action',
                             key: 'invoice',
