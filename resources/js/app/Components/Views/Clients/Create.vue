@@ -37,6 +37,17 @@
             />
           </div>
 
+          <div class="mb-3">
+            <label class="form-label">Propiedades relacionadas</label>
+            <app-input
+              type="multi-select"
+              v-model="client.property_ids"
+              :list="propertiesList"
+              placeholder="Buscar propiedades..."
+            />
+            <small class="text-muted">Selecciona una o varias propiedades asociadas al cliente.</small>
+          </div>
+
           <!-- Medio de captación -->
           <div class="mb-3">
             <label class="form-label">Medio de captación</label>
@@ -100,6 +111,7 @@ export default {
         phone: "",
         notes: "",
         assigned_to: "",
+        property_ids: [],
         source: "",
         status: "potencial",
       },
@@ -117,10 +129,11 @@ export default {
         { id: "cerrado", value: "Cerrado" },
       ],
       agentsList: [{ id: "", value: "Elige uno" }],
+      propertiesList: [],
     };
   },
   async created() {
-    await this.loadAgents();
+    await this.loadFormData();
     const clientId = new URLSearchParams(window.location.search).get('id');
     if (clientId) {
       this.clientId = clientId;
@@ -128,19 +141,26 @@ export default {
     }
   },
   methods: {
-    async loadAgents() {
+    async loadFormData() {
       try {
-        const res = await axios.get("/admin/auth/users");
-        const users = Array.isArray(res.data) ? res.data : (res.data.data || []);
+        const res = await axios.get('/client/form-data');
+        const users = Array.isArray(res.data.users) ? res.data.users : [];
+        const properties = Array.isArray(res.data.properties) ? res.data.properties : [];
+
         this.agentsList = [
           { id: "", value: "Elige uno" },
           ...users.map(a => ({
             id: a.id.toString(),
-            value: (a.first_name || "") + " " + (a.last_name ?? ""),
+            value: a.value,
           }))
         ];
+
+        this.propertiesList = properties.map(property => ({
+          id: property.id.toString(),
+          value: property.value,
+        }));
       } catch (error) {
-        console.error("Error cargando asesores", error);
+        console.error('Error cargando datos del formulario de clientes', error);
       }
     },
 
@@ -154,6 +174,7 @@ export default {
           phone: c.phone || "",
           notes: c.notes || "",
           assigned_to: c.assigned_to ? c.assigned_to.toString() : "",
+          property_ids: Array.isArray(c.properties) ? c.properties.map(property => property.id.toString()) : [],
           source: c.source || "",
           status: c.status || "potencial",
         };
@@ -177,6 +198,7 @@ export default {
             phone: "",
             notes: "",
             assigned_to: "",
+            property_ids: [],
             source: "",
             status: "potencial",
           };

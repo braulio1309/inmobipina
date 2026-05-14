@@ -64,6 +64,19 @@
                                :required="true"/>
                 </div>
 
+                <div class="form-group row align-items-center">
+                    <label for="inputs_property_id" class="col-sm-3 mb-0">
+                        Propiedad
+                    </label>
+                    <div class="col-sm-9">
+                        <app-input id="inputs_property_id"
+                                   type="search-select"
+                                   v-model="inputs.property_id"
+                                   :list="propertiesList"
+                                   placeholder="Buscar propiedad..."/>
+                    </div>
+                </div>
+
                 <!-- Imagen de soporte -->
                 <div class="form-group row align-items-center">
                     <label class="col-sm-3 mb-0">
@@ -132,6 +145,7 @@ export default {
                 description: '',
                 result: '',
                 date: '',
+                property_id: '',
                 latitude: null,
                 longitude: null,
                 image_path: null,
@@ -139,6 +153,9 @@ export default {
             imageFile: null,
             imagePreview: null,
             locationLoading: false,
+            propertiesList: [
+                { id: '', value: 'Elige una propiedad' },
+            ],
 
             activityTypes: [
                 {id: '', value: "Seleccione un tipo"},
@@ -156,6 +173,8 @@ export default {
     },
 
     created() {
+        this.loadFormData();
+
         if (this.selectedUrl) {
             this.modalTitle = "Editar Actividad";
             this.preloader = true;
@@ -167,6 +186,23 @@ export default {
     },
 
     methods: {
+        async loadFormData() {
+            try {
+                const response = await import('axios').then(({ default: axios }) => axios.get('/activities/form-data'));
+                const properties = Array.isArray(response.data.properties) ? response.data.properties : [];
+
+                this.propertiesList = [
+                    { id: '', value: 'Elige una propiedad' },
+                    ...properties.map(property => ({
+                        id: property.id.toString(),
+                        value: property.value,
+                    }))
+                ];
+            } catch (error) {
+                console.error('Error cargando propiedades para actividades:', error);
+            }
+        },
+
         onImageChange(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -266,6 +302,7 @@ export default {
             formData.append('description', this.inputs.description || '');
             formData.append('result', this.inputs.result || '');
             formData.append('date', this.normalizeDateForRequest(this.inputs.date));
+            formData.append('property_id', this.inputs.property_id || '');
             if (this.inputs.latitude !== null && this.inputs.latitude !== undefined && this.inputs.latitude !== '') {
                 formData.append('latitude', this.inputs.latitude);
             }
@@ -302,6 +339,7 @@ export default {
             this.inputs = {
                 ...response.data,
                 date: this.normalizeDateForInput(response.data.date),
+                property_id: response.data.property_id ? response.data.property_id.toString() : '',
                 latitude: response.data.latitude || null,
                 longitude: response.data.longitude || null,
                 image_path: response.data.image_path || null,

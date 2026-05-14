@@ -34,6 +34,32 @@
                             <h5 class="text-center">{{ `${sliderMaxRange}${sign ? sign : ''}` }}</h5>
                         </div>
                     </div>
+                    <div class="row mt-4">
+                        <div class="col-6">
+                            <label class="small text-muted d-block mb-1">{{ minTitle }}</label>
+                            <input
+                                type="number"
+                                class="form-control"
+                                :step="inputStep"
+                                :min="minRange"
+                                :max="sliderMaxRange"
+                                :value="sliderMinRange"
+                                @input="onManualMinInput($event.target.value)"
+                            >
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted d-block mb-1">{{ maxTitle }}</label>
+                            <input
+                                type="number"
+                                class="form-control"
+                                :step="inputStep"
+                                :min="sliderMinRange"
+                                :max="maxRange"
+                                :value="sliderMaxRange"
+                                @input="onManualMaxInput($event.target.value)"
+                            >
+                        </div>
+                    </div>
                 </div>
                 <div class="dropdown-divider d-none d-sm-block"/>
 
@@ -114,6 +140,9 @@ export default {
         isFraction() {
             return !((Number(this.minRange) % 1 === 0) && (Number(this.maxRange) % 1 === 0))
         },
+        inputStep() {
+            return this.isFraction ? '0.01' : '1';
+        },
         filterLabel() {
             return this.isApply ? `${this.sliderMinRange}${this.sign} - ${this.sliderMaxRange}${this.sign}` : this.label
         }
@@ -155,6 +184,46 @@ export default {
                 this.sliderMaxRange = this.isFraction ? value[1] : Math.round(value[1]);
                 this.value = {'min': this.sliderMinRange, 'max': this.sliderMaxRange}
             });
+        },
+        normalizeManualValue(value) {
+            const parsedValue = Number(value);
+
+            if (Number.isNaN(parsedValue)) {
+                return null;
+            }
+
+            return this.isFraction ? parsedValue : Math.round(parsedValue);
+        },
+        syncSliderValues(minValue, maxValue) {
+            if (!this.rangeSlider || !this.rangeSlider.noUiSlider) {
+                return;
+            }
+
+            this.sliderMinRange = minValue;
+            this.sliderMaxRange = maxValue;
+            this.value = { min: minValue, max: maxValue };
+            this.clearFilterDisabled = false;
+            this.rangeSlider.noUiSlider.set([minValue, maxValue]);
+        },
+        onManualMinInput(value) {
+            const normalizedValue = this.normalizeManualValue(value);
+
+            if (normalizedValue === null) {
+                return;
+            }
+
+            const boundedMin = Math.max(Number(this.minRange), Math.min(normalizedValue, Number(this.sliderMaxRange)));
+            this.syncSliderValues(boundedMin, Number(this.sliderMaxRange));
+        },
+        onManualMaxInput(value) {
+            const normalizedValue = this.normalizeManualValue(value);
+
+            if (normalizedValue === null) {
+                return;
+            }
+
+            const boundedMax = Math.min(Number(this.maxRange), Math.max(normalizedValue, Number(this.sliderMinRange)));
+            this.syncSliderValues(Number(this.sliderMinRange), boundedMax);
         },
         applyFilter() {
             if (this.value) {

@@ -32,6 +32,16 @@
                 >
             </div>
 
+            <div v-if="isAdmin" class="mb-3">
+                <label class="form-label">Asesor del inmueble</label>
+                <app-input
+                    type="search-select"
+                    v-model="property.agent_id"
+                    :list="agentsList"
+                    placeholder="Buscar asesor..."
+                />
+            </div>
+
             <div class="mb-3">
                 <label class="form-label">Descripción</label>
                 <textarea 
@@ -301,10 +311,64 @@
         <div v-if="activeTab === 5">
             <h5 class="mb-3">Formulario de Captación</h5>
             <p class="text-muted mb-3">
-                Este formulario es opcional. Los datos que ya existen en la propiedad se autocompletan y puedes completar el resto para descargar la ficha en PDF.
+                Este formulario es opcional. Dejamos visibles solo los datos que faltan y completamos automáticamente la información que ya viene de los tabs anteriores.
             </p>
 
+            <div class="card border-0 bg-light mb-4">
+                <div class="card-body">
+                    <h6 class="mb-3 text-primary">Datos autocompletados</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small mb-1">Asesor responsable</label>
+                            <input :value="captationData.asesor_responsable" type="text" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small mb-1">Tipo de inmueble</label>
+                            <input :value="captationData.tipo_inmueble" type="text" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small mb-1">Tipo de negociación</label>
+                            <input :value="captationData.tipo_negociacion" type="text" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small mb-1">Precio cliente</label>
+                            <input :value="captationData.precio_cliente" type="text" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small mb-1">Ubicación</label>
+                            <input :value="captationData.ubicacion" type="text" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small mb-1">M2 construcción</label>
+                            <input :value="captationData.m2_construccion" type="text" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4 mb-0">
+                            <label class="form-label text-muted small mb-1">Precio por m2</label>
+                            <input :value="captationData.precio_m2" type="text" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4 mb-0">
+                            <label class="form-label text-muted small mb-1">Distribución</label>
+                            <input :value="`${captationData.cantidad_habitaciones || 0} hab. / ${captationData.cantidad_banos || 0} baños`" type="text" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4 mb-0">
+                            <label class="form-label text-muted small mb-1">Estacionamiento</label>
+                            <input :value="captationData.capacidad_estacionamiento" type="text" class="form-control" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="mb-2 text-primary">Control interno</h6>
             <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Fecha de captación</label>
+                    <input v-model="captationData.fecha_captacion" type="date" class="form-control">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Código de publicación</label>
+                    <input v-model="captationData.codigo_publicacion" type="text" class="form-control"
+                        placeholder="Ej: INM-0012">
+                </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Fotos descargadas</label>
                     <select v-model="captationData.fotos_descargadas" class="form-control">
@@ -322,11 +386,6 @@
                     </select>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <label class="form-label">Código de publicación</label>
-                    <input v-model="captationData.codigo_publicacion" type="text" class="form-control"
-                        placeholder="Ej: INM-0012">
-                </div>
-                <div class="col-md-3 mb-3">
                     <label class="form-label">Recepción de documentos en correo</label>
                     <select v-model="captationData.recepcion_documentos_correo" class="form-control">
                         <option :value="null">Selecciona</option>
@@ -334,47 +393,9 @@
                         <option :value="false">No</option>
                     </select>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Fecha de captación</label>
-                    <input v-model="captationData.fecha_captacion" type="date" class="form-control">
-                </div>
             </div>
 
-            <h6 class="mb-2 text-primary mt-3">Datos Generales</h6>
-            <div class="row">
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Asesor responsable</label>
-                    <input v-model="captationData.asesor_responsable" type="text" class="form-control"
-                        placeholder="Nombre del asesor">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Tipo de inmueble</label>
-                    <input v-model="captationData.tipo_inmueble" type="text" class="form-control"
-                        placeholder="Ej: Casa">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Tipo de negociación</label>
-                    <input v-model="captationData.tipo_negociacion" type="text" class="form-control"
-                        placeholder="Ej: Venta">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Precio de inmobiliaria</label>
-                    <input v-model="captationData.precio_inmobiliaria" type="number" step="0.01" class="form-control"
-                        placeholder="0.00">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Precio de cliente</label>
-                    <input v-model="captationData.precio_cliente" type="number" step="0.01" class="form-control"
-                        placeholder="0.00">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">% comisión</label>
-                    <input v-model="captationData.porcentaje_comision" type="number" step="0.01" class="form-control"
-                        placeholder="Ej: 5">
-                </div>
-            </div>
-
-            <h6 class="mb-2 text-primary mt-3">Información del Cliente</h6>
+            <h6 class="mb-2 text-primary mt-3">Cliente y autorización</h6>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Nombre y apellido</label>
@@ -390,6 +411,11 @@
                     <label class="form-label">Correo electrónico</label>
                     <input v-model="captationData.cliente_correo_electronico" type="email" class="form-control"
                         placeholder="correo@ejemplo.com">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Cédula de identidad</label>
+                    <input v-model="captationData.autorizacion_cedula" type="text" class="form-control"
+                        placeholder="Ej: V-12345678">
                 </div>
                 <div class="col-md-12 mb-3">
                     <label class="form-label d-block">Rol del cliente</label>
@@ -411,15 +437,20 @@
                     <input v-model="captationData.tipo_cliente" type="text" class="form-control"
                         placeholder="Ej: Referido">
                 </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Nacionalidad</label>
+                    <input v-model="captationData.autorizacion_nacionalidad" type="text" class="form-control"
+                        placeholder="Ej: Venezolano(a)">
+                </div>
+                <div class="col-md-12">
+                    <div class="alert alert-secondary mb-0 py-2">
+                        La autorización se arma automáticamente con el nombre del cliente, su rol, la dirección, la descripción, el precio y la comisión ya cargados en la propiedad.
+                    </div>
+                </div>
             </div>
 
-            <h6 class="mb-2 text-primary mt-3">Características del Bien Inmueble</h6>
+            <h6 class="mb-2 text-primary mt-3">Detalles del inmueble</h6>
             <div class="row">
-                <div class="col-md-8 mb-3">
-                    <label class="form-label">Ubicación</label>
-                    <input v-model="captationData.ubicacion" type="text" class="form-control"
-                        placeholder="Dirección del inmueble">
-                </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Punto de referencia</label>
                     <input v-model="captationData.punto_referencia" type="text" class="form-control"
@@ -428,22 +459,6 @@
                 <div class="col-md-3 mb-3">
                     <label class="form-label">m2 terreno</label>
                     <input v-model="captationData.m2_terreno" type="number" step="0.01" class="form-control">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">m2 construcción</label>
-                    <input v-model="captationData.m2_construccion" type="number" step="0.01" class="form-control">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Precio x m2</label>
-                    <input v-model="captationData.precio_m2" type="number" step="0.01" class="form-control">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Cant. de hab.</label>
-                    <input v-model="captationData.cantidad_habitaciones" type="text" class="form-control">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Cant. de baño</label>
-                    <input v-model="captationData.cantidad_banos" type="text" class="form-control">
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Nivel/Piso</label>
@@ -460,10 +475,6 @@
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Tipo de internet</label>
                     <input v-model="captationData.tipo_internet" type="text" class="form-control">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Capacidad de estacionamiento</label>
-                    <input v-model="captationData.capacidad_estacionamiento" type="text" class="form-control">
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Closet</label>
@@ -495,7 +506,7 @@
                 </div>
             </div>
 
-            <h6 class="mb-2 text-primary mt-3">Documentación</h6>
+            <h6 class="mb-2 text-primary mt-3">Documentación y observaciones</h6>
             <div class="row">
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Fecha de verificación</label>
@@ -537,57 +548,21 @@
                 <textarea v-model="captationData.observaciones_recomendaciones" rows="4" class="form-control"></textarea>
             </div>
 
-            <h6 class="mb-2 text-primary mt-3">Autorización para Prestación de Servicio</h6>
+            <h6 class="mb-2 text-primary mt-3">Comercialización</h6>
             <div class="row">
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Yo,</label>
-                    <input v-model="captationData.autorizacion_nombre" type="text" class="form-control"
-                        placeholder="Nombre completo">
+                    <label class="form-label">Precio de inmobiliaria</label>
+                    <input v-model="captationData.precio_inmobiliaria" type="number" step="0.01" class="form-control"
+                        placeholder="0.00">
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Nacionalidad</label>
-                    <input v-model="captationData.autorizacion_nacionalidad" type="text" class="form-control"
-                        placeholder="Venezolano(a)">
+                    <label class="form-label">% comisión</label>
+                    <input v-model="captationData.porcentaje_comision" type="number" step="0.01" class="form-control"
+                        placeholder="Ej: 5">
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Cédula de identidad</label>
-                    <input v-model="captationData.autorizacion_cedula" type="text" class="form-control">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">En mi carácter de</label>
-                    <input v-model="captationData.autorizacion_caracter" type="text" class="form-control"
-                        placeholder="Propietario / apoderado / encargado">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label d-block">Promocionar en</label>
-                    <div class="form-check form-check-inline">
-                        <input v-model="captationData.autoriza_venta" class="form-check-input" type="checkbox" id="autoriza-venta">
-                        <label class="form-check-label" for="autoriza-venta">Venta</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input v-model="captationData.autoriza_alquiler" class="form-check-input" type="checkbox" id="autoriza-alquiler">
-                        <label class="form-check-label" for="autoriza-alquiler">Alquiler</label>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Precio de venta y/o alquiler</label>
-                    <input v-model="captationData.autorizacion_precio" type="text" class="form-control"
-                        placeholder="Ej: 45.000 USD">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Inmueble constituido por</label>
-                    <input v-model="captationData.autorizacion_inmueble_constituido" type="text" class="form-control"
-                        placeholder="Descripción breve del inmueble">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Ubicado en</label>
-                    <input v-model="captationData.autorizacion_ubicado_en" type="text" class="form-control"
-                        placeholder="Dirección del inmueble">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Comisión / honorarios</label>
-                    <input v-model="captationData.autorizacion_comision" type="text" class="form-control"
-                        placeholder="Monto o porcentaje acordado">
+                    <label class="form-label text-muted">Autorización generada</label>
+                    <input :value="`${captationData.autorizacion_nombre || 'Cliente'} • ${captationData.autorizacion_caracter || 'sin rol'} • ${captationData.autorizacion_precio || 'sin precio'}`" type="text" class="form-control" readonly>
                 </div>
             </div>
 
@@ -827,6 +802,9 @@ export default {
             addressSuggestions: [],
             addressSuggestionIndex: -1,
             addressSearchTimeout: null,
+            agentsList: [
+                { id: "", value: "Elige uno" },
+            ],
             tabs: [
                 { label: "Detalles" },
                 { label: "Ubicación" },
@@ -838,6 +816,7 @@ export default {
             ],
 
             property: {
+                agent_id: "",
                 title: "",
                 description: "",
                 bathrooms: "",
@@ -1016,7 +995,22 @@ export default {
                     this.refreshMapSize();
                 });
             }
-        }
+        },
+        'property.type': 'syncDerivedCaptationData',
+        'property.type_sale': 'syncDerivedCaptationData',
+        'property.price': 'syncDerivedCaptationData',
+        'property.square_meters': 'syncDerivedCaptationData',
+        'property.address': 'syncDerivedCaptationData',
+        'property.bedrooms': 'syncDerivedCaptationData',
+        'property.bathrooms': 'syncDerivedCaptationData',
+        'property.parking_spots': 'syncDerivedCaptationData',
+        'property.agent_id': 'syncDerivedCaptationData',
+        'property.description': 'syncDerivedCaptationData',
+        'captationData.cliente_nombre_apellido': 'syncDerivedCaptationData',
+        'captationData.porcentaje_comision': 'syncDerivedCaptationData',
+        'captationData.cliente_es_propietario': 'syncDerivedCaptationData',
+        'captationData.cliente_es_apoderado': 'syncDerivedCaptationData',
+        'captationData.cliente_es_encargado': 'syncDerivedCaptationData'
     },
 
     computed: {
@@ -1072,6 +1066,10 @@ export default {
     },
 
     mounted() {
+        if (this.isAdmin) {
+            this.loadAgents();
+        }
+
         this.prefillCaptationData();
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -1083,6 +1081,25 @@ export default {
     },
 
     methods: {
+        async loadAgents() {
+            try {
+                const response = await this.axiosGet('admin/auth/users');
+                const users = Array.isArray(response.data) ? response.data : (response.data.data || []);
+
+                this.agentsList = [
+                    { id: "", value: "Elige uno" },
+                    ...users.map(user => ({
+                        id: user.id ? user.id.toString() : '',
+                        value: user.first_name
+                            ? `${user.first_name} ${user.last_name || ''}`.trim()
+                            : (user.name || user.value || `Usuario #${user.id}`),
+                    }))
+                ];
+            } catch (error) {
+                console.error('Error cargando asesores para propiedades:', error);
+            }
+        },
+
         async loadPropertyData(id) {
             try {
                 const res = await axios.get(`/property/${id}`);
@@ -1090,6 +1107,7 @@ export default {
                 const existingCaptation = p.captation || null;
                 const latestExclusivity = p.exclusivities && p.exclusivities.length ? p.exclusivities[0] : null;
 
+                this.property.agent_id = p.agent_id ? p.agent_id.toString() : '';
                 this.property.title = p.title || '';
                 this.property.description = p.description || '';
                 this.property.bathrooms = p.bathrooms || '';
@@ -1556,6 +1574,14 @@ export default {
         },
 
         buildAdvisorName(user = null) {
+            if (this.isAdmin && this.property.agent_id) {
+                const selectedAgent = this.agentsList.find(agent => agent.id === String(this.property.agent_id));
+
+                if (selectedAgent && selectedAgent.value) {
+                    return selectedAgent.value;
+                }
+            }
+
             if (user) {
                 const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
                 if (name) {
@@ -1577,7 +1603,25 @@ export default {
             return (totalPrice / totalArea).toFixed(2);
         },
 
-        prefillCaptationData(propertyData = null) {
+        deriveAuthorizationCharacter() {
+            const roles = [];
+
+            if (this.captationData.cliente_es_propietario) {
+                roles.push('propietario');
+            }
+
+            if (this.captationData.cliente_es_apoderado) {
+                roles.push('apoderado');
+            }
+
+            if (this.captationData.cliente_es_encargado) {
+                roles.push('encargado');
+            }
+
+            return roles.join(' / ');
+        },
+
+        syncDerivedCaptationData(propertyData = null) {
             const source = propertyData || this.property;
             const creator = propertyData && propertyData.creator ? propertyData.creator : null;
             const advisorName = this.buildAdvisorName(creator);
@@ -1586,26 +1630,41 @@ export default {
             const propertyPrice = source.price || this.property.price || '';
             const propertyArea = source.square_meters || this.property.square_meters || '';
             const propertyAddress = source.address || this.property.address || '';
+            const propertyDescription = source.description || this.property.description || '';
+            const propertyTypeSale = source.type_sale || this.property.type_sale || '';
             const pricePerSquareMeter = this.calculatePricePerSquareMeter(propertyPrice, propertyArea);
+            const authorizationCharacter = this.deriveAuthorizationCharacter();
+            const normalizedTypeSale = String(propertyTypeSale).toLowerCase();
 
             this.captationData = {
                 ...this.captationData,
                 fecha_captacion: this.captationData.fecha_captacion || today,
-                asesor_responsable: this.captationData.asesor_responsable || advisorName,
-                tipo_inmueble: this.captationData.tipo_inmueble || propertyType,
-                precio_cliente: this.captationData.precio_cliente || propertyPrice,
-                autorizacion_precio: this.captationData.autorizacion_precio || (propertyPrice ? `${propertyPrice} USD` : ''),
-                tipo_negociacion: this.captationData.tipo_negociacion || (source.type_sale || this.property.type_sale || ''),
-                ubicacion: this.captationData.ubicacion || propertyAddress,
-                autorizacion_ubicado_en: this.captationData.autorizacion_ubicado_en || propertyAddress,
-                m2_construccion: this.captationData.m2_construccion || propertyArea,
-                precio_m2: this.captationData.precio_m2 || pricePerSquareMeter,
-                cantidad_habitaciones: this.captationData.cantidad_habitaciones || (source.bedrooms || this.property.bedrooms || ''),
-                cantidad_banos: this.captationData.cantidad_banos || (source.bathrooms || this.property.bathrooms || ''),
-                capacidad_estacionamiento: this.captationData.capacidad_estacionamiento || (source.parking_spots || this.property.parking_spots || ''),
-                autorizacion_inmueble_constituido: this.captationData.autorizacion_inmueble_constituido || (source.description || this.property.description || ''),
-                autorizacion_nombre: this.captationData.autorizacion_nombre || this.captationData.cliente_nombre_apellido,
+                asesor_responsable: advisorName || this.captationData.asesor_responsable,
+                tipo_inmueble: propertyType,
+                precio_inmobiliaria: this.captationData.precio_inmobiliaria || propertyPrice,
+                precio_cliente: propertyPrice,
+                porcentaje_comision: this.captationData.porcentaje_comision || 5,
+                tipo_negociacion: propertyTypeSale,
+                ubicacion: propertyAddress,
+                m2_construccion: propertyArea,
+                precio_m2: pricePerSquareMeter,
+                cantidad_habitaciones: source.bedrooms || this.property.bedrooms || '',
+                cantidad_banos: source.bathrooms || this.property.bathrooms || '',
+                capacidad_estacionamiento: source.parking_spots || this.property.parking_spots || '',
+                autorizacion_nombre: this.captationData.cliente_nombre_apellido || '',
+                autorizacion_caracter: authorizationCharacter,
+                autoriza_venta: ['venta', 'ambos'].includes(normalizedTypeSale),
+                autoriza_alquiler: ['alquiler', 'ambos'].includes(normalizedTypeSale),
+                autorizacion_inmueble_constituido: propertyDescription,
+                autorizacion_ubicado_en: propertyAddress,
+                autorizacion_precio: propertyPrice ? `${propertyPrice} USD` : '',
+                autorizacion_comision: this.captationData.porcentaje_comision ? `${this.captationData.porcentaje_comision}%` : '',
+                autorizacion_nacionalidad: this.captationData.autorizacion_nacionalidad || 'Venezolano(a)',
             };
+        },
+
+        prefillCaptationData(propertyData = null) {
+            this.syncDerivedCaptationData(propertyData);
         },
 
         normalizeExclusivityData(source = {}) {

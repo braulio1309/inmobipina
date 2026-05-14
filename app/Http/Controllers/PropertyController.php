@@ -47,6 +47,11 @@ class PropertyController extends Controller
             'type', 'type_sale', 'status', 'map_lat', 'map_lng',
             'exclusivity', 'created_by', 'approved_by',
         ]);
+
+        $data['agent_id'] = filled($data['agent_id'] ?? null)
+            ? $data['agent_id']
+            : null;
+
         $data['created_by'] = Auth::id();
 
         /** @var \App\Models\Core\Auth\User|null $authUser */
@@ -218,6 +223,12 @@ class PropertyController extends Controller
         $property = Property::where('id', $id)->firstOrFail();
         $data = $request->except(['exclusivity_data']);
 
+        if (array_key_exists('agent_id', $data)) {
+            $data['agent_id'] = filled($data['agent_id'])
+                ? $data['agent_id']
+                : null;
+        }
+
         $requestedStatus = $request->input('status');
 
         unset($data['approved_by']);
@@ -278,6 +289,50 @@ class PropertyController extends Controller
         ])->findOrFail($id);
 
         return response()->json($property);
+    }
+
+    public function summary($id)
+    {
+        $property = Property::withCount([
+                'activities as demonstrations_count' => function ($query) {
+                    $query->where('type', 'demostración');
+                },
+                'activities as advertisements_count' => function ($query) {
+                    $query->where('type', 'publicidad');
+                },
+            ])
+            ->with([
+                'activities' => function ($query) {
+                    $query->with('user:id,first_name,last_name')
+                        ->latest('date')
+                        ->latest('id')
+                        ->limit(8);
+                },
+            ])
+            ->findOrFail($id);
+
+        return response()->json([
+            'id' => $property->id,
+            'title' => $property->title,
+            'address' => $property->address,
+            'type' => $property->type,
+            'type_sale' => $property->type_sale,
+            'status' => $property->status,
+            'price' => $property->price,
+            'demonstrations_count' => (int) $property->demonstrations_count,
+            'advertisements_count' => (int) $property->advertisements_count,
+            'activities' => $property->activities->map(function ($activity) {
+                $name = trim((string) (($activity->user->first_name ?? '') . ' ' . ($activity->user->last_name ?? '')));
+
+                return [
+                    'id' => $activity->id,
+                    'type' => $activity->type,
+                    'description' => $activity->description,
+                    'date' => $activity->date,
+                    'user_name' => $name !== '' ? $name : 'Sin asesor',
+                ];
+            })->values(),
+        ]);
     }
 
     /**

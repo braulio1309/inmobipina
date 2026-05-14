@@ -107,7 +107,7 @@
         $formatFullName = function ($person) {
             $name = trim(($person->first_name ?? '') . ' ' . ($person->last_name ?? ''));
 
-            return $name !== '' ? $name : ($person->name ?? $person->email ?? 'N/D');
+            return $name !== '' ? $name : trim((string) ($person->name ?? $person->email ?? ''));
         };
 
         $spellAmount = function ($value) {
@@ -129,14 +129,14 @@
             return mb_strtoupper(number_format($value, 2, ',', '.') . ' DOLARES', 'UTF-8');
         };
 
-        $propertyType = $property->type ?? 'Inmueble';
-        $propertyAddress = $property->address ?? 'N/D';
+        $propertyType = trim((string) ($property->type ?? '')) ?: 'Inmueble';
+        $propertyAddress = trim((string) ($property->address ?? ''));
         $operationLabel = strtoupper($operation->type ?? 'VENTA');
         $propertyPrice = $operation->property_price ?: ($property->price ?? 0);
-        $ownerName = $ownerClient?->name ?: 'N/D';
-        $ownerCi = $ownerClient?->ci ?: 'N/D';
-        $buyerName = $buyerClient?->name ?: 'N/D';
-        $buyerCi = $buyerClient?->ci ?: 'N/D';
+        $ownerName = trim((string) ($ownerClient?->name ?? ''));
+        $ownerCi = trim((string) ($ownerClient?->ci ?? ''));
+        $buyerName = trim((string) ($buyerClient?->name ?? ''));
+        $buyerCi = trim((string) ($buyerClient?->ci ?? ''));
         $today = now();
 
         $receipts = collect([
@@ -155,7 +155,7 @@
 
             return [
                 'name' => $advisorName,
-                'ci' => $advisor->ci ?? 'N/D',
+                'ci' => trim((string) ($advisor->ci ?? '')),
                 'email' => $advisor->email ?? null,
                 'amount' => $advisorCommission,
                 'share_percentage' => $advisorPctOfOperation > 0 ? round(($advisorPctOfOperation / 5) * 100, 2) : 0,
@@ -220,7 +220,7 @@
             <div class="signature-wrap">
                 <div class="signature-line"></div>
                 <div class="signature-title">RECIBE CONFORME</div>
-                <div>C.I. {{ $recipientCi }}</div>
+                <div>{{ $recipientCi !== '' ? 'C.I. ' . $recipientCi : '' }}</div>
             </div>
         </div>
     @endforeach

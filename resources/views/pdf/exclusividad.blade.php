@@ -5,13 +5,14 @@
     <title>Contrato de Exclusividad</title>
     <style>
         @page {
-            margin: 30px;
+            margin: 26px 30px;
         }
 
         body { 
-            font-family: 'Arial Narrow', sans-serif; 
-            font-size: 12pt; 
-            line-height: 1.8; 
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.65;
+            color: #222;
             margin: 0;
             padding: 0;
             text-align: justify; 
@@ -21,16 +22,29 @@
         .page + .page { page-break-before: always; }
         .row::after { content: ""; clear: both; display: table; }
         .col-6 { width: 50%; float: left; text-align: center; }
-        
-        .header-img {
-            width: 150px;
-            opacity: 0.2;
-        }
+
         .header {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 30px;
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        .header td {
+            vertical-align: top;
+        }
+
+        .logo {
+            width: 170px;
+        }
+
+        .logo img {
+            width: 155px;
+        }
+
+        .chamber {
+            text-align: right;
+            font-size: 10px;
+            font-weight: bold;
         }
 
         .line-placeholder {
@@ -94,9 +108,16 @@
     @endphp
     <div class="container">
         <div class="page">
-            <div class="header">
-                <img src="{{ public_path('images/logo.png') }}" class="header-img" alt="Logo Inmobipina">
-            </div>
+            <table class="header">
+                <tr>
+                    <td class="logo">
+                        <img src="{{ public_path('images/logo.png') }}" alt="Inmobipina">
+                    </td>
+                    <td class="chamber">
+                        Camara Inmobiliaria<br>de Venezuela<br>Nro. 84
+                    </td>
+                </tr>
+            </table>
 
             <h3 class="text-center fw-bold">CONTRATO DE EXCLUSIVIDAD DE BIEN INMUEBLE</h3>
 
@@ -116,9 +137,16 @@
         </div>
 
         <div class="page">
-            <div class="header">
-                <img src="{{ public_path('images/logo.png') }}" class="header-img" alt="Logo Inmobipina">
-            </div>
+            <table class="header">
+                <tr>
+                    <td class="logo">
+                        <img src="{{ public_path('images/logo.png') }}" alt="Inmobipina">
+                    </td>
+                    <td class="chamber">
+                        Camara Inmobiliaria<br>de Venezuela<br>Nro. 84
+                    </td>
+                </tr>
+            </table>
 
             <p><span class="fw-bold">SÉPTIMA:</span> Se establece como domicilio a los fines de resolver cualquier conflicto Judicial o Extrajudicial Ciudad Guayana, Estado Bolívar. Las Notificaciones que llegasen a efectuarse deben ser dirigidas en el caso de <strong>"EL PROPIETARIO"</strong>, Correo Electrónico: <strong>{{ $ownerEmail }}</strong>, número telefónico: <strong>{{ $ownerPhone }}</strong> y el de <strong>"LA INMOBILIARIA"</strong> carrera Nekuima, Edificio Multicentro, Alta Vista, Correo Electrónico: <strong>inmobipina@hotmail.com</strong>, número telefónico: <strong>N/D</strong>. Las notificaciones electrónicas se regirán por lo dispuesto en la Ley de Firmas y Datos Electrónicos.</p>
 

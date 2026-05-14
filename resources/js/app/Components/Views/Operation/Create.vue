@@ -528,7 +528,42 @@ export default {
             return (parseFloat(val) || 0).toFixed(2);
         },
 
+        validateOperationBeforeSave() {
+            if (!this.operation.property_id) {
+                this.$toastr.e('Debes seleccionar una propiedad');
+                return false;
+            }
+
+            if (!this.operation.type) {
+                this.$toastr.e('Debes seleccionar el tipo de operación');
+                return false;
+            }
+
+            if (['venta', 'reserva', 'traspaso'].includes(this.operation.type)) {
+                if (!this.operation.owner_client_id) {
+                    this.$toastr.e('Debes seleccionar el cliente propietario para generar el pago');
+                    return false;
+                }
+
+                if (!this.operation.buyer_client_id) {
+                    this.$toastr.e('Debes seleccionar el cliente comprador para generar el pago');
+                    return false;
+                }
+
+                if (!this.operation.sellers.length) {
+                    this.$toastr.e('Debes seleccionar al menos un asesor');
+                    return false;
+                }
+            }
+
+            return true;
+        },
+
         async saveOperation() {
+            if (!this.validateOperationBeforeSave()) {
+                return;
+            }
+
             try {
                 const payload = {
                     ...this.operation,

@@ -38,6 +38,7 @@ Route::get('property/export', [PropertyController::class, 'export'])->name('prop
 Route::get('property/map-data', [PropertyController::class, 'getMapProperties'])->name('property.map-data');
 Route::get('property/map-tiles/{z}/{x}/{y}', [PropertyController::class, 'getMapTile'])->name('property.map-tiles');
 Route::get('property/address-search', [PropertyController::class, 'searchAddress'])->name('property.address-search');
+Route::get('property/{id}/summary', [PropertyController::class, 'summary'])->name('property.summary');
 Route::get('property/{id}', [PropertyController::class, 'show'])->name('property.show');
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');
 Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->name('property.approve');
@@ -49,12 +50,14 @@ Route::get('property/{id}/exclusivity-pdf', [PropertyController::class, 'generat
 Route::get('property/{id}/captation-pdf', [PropertyController::class, 'generateCaptationPdf'])->name('property.captation-pdf');
 
 Route::get('client/listar', [ClientController::class, 'listado'])->name('client.listar');
+Route::get('client/form-data', [ClientController::class, 'formData'])->name('client.form-data');
 Route::post('client/create', [ClientController::class, 'create'])->name('client.crear');
 Route::post('edit/client/{id}', [ClientController::class, 'edit'])->name('client.edit');
 Route::patch('client/{id}/status', [ClientController::class, 'changeStatus'])->name('client.status');
 Route::get('client/{client}', [ClientController::class, 'show'])->name('client.show');
 
 Route::get('activities/listar', [ActivityController::class, 'listado'])->name('Activity.listar');
+Route::get('activities/form-data', [ActivityController::class, 'formData'])->name('Activity.form-data');
 Route::get('activities/export', [ActivityController::class, 'export'])->name('Activity.export');
 Route::post('activities/create', [ActivityController::class, 'create'])->name('Activity.crear');
 Route::post('edit/activities/{id}', [ActivityController::class, 'edit'])->name('Activity.edit');

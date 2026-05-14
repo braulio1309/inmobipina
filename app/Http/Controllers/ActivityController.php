@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Activity;
+use App\Models\Property;
 use App\Filters\Common\Auth\ActivityFilter as AppUserFilter;
 use App\Filters\Core\ActivityFilter;
 use App\Services\Core\Auth\ActivityService;
@@ -50,6 +51,26 @@ class ActivityController extends Controller
                 ->latest()
         ))->filter()
             ->paginate(request()->get('per_page', 10));
+    }
+
+    public function formData()
+    {
+        $properties = Property::query()
+            ->select('id', 'title', 'address', 'status')
+            ->orderBy('title')
+            ->get()
+            ->map(fn ($property) => [
+                'id' => (string) $property->id,
+                'value' => trim(($property->title ?? '') . ' - ' . ($property->address ?? '')),
+                'title' => $property->title,
+                'address' => $property->address,
+                'status' => $property->status,
+            ])
+            ->values();
+
+        return response()->json([
+            'properties' => $properties,
+        ]);
     }
 
     public function create(Request $request)

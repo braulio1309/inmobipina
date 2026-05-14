@@ -518,25 +518,36 @@ class OperationController extends Controller
 
     private function resolveOperationOwnerClient(Operation $operation)
     {
+        $ownerFallback = $this->extractOwnerFallbackData($operation->property);
+
         if ($operation->ownerClient) {
-            return $operation->ownerClient;
+            return $this->mergeParticipantData($operation->ownerClient, $ownerFallback);
         }
 
         $suggestedOwner = $this->resolveSuggestedOwnerClient($operation->property, $operation->clients);
         if ($suggestedOwner) {
-            return $suggestedOwner;
+            return $this->mergeParticipantData($suggestedOwner, $ownerFallback);
         }
 
-        return $operation->clients->first();
+        $fallbackClient = $operation->clients->first();
+        if ($fallbackClient) {
+            return $this->mergeParticipantData($fallbackClient, $ownerFallback);
+        }
+
+        return $ownerFallback ?: $this->makeAnonymousClient();
     }
 
     private function resolveOperationBuyerClient(Operation $operation, $resolvedOwnerClient = null)
     {
         if ($operation->buyerClient) {
-            return $operation->buyerClient;
+            return $this->sanitizeParticipant($operation->buyerClient);
         }
 
-        return $this->resolveBuyerClientFallback($operation, $resolvedOwnerClient);
+        $fallbackBuyer = $this->resolveBuyerClientFallback($operation, $resolvedOwnerClient);
+
+        return $fallbackBuyer
+            ? $this->sanitizeParticipant($fallbackBuyer)
+            : $this->makeAnonymousClient();
     }
 
     private function resolveSuggestedOwnerClient(?Property $property, $clients)
@@ -582,18 +593,122 @@ class OperationController extends Controller
     private function resolveBuyerClientFallback(Operation $operation, $resolvedOwnerClient)
     {
         return $operation->clients->first(function ($client) use ($resolvedOwnerClient) {
-            return !$resolvedOwnerClient || (string) $client->id !== (string) $resolvedOwnerClient->id;
+            return !$this->participantMatchesClient($resolvedOwnerClient, $client);
         });
+    }
+
+    private function extractOwnerFallbackData(?Property $property)
+    {
+        if (!$property) {
+            return null;
+        }
+
+        $captation = $property->captation;
+        $latestExclusivity = $property->exclusivities->first();
+
+        $participant = (object) [
+            'id' => null,
+            'name' => $this->firstFilledValue([
+                optional($captation)->autorizacion_nombre,
+                optional($captation)->cliente_nombre_apellido,
+                optional($latestExclusivity)->propietario_nombre,
+            ]),
+            'ci' => $this->firstFilledValue([
+                optional($captation)->autorizacion_cedula,
+                optional($latestExclusivity)->propietario_ci,
+            ]),
+            'email' => $this->firstFilledValue([
+                optional($captation)->cliente_correo_electronico,
+                optional($latestExclusivity)->propietario_email,
+            ]),
+            'phone' => $this->firstFilledValue([
+                optional($captation)->cliente_nro_contacto,
+                optional($latestExclusivity)->propietario_telefono,
+            ]),
+        ];
+
+        return $this->hasParticipantData($participant) ? $participant : null;
+    }
+
+    private function mergeParticipantData($participant, $fallback = null)
+    {
+        $base = $this->sanitizeParticipant($participant);
+
+        if (!$fallback) {
+            return $base;
+        }
+
+        $fallback = $this->sanitizeParticipant($fallback);
+
+        return (object) [
+            'id' => $base->id,
+            'name' => $base->name !== '' ? $base->name : $fallback->name,
+            'ci' => $base->ci !== '' ? $base->ci : $fallback->ci,
+            'email' => $base->email !== '' ? $base->email : $fallback->email,
+            'phone' => $base->phone !== '' ? $base->phone : $fallback->phone,
+        ];
+    }
+
+    private function sanitizeParticipant($participant)
+    {
+        return (object) [
+            'id' => $participant->id ?? null,
+            'name' => trim((string) ($participant->name ?? '')),
+            'ci' => trim((string) ($participant->ci ?? '')),
+            'email' => trim((string) ($participant->email ?? '')),
+            'phone' => trim((string) ($participant->phone ?? '')),
+        ];
+    }
+
+    private function participantMatchesClient($participant, $client): bool
+    {
+        if (!$participant || !$client) {
+            return false;
+        }
+
+        if (($participant->id ?? null) && ($client->id ?? null) && (string) $participant->id === (string) $client->id) {
+            return true;
+        }
+
+        foreach (['ci', 'email', 'phone', 'name'] as $field) {
+            $participantValue = trim((string) ($participant->{$field} ?? ''));
+            $clientValue = trim((string) ($client->{$field} ?? ''));
+
+            if ($participantValue !== '' && $clientValue !== '' && strcasecmp($participantValue, $clientValue) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasParticipantData($participant): bool
+    {
+        return collect(['name', 'ci', 'email', 'phone'])
+            ->contains(fn ($field) => trim((string) ($participant->{$field} ?? '')) !== '');
+    }
+
+    private function firstFilledValue(array $values): string
+    {
+        foreach ($values as $value) {
+            $normalized = trim((string) $value);
+
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        return '';
     }
 
     private function makeAnonymousClient()
     {
         return (object) [
             'id' => null,
-            'name' => 'N/D',
-            'ci' => 'N/D',
-            'email' => null,
-            'phone' => null,
+            'name' => '',
+            'ci' => '',
+            'email' => '',
+            'phone' => '',
         ];
     }
 }

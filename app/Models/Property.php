@@ -85,4 +85,10 @@ class Property extends Model
     {
         return $this->hasMany(PropertyDocument::class)->latest();
     }
+
+    public function clients()
+    {
+        return $this->belongsToMany(Client::class, 'client_property')
+            ->withTimestamps();
+    }
 }

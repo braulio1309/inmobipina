@@ -14,6 +14,7 @@ use App\Models\Core\Auth\Traits\Scope\UserScope;
 use Spatie\Activitylog\Traits\CausesActivity;
 use Altek\Eventually\Eventually;
 use App\Models\Core\Auth\User;
+use App\Models\Property;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Model;
 
@@ -43,5 +44,11 @@ class Client extends Model
     public function activities()
     {
         return $this->hasMany(Activity::class);
+    }
+
+    public function properties()
+    {
+        return $this->belongsToMany(Property::class, 'client_property')
+            ->withTimestamps();
     }
 }

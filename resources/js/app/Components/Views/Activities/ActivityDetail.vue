@@ -34,6 +34,15 @@
                     <span class="ml-2">{{ fullName(activity.user) }}</span>
                 </div>
 
+                <div class="detail-row" v-if="activity.property">
+                    <i class="fas fa-building text-primary mr-2"></i>
+                    <strong>Propiedad:</strong>
+                    <div class="ml-2 d-inline-block">
+                        <div>{{ activity.property.title || `Propiedad #${activity.property.id}` }}</div>
+                        <small class="text-muted" v-if="activity.property.address">{{ activity.property.address }}</small>
+                    </div>
+                </div>
+
                 <!-- Descripción -->
                 <div class="detail-row" v-if="activity.description">
                     <i class="fas fa-align-left text-primary mr-2"></i>
