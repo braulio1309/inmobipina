@@ -362,37 +362,42 @@ export default {
     methods: {
 
         async loadData() {
-                const response = await this.axiosGet('/operations/form-data');
-                
-                const properties = JSON.parse(JSON.stringify(response.data.properties));
-                const buyers = JSON.parse(JSON.stringify(response.data.clients));
-                const users = JSON.parse(JSON.stringify(response.data.users));
+                try {
+                    const response = await this.axiosGet('/operations/form-data');
+                    const properties = Array.isArray(response?.data?.properties) ? response.data.properties : [];
+                    const buyers = Array.isArray(response?.data?.clients) ? response.data.clients : [];
+                    const users = Array.isArray(response?.data?.users) ? response.data.users : [];
 
-                this.buyersList = [
-                    { id: "", value: "Elige uno" },
-                    ...buyers.map(c => ({
-                        id: c.id.toString(),
-                        value: c.value,
-                    }))
-                ];
+                    this.buyersList = [
+                        { id: "", value: "Elige uno" },
+                        ...buyers.map(c => ({
+                            id: c.id.toString(),
+                            value: c.value,
+                        }))
+                    ];
 
-                this.propertiesList = [
-                    { id: "", value: "Elige uno" },
-                    ...properties.map(p => ({
-                        id: p.id.toString(),
-                        value: p.value,
-                        price: p.price,
-                        suggestedOwnerClientId: p.suggested_owner_client_id ? p.suggested_owner_client_id.toString() : '',
-                        suggestedOwnerClientName: p.suggested_owner_client_name || '',
-                    }))
-                ];
+                    this.propertiesList = [
+                        { id: "", value: "Elige uno" },
+                        ...properties.map(p => ({
+                            id: p.id.toString(),
+                            value: p.value,
+                            price: p.price,
+                            suggestedOwnerClientId: p.suggested_owner_client_id ? p.suggested_owner_client_id.toString() : '',
+                            suggestedOwnerClientName: p.suggested_owner_client_name || '',
+                        }))
+                    ];
 
-                this.sellersList = [
-                    ...users.map(u => ({
+                    this.sellersList = users.map(u => ({
                         id: u.id.toString(),
                         value: u.value,
-                    }))
-                ];
+                    }));
+                } catch (error) {
+                    this.buyersList = [{ id: "", value: "Elige uno" }];
+                    this.propertiesList = [{ id: "", value: "Elige uno" }];
+                    this.sellersList = [];
+                    this.$toastr.e('No se pudieron cargar los datos del formulario de cierres');
+                    console.error('Error cargando datos del formulario de cierres', error);
+                }
         },
 
         async loadOperation() {

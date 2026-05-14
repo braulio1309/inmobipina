@@ -393,37 +393,61 @@ class OperationController extends Controller
     {
         $clients = Client::select('id', 'name', 'email', 'phone', 'ci')->get();
 
-        $users = User::select('id', 'first_name', 'last_name')
-            ->orderBy('first_name')
-            ->get()
-            ->map(fn($u) => [
-                'id'    => $u->id,
-                'value' => trim($u->first_name . ' ' . $u->last_name),
-            ]);
+        try {
+            $users = User::select('id', 'first_name', 'last_name', 'email')
+                ->orderBy('first_name')
+                ->get()
+                ->map(function ($user) {
+                    $fullName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
 
-        // Only show properties that are not reserved or sold (for new operations)
-        $properties = Property::with([
-                'captation',
-                'exclusivities' => function ($query) {
-                    $query->latest();
-                },
-            ])
-            ->select('id', 'title', 'price', 'status')
-            ->whereNotIn('status', ['Reservado', 'Vendido'])
-            ->get()
-            ->map(function ($property) use ($clients) {
-                $suggestedOwnerClient = $this->resolveSuggestedOwnerClient($property, $clients);
+                    return [
+                        'id' => $user->id,
+                        'value' => $fullName !== '' ? $fullName : ($user->email ?? 'Usuario #' . $user->id),
+                    ];
+                })
+                ->values();
+        } catch (\Throwable $exception) {
+            report($exception);
+            $users = collect();
+        }
 
-                return [
-                    'id' => $property->id,
-                    'value' => $property->title,
-                    'price' => $property->price,
-                    'status' => $property->status,
-                    'suggested_owner_client_id' => $suggestedOwnerClient?->id,
-                    'suggested_owner_client_name' => $suggestedOwnerClient?->name,
-                ];
-            })
-            ->values();
+        try {
+            // Include properties with null/empty status and exclude only locked ones.
+            $properties = Property::with([
+                    'captation',
+                    'exclusivities' => function ($query) {
+                        $query->latest();
+                    },
+                ])
+                ->select('id', 'title', 'price', 'status')
+                ->where(function ($query) {
+                    $query->whereNull('status')
+                        ->orWhere('status', '')
+                        ->orWhereNotIn('status', ['Reservado', 'Vendido']);
+                })
+                ->get()
+                ->map(function ($property) use ($clients) {
+                    try {
+                        $suggestedOwnerClient = $this->resolveSuggestedOwnerClient($property, $clients);
+                    } catch (\Throwable $exception) {
+                        report($exception);
+                        $suggestedOwnerClient = null;
+                    }
+
+                    return [
+                        'id' => $property->id,
+                        'value' => $property->title,
+                        'price' => $property->price,
+                        'status' => $property->status,
+                        'suggested_owner_client_id' => $suggestedOwnerClient?->id,
+                        'suggested_owner_client_name' => $suggestedOwnerClient?->name,
+                    ];
+                })
+                ->values();
+        } catch (\Throwable $exception) {
+            report($exception);
+            $properties = collect();
+        }
 
         return response()->json([
             'properties' => $properties,
