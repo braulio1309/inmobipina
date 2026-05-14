@@ -9,7 +9,9 @@ use App\Models\Core\Auth\User;
 use App\Filters\Common\Auth\ClientFilter as AppUserFilter;
 use App\Filters\Core\ClientFilter;
 use App\Services\Core\Auth\ClientService;
+use App\Exports\ClientExport;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ClientController extends Controller
 {
@@ -25,6 +27,7 @@ class ClientController extends Controller
         /** @var \Illuminate\Pagination\LengthAwarePaginator $clients */
         $clients = (new AppUserFilter(
             $this->service
+                ->with(['advisor'])
                 ->filters($this->filter)
                 ->latest()
         ))->filter()
@@ -34,10 +37,20 @@ class ClientController extends Controller
             $client->name = trim((string) ($client->name ?? ''));
             $client->display_name = $client->name !== '' ? $client->name : 'Sin nombre';
 
+            $client->advisor_name = $client->advisor
+                ? trim(($client->advisor->first_name ?? '') . ' ' . ($client->advisor->last_name ?? ''))
+                : '—';
+
             return $client;
         });
 
         return $clients;
+    }
+
+    public function export(Request $request)
+    {
+        $fileName = 'clientes_' . now()->format('Y-m-d_H-i') . '.xlsx';
+        return Excel::download(new ClientExport($request), $fileName);
     }
 
     public function formData()
@@ -149,4 +162,3 @@ class ClientController extends Controller
         return (int) $assignedTo;
     }
 }
-

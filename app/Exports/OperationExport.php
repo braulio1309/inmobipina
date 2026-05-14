@@ -38,7 +38,7 @@ class OperationExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
             $date = json_decode(htmlspecialchars_decode($date), true);
         }
         if ($date && is_array($date) && isset($date['start'])) {
-            $query->whereBetween(DB::raw('DATE(created_at)'), [$date['start'], $date['end']]);
+            $query->whereBetween(DB::raw('DATE(COALESCE(fecha_cierre, created_at))'), [$date['start'], $date['end']]);
         }
 
         // Filter by advisor (seller)
@@ -76,6 +76,7 @@ class OperationExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
             'Asesores',
             'Compradores',
             'Notas',
+            'Fecha de Cierre',
             'Fecha de Creación',
         ];
     }
@@ -95,6 +96,7 @@ class OperationExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
             $sellers ?: 'N/A',
             $buyers  ?: 'N/A',
             $row->notes,
+            $row->fecha_cierre ? \Carbon\Carbon::parse($row->fecha_cierre)->format('Y-m-d') : '',
             $row->created_at ? $row->created_at->format('Y-m-d H:i') : '',
         ];
     }

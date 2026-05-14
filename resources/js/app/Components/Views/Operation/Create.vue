@@ -122,6 +122,18 @@
             </div>
         </div>
 
+        <!-- FECHA DE CIERRE -->
+        <div class="mb-3">
+            <label class="form-label">Fecha de cierre</label>
+            <input
+                type="date"
+                class="form-control"
+                v-model="operation.fecha_cierre"
+                :readonly="isLocked"
+            >
+            <small class="text-muted">Fecha efectiva del cierre. Se usa para reportes y filtros de rango de fecha.</small>
+        </div>
+
         <!-- CLIENTE PROPIETARIO -->
         <div class="mb-3">
             <label class="form-label">Cliente propietario</label>
@@ -302,6 +314,7 @@ export default {
                 property_price: "",
                 start_date: "",
                 end_date: "",
+                fecha_cierre: "",
                 sellers: [],
                 notes: "",
             }
@@ -410,6 +423,7 @@ export default {
                 property_price: operation.property_price || '',
                 start_date: operation.start_date || '',
                 end_date: operation.end_date || '',
+                fecha_cierre: operation.fecha_cierre || '',
                 owner_client_id: operation.owner_client_id || '',
                 buyer_client_id: operation.buyer_client_id || '',
                 sellers: operation.sellers || [],
@@ -597,6 +611,7 @@ export default {
                         property_price: "",
                         start_date: "",
                         end_date: "",
+                        fecha_cierre: "",
                         sellers: [],
                         notes: "",
                     };

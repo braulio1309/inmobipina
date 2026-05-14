@@ -42,6 +42,7 @@ class Operation extends Model
         'property_price',
         'start_date',
         'end_date',
+        'fecha_cierre',
         'notes',
         'company_commission_percentage',
         'company_commission_amount',

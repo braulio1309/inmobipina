@@ -1,6 +1,17 @@
 <template>
     <div class="content-wrapper">
-        <app-breadcrumb :page-title="'Listado de Clientes'" :directory="$t('datatables')" :icon="'grid'"/>
+        <div class="row">
+            <div class="col-sm-12 col-md-6">
+                <app-breadcrumb :page-title="'Listado de Clientes'" :directory="$t('datatables')" :icon="'grid'"/>
+            </div>
+            <div class="col-sm-12 col-md-6 breadcrumb-side-button">
+                <div class="float-md-right mb-3 mb-sm-3 mb-md-0">
+                    <button type="button" class="btn btn-success btn-with-shadow" @click="exportClients">
+                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Modal cambio de estatus -->
         <div v-if="showStatusModal" class="modal-backdrop" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1050;display:flex;align-items:center;justify-content:center;">
@@ -108,6 +119,16 @@
                             }
                         },
                         {
+                            title: 'Asesor',
+                            type: 'text',
+                            key: 'advisor_name',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value, row) => {
+                                return value || '—';
+                            }
+                        },
+                        {
                             title: 'Estatus',
                             type: 'custom-html',
                             key: 'status',
@@ -132,7 +153,25 @@
                             isVisible: true
                         },
                     ],
-                    filters: [],
+                    filters: [
+                        {
+                            "title": 'Fecha de registro',
+                            "type": "range-picker",
+                            "key": "date",
+                            "option": ["today", "thisMonth", "last7Days", "lastYear"]
+                        },
+                        {
+                            "title": 'Estatus',
+                            "type": "drop-down-filter",
+                            "key": "status",
+                            "option": [
+                                { id: "potencial", value: "Potencial" },
+                                { id: "no potencial", value: "No potencial" },
+                                { id: "atendido", value: "Atendido" },
+                                { id: "cerrado", value: "Cerrado" },
+                            ]
+                        },
+                    ],
                     paginationType: "pagination",
                     responsive: true,
                     rowLimit: 50,
@@ -150,17 +189,27 @@
         },
         methods: {
             searchAndSelectFilterOptions() {
-                this.axiosGet(actions.DATATABLE_SEARCH_SELECT).then(response => {
+                this.options.filters = this.options.filters.filter(f => f.key !== 'asesor');
+                this.axiosGet("admin/auth/users")
+                .then(response => {
+                    const users = Array.isArray(response.data) ? response.data : (response.data.data || []);
                     this.options.filters.push({
-                        "title": 'Asesores',
-                        "type": "drop-down-filter",
-                        "key": "Propiedades por asesor",
-                        "option": response.data.map(name => ({
-                            id: name.name,
-                            value: name.name
+                        title: 'Asesores',
+                        type: 'drop-down-filter',
+                        key: 'asesor',
+                        option: users.map(u => ({
+                            id: u.id,
+                            value: u.first_name
+                                ? (u.first_name + ' ' + (u.last_name || '')).trim()
+                                : (u.name || u.value || 'Sin nombre'),
                         }))
                     });
                 });
+            },
+            exportClients() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const exportUrl = '/client/export?' + urlParams.toString();
+                window.open(exportUrl, '_blank');
             },
             getAction(rowData, actionObj) {
                 if (actionObj.title === 'Editar') {

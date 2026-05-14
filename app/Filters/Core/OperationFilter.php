@@ -40,7 +40,7 @@ class OperationFilter extends FilterBuilder
             $date = json_decode(htmlspecialchars_decode($date), true);
         }
         $this->builder->when($date && is_array($date) && isset($date['start']), function (Builder $builder) use ($date) {
-            $builder->whereBetween(DB::raw('DATE(created_at)'), [$date['start'], $date['end']]);
+            $builder->whereBetween(DB::raw('DATE(COALESCE(fecha_cierre, created_at))'), [$date['start'], $date['end']]);
         });
     }
 
