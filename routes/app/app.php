@@ -46,6 +46,7 @@ Route::post('property/{id}/images', [PropertyController::class, 'uploadImages'])
 Route::post('property/{id}/documents', [PropertyController::class, 'uploadDocuments'])->name('property.documents');
 Route::delete('property/{propertyId}/documents/{documentId}', [PropertyController::class, 'deleteDocument'])->name('property.documents.delete');
 Route::get('property/{id}/exclusivity-pdf', [PropertyController::class, 'generateExclusivityPdf'])->name('property.exclusivity-pdf');
+Route::get('property/{id}/captation-pdf', [PropertyController::class, 'generateCaptationPdf'])->name('property.captation-pdf');
 
 Route::get('client/listar', [ClientController::class, 'listado'])->name('client.listar');
 Route::post('client/create', [ClientController::class, 'create'])->name('client.crear');
@@ -67,6 +68,7 @@ Route::post('operations/{id}/confirm-sale', [OperationController::class, 'confir
 Route::get('/operations/form-data', [\App\Http\Controllers\OperationController::class, 'formData']);
 Route::get('operations/{id}', [OperationController::class, 'show'])->name('operations.show');
 Route::get('operations/{id}/download-contract', [OperationController::class, 'downloadContract'])->name('operations.download-contract');
+Route::get('operations/{id}/commission-receipt', [OperationController::class, 'downloadCommissionReceipt'])->name('operations.commission-receipt');
 
 Route::post('/users', [App\Http\Controllers\UserController::class, 'store']);
 Route::post('/users/edit/{id}', [App\Http\Controllers\UserController::class, 'update']);

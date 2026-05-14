@@ -17,6 +17,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Sale;
 use App\Exports\OperationExport;
 use Maatwebsite\Excel\Facades\Excel;
+use stdClass;
 
 class OperationController extends Controller
 {
@@ -31,7 +32,7 @@ class OperationController extends Controller
     {
         /** @var \Illuminate\Pagination\LengthAwarePaginator $operations */
         $operations = (new AppUserFilter(
-            $this->service->with(['sellers', 'property'])
+            $this->service->with(['sellers', 'property', 'ownerClient', 'buyerClient'])
                 ->filters($this->filter)
                 ->latest()
         ))
@@ -58,6 +59,7 @@ class OperationController extends Controller
             $item->contract_url = $item->contract_path
                 ? Storage::url('contracts/' . $item->contract_path)
                 : null;
+            $item->can_download_commission_pdf = in_array($item->type, ['reserva', 'venta', 'traspaso']);
 
             return $item;
         });
@@ -89,17 +91,14 @@ class OperationController extends Controller
 
     // 1. Crear la Operación
     $operation = Operation::create(array_merge(
-        $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
+        $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
         [
             'company_commission_percentage' => $companyPct,
             'company_commission_amount'     => $companyAmt,
         ]
     ));
 
-    // Guardar buyers (Relación muchos a muchos en Operation)
-    if ($request->has('buyers')) {
-        $operation->clients()->sync($request->buyers);
-    }
+    $operation->clients()->sync($this->buildClientSyncIds($request));
 
     // Guardar sellers con comisiones
     if ($numSellers > 0) {
@@ -135,7 +134,7 @@ class OperationController extends Controller
     if ($operation->type == 'venta' || $operation->type == 'traspaso') {
         Sale::create([
             'property_id'  => $operation->property_id,
-            'buyer_id'     => $request->buyers[0] ?? null,
+            'buyer_id'     => $request->buyer_client_id,
             'seller_id'    => $request->sellers[0] ?? null,
             'total_amount' => $operation->amount,
             'date'         => now(),
@@ -151,7 +150,7 @@ class OperationController extends Controller
     if ($operation->type == 'exclusividad') {
         $property = $operation->property;
         $exclusivity = $property ? $property->exclusivities()->latest()->first() : null;
-        $propietario = $operation->clients->first(); 
+        $propietario = $operation->ownerClient;
 
         $data = [
             'propietario' => [
@@ -221,14 +220,14 @@ class OperationController extends Controller
             : [];
 
         $operation->update(array_merge(
-            $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
+            $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'notes']),
             [
                 'company_commission_percentage' => $companyPct,
                 'company_commission_amount' => $companyAmt,
             ]
         ));
 
-        $operation->clients()->sync($request->input('buyers', []));
+        $operation->clients()->sync($this->buildClientSyncIds($request));
 
         if ($numSellers > 0) {
             $syncData = [];
@@ -257,7 +256,9 @@ class OperationController extends Controller
 
     public function show($id)
     {
-        $operation = Operation::with(['clients', 'sellers', 'property'])->findOrFail($id);
+        $operation = Operation::with(['clients', 'sellers', 'property', 'ownerClient', 'buyerClient'])->findOrFail($id);
+        $resolvedOwnerClient = $this->resolveOperationOwnerClient($operation);
+        $resolvedBuyerClient = $this->resolveOperationBuyerClient($operation, $resolvedOwnerClient);
 
         $propertyStatus = $operation->property ? $operation->property->status : null;
         $isLocked = in_array($propertyStatus, ['Reservado', 'Vendido']);
@@ -274,7 +275,10 @@ class OperationController extends Controller
             'start_date' => $operation->start_date,
             'end_date' => $operation->end_date,
             'notes' => $operation->notes,
-            'buyers' => $operation->clients->pluck('id')->map(fn ($item) => (string) $item)->values(),
+            'owner_client_id' => $resolvedOwnerClient?->id ? (string) $resolvedOwnerClient->id : '',
+            'buyer_client_id' => $resolvedBuyerClient?->id ? (string) $resolvedBuyerClient->id : '',
+            'owner_client_name' => $resolvedOwnerClient?->name,
+            'buyer_client_name' => $resolvedBuyerClient?->name,
             'sellers' => $operation->sellers->pluck('id')->map(fn ($item) => (string) $item)->values(),
             'sellers_commissions' => $operation->sellers->map(fn ($s) => [
                 'id' => (string) $s->id,
@@ -292,7 +296,7 @@ class OperationController extends Controller
             return response()->json(['message' => 'No tienes permiso para confirmar ventas.'], 403);
         }
 
-        $operation = Operation::with(['clients', 'sellers', 'property'])->findOrFail($id);
+        $operation = Operation::with(['clients', 'sellers', 'property', 'buyerClient'])->findOrFail($id);
 
         if ($operation->type !== 'reserva') {
             return response()->json(['message' => 'Solo se puede confirmar venta de operaciones de tipo reserva.'], 422);
@@ -366,10 +370,9 @@ class OperationController extends Controller
         }
 
         // Create Sale record
-        $buyers = $operation->clients->pluck('id')->toArray();
         Sale::create([
             'property_id'  => $operation->property_id,
-            'buyer_id'     => $buyers[0] ?? null,
+            'buyer_id'     => $operation->buyer_client_id,
             'seller_id'    => $sellers[0] ?? null,
             'total_amount' => $netAmount,
             'date'         => now(),
@@ -387,6 +390,8 @@ class OperationController extends Controller
 
     public function formData()
     {
+        $clients = Client::select('id', 'name', 'email', 'phone', 'ci')->get();
+
         $users = User::select('id', 'first_name', 'last_name')
             ->orderBy('first_name')
             ->get()
@@ -396,13 +401,38 @@ class OperationController extends Controller
             ]);
 
         // Only show properties that are not reserved or sold (for new operations)
-        $properties = Property::select('id', 'title as value', 'price', 'status')
+        $properties = Property::with([
+                'captation',
+                'exclusivities' => function ($query) {
+                    $query->latest();
+                },
+            ])
+            ->select('id', 'title', 'price', 'status')
             ->whereNotIn('status', ['Reservado', 'Vendido'])
-            ->get();
+            ->get()
+            ->map(function ($property) use ($clients) {
+                $suggestedOwnerClient = $this->resolveSuggestedOwnerClient($property, $clients);
+
+                return [
+                    'id' => $property->id,
+                    'value' => $property->title,
+                    'price' => $property->price,
+                    'status' => $property->status,
+                    'suggested_owner_client_id' => $suggestedOwnerClient?->id,
+                    'suggested_owner_client_name' => $suggestedOwnerClient?->name,
+                ];
+            })
+            ->values();
 
         return response()->json([
             'properties' => $properties,
-            'clients'    => Client::select('id', 'name as value')->get(),
+            'clients'    => $clients->map(fn ($client) => [
+                'id' => $client->id,
+                'value' => $client->name,
+                'email' => $client->email,
+                'phone' => $client->phone,
+                'ci' => $client->ci,
+            ])->values(),
             'users'      => $users,
         ]);
     }
@@ -430,9 +460,140 @@ class OperationController extends Controller
         );
     }
 
+    public function downloadCommissionReceipt($id)
+    {
+        $operation = Operation::with([
+            'clients',
+            'sellers',
+            'ownerClient',
+            'buyerClient',
+            'property.captation',
+            'property.exclusivities' => function ($query) {
+                $query->latest();
+            },
+        ])->findOrFail($id);
+
+        if (!in_array($operation->type, ['reserva', 'venta', 'traspaso'])) {
+            return response()->json(['message' => 'Esta operación no tiene recibo de pago de comisión.'], 422);
+        }
+
+        if ($operation->sellers->isEmpty()) {
+            return response()->json(['message' => 'La operación no tiene asesores asociados.'], 422);
+        }
+
+        $resolvedOwnerClient = $this->resolveOperationOwnerClient($operation) ?: $this->makeAnonymousClient();
+        $resolvedBuyerClient = $this->resolveOperationBuyerClient($operation, $resolvedOwnerClient) ?: $this->makeAnonymousClient();
+
+        $pdf = Pdf::loadView('pdf.pago-comision', [
+            'operation' => $operation,
+            'advisors' => $operation->sellers,
+            'property' => $operation->property,
+            'ownerClient' => $resolvedOwnerClient,
+            'buyerClient' => $resolvedBuyerClient,
+            'companyRepresentative' => [
+                'name' => 'Luis Rafael Pinango',
+                'ci' => '5.907.985',
+                'rif' => 'J-29788405-0',
+            ],
+        ]);
+
+        $fileName = 'pago_comision_operacion_' . $operation->id . '.pdf';
+
+        return $pdf->download($fileName);
+    }
+
     public function export(Request $request)
     {
         $fileName = 'cierres_' . now()->format('Y-m-d_H-i') . '.xlsx';
         return Excel::download(new OperationExport($request), $fileName);
+    }
+
+    private function buildClientSyncIds(Request $request): array
+    {
+        return collect([
+            $request->input('owner_client_id'),
+            $request->input('buyer_client_id'),
+        ])->filter()->unique()->values()->all();
+    }
+
+    private function resolveOperationOwnerClient(Operation $operation)
+    {
+        if ($operation->ownerClient) {
+            return $operation->ownerClient;
+        }
+
+        $suggestedOwner = $this->resolveSuggestedOwnerClient($operation->property, $operation->clients);
+        if ($suggestedOwner) {
+            return $suggestedOwner;
+        }
+
+        return $operation->clients->first();
+    }
+
+    private function resolveOperationBuyerClient(Operation $operation, $resolvedOwnerClient = null)
+    {
+        if ($operation->buyerClient) {
+            return $operation->buyerClient;
+        }
+
+        return $this->resolveBuyerClientFallback($operation, $resolvedOwnerClient);
+    }
+
+    private function resolveSuggestedOwnerClient(?Property $property, $clients)
+    {
+        if (!$property) {
+            return null;
+        }
+
+        $ownerName = trim((string) optional($property->captation)->cliente_nombre_apellido);
+        $ownerCi = trim((string) optional($property->captation)->autorizacion_cedula);
+        $ownerEmail = trim((string) optional($property->captation)->cliente_correo_electronico);
+        $ownerPhone = trim((string) optional($property->captation)->cliente_nro_contacto);
+
+        if ($ownerName === '' && $property->exclusivities->isNotEmpty()) {
+            $latestExclusivity = $property->exclusivities->first();
+            $ownerName = trim((string) $latestExclusivity->propietario_nombre);
+            $ownerCi = trim((string) $latestExclusivity->propietario_ci);
+            $ownerEmail = trim((string) $latestExclusivity->propietario_email);
+            $ownerPhone = trim((string) $latestExclusivity->propietario_telefono);
+        }
+
+        if ($ownerName === '' && $ownerCi === '' && $ownerEmail === '' && $ownerPhone === '') {
+            return null;
+        }
+
+        return $clients->first(function ($client) use ($ownerName, $ownerCi, $ownerEmail, $ownerPhone) {
+            if ($ownerCi !== '' && trim((string) $client->ci) !== '' && trim((string) $client->ci) === $ownerCi) {
+                return true;
+            }
+
+            if ($ownerEmail !== '' && trim((string) $client->email) !== '' && strcasecmp(trim((string) $client->email), $ownerEmail) === 0) {
+                return true;
+            }
+
+            if ($ownerPhone !== '' && trim((string) $client->phone) !== '' && trim((string) $client->phone) === $ownerPhone) {
+                return true;
+            }
+
+            return $ownerName !== '' && strcasecmp(trim((string) $client->name), $ownerName) === 0;
+        });
+    }
+
+    private function resolveBuyerClientFallback(Operation $operation, $resolvedOwnerClient)
+    {
+        return $operation->clients->first(function ($client) use ($resolvedOwnerClient) {
+            return !$resolvedOwnerClient || (string) $client->id !== (string) $resolvedOwnerClient->id;
+        });
+    }
+
+    private function makeAnonymousClient()
+    {
+        return (object) [
+            'id' => null,
+            'name' => 'N/D',
+            'ci' => 'N/D',
+            'email' => null,
+            'phone' => null,
+        ];
     }
 }

@@ -122,21 +122,33 @@
             </div>
         </div>
 
-        <!-- COMPRADORES -->
+        <!-- CLIENTE PROPIETARIO -->
         <div class="mb-3">
-            <label class="form-label">Compradores</label>
+            <label class="form-label">Cliente propietario</label>
             <app-input 
-                type="multi-select"
-                v-model="operation.buyers"
+                type="search-select"
+                v-model="operation.owner_client_id"
                 :list="buyersList"
-                placeholder="Selecciona compradores"
+                placeholder="Selecciona el cliente propietario"
+                :disabled="isLocked"
+            />
+        </div>
+
+        <!-- CLIENTE COMPRADOR -->
+        <div class="mb-3">
+            <label class="form-label">Cliente comprador</label>
+            <app-input 
+                type="search-select"
+                v-model="operation.buyer_client_id"
+                :list="buyersList"
+                placeholder="Selecciona el cliente comprador"
                 :disabled="isLocked"
             />
         </div>
 
         <!-- VENDEDORES (multi-select con autocomplete) -->
         <div class="mb-3">
-            <label class="form-label">Asesores / Vendedores</label>
+            <label class="form-label">Asesores</label>
             <app-input
                 type="multi-select"
                 v-model="operation.sellers"
@@ -232,6 +244,14 @@
 
     <!-- BOTÓN -->
     <div class="mt-3 text-end">
+        <a
+            v-if="canDownloadCommissionPdf"
+            :href="`/operations/${operationId}/commission-receipt`"
+            target="_blank"
+            class="btn btn-success mr-2"
+        >
+            Descargar Pago Comisión PDF
+        </a>
         <button v-if="!isLocked" class="btn btn-primary" @click="saveOperation">
             {{ submitLabel }}
         </button>
@@ -275,12 +295,13 @@ export default {
 
             operation: {
                 property_id: "",
+                owner_client_id: "",
+                buyer_client_id: "",
                 type: "",
                 amount: "",
                 property_price: "",
                 start_date: "",
                 end_date: "",
-                buyers: [],
                 sellers: [],
                 notes: "",
             }
@@ -320,6 +341,9 @@ export default {
         totalAdvisorPercentage() {
             return this.sellersCommissions.reduce((sum, s) => sum + (parseFloat(s.percentage) || 0), 0);
         },
+        canDownloadCommissionPdf() {
+            return Boolean(this.operationId) && ['reserva', 'venta', 'traspaso'].includes(this.operation.type);
+        },
     },
 
     methods: {
@@ -345,6 +369,8 @@ export default {
                         id: p.id.toString(),
                         value: p.value,
                         price: p.price,
+                        suggestedOwnerClientId: p.suggested_owner_client_id ? p.suggested_owner_client_id.toString() : '',
+                        suggestedOwnerClientName: p.suggested_owner_client_name || '',
                     }))
                 ];
 
@@ -371,6 +397,8 @@ export default {
                         id: operation.property_id,
                         value: operation.property_title || `Propiedad #${operation.property_id}`,
                         price: operation.amount,
+                        suggestedOwnerClientId: operation.owner_client_id || '',
+                        suggestedOwnerClientName: operation.owner_client_name || '',
                     });
                 }
             }
@@ -382,7 +410,8 @@ export default {
                 property_price: operation.property_price || '',
                 start_date: operation.start_date || '',
                 end_date: operation.end_date || '',
-                buyers: operation.buyers || [],
+                owner_client_id: operation.owner_client_id || '',
+                buyer_client_id: operation.buyer_client_id || '',
                 sellers: operation.sellers || [],
                 notes: operation.notes || '',
             };
@@ -397,6 +426,21 @@ export default {
             if (!selected) return;
 
             this.selectedPropertyPrice = selected.price;
+
+            this.applySuggestedOwnerClient(selected);
+        },
+
+        applySuggestedOwnerClient(selectedProperty) {
+            if (!selectedProperty || !selectedProperty.suggestedOwnerClientId) {
+                return;
+            }
+
+            const currentOwner = this.operation.owner_client_id ? String(this.operation.owner_client_id) : '';
+            const suggestedOwner = String(selectedProperty.suggestedOwnerClientId);
+
+            if (currentOwner === '' || currentOwner !== suggestedOwner) {
+                this.operation.owner_client_id = suggestedOwner;
+            }
         },
 
         onPropertySelected(val) {
@@ -511,12 +555,13 @@ export default {
                 if (!this.operationId) {
                     this.operation = {
                         property_id: "",
+                        owner_client_id: "",
+                        buyer_client_id: "",
                         type: "",
                         amount: "",
                         property_price: "",
                         start_date: "",
                         end_date: "",
-                        buyers: [],
                         sellers: [],
                         notes: "",
                     };

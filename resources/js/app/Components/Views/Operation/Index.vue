@@ -257,6 +257,11 @@
                             type: 'none',
                         },
                         {
+                            title: 'Descargar Pago Comisión',
+                            type: 'none',
+                            modifier: (row) => ['reserva', 'venta', 'traspaso'].includes(row.type),
+                        },
+                        {
                             title: 'Confirmar Venta',
                             type: 'none',
                             modifier: (row) => row.type === 'reserva',
@@ -376,6 +381,9 @@
 
                 } else if(actionObj.title == this.$t('edit')) {
                     window.location.href = `/create/operations?id=${rowData.id}`;
+
+                } else if (actionObj.title === 'Descargar Pago Comisión') {
+                    window.open(`/operations/${rowData.id}/commission-receipt`, '_blank');
 
                 } else if (actionObj.title === 'Confirmar Venta') {
                     this.openConfirmSaleModal(rowData);

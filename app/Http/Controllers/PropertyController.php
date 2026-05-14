@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\PropertyImage;
 use App\Models\PropertyDocument;
 use App\Models\Exclusivity;
+use App\Models\PropertyCaptation;
 use App\Filters\Common\Auth\PropertyFilter as AppUserFilter;
 use App\Filters\Core\PropertyFilter;
 use App\Services\Core\Auth\PropertyService;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\PropertyExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Carbon\Carbon;
 
 class PropertyController extends Controller
 {
@@ -74,6 +76,13 @@ class PropertyController extends Controller
             $exData['property_id'] = $property->id;
             $exData['user_id'] = Auth::id();
             Exclusivity::create($exData);
+        }
+
+        $captationData = $this->extractCaptationData($request);
+        if ($captationData !== null) {
+            $captationData['property_id'] = $property->id;
+            $captationData['user_id'] = Auth::id();
+            PropertyCaptation::create($captationData);
         }
 
         return response()->json(['message' => 'Propiedad creada exitosamente.', 'data' => $property], 201);
@@ -173,6 +182,36 @@ class PropertyController extends Controller
             return response()->json(['message' => 'Propiedad rechazada.']);
         }
     }
+    public function generateCaptationPdf($id)
+    {
+        $property = Property::with(['captation', 'creator'])->findOrFail($id);
+        $captation = $property->captation;
+
+        if (!$captation) {
+            return response()->json(['message' => 'No captation form data found.'], 404);
+        }
+
+        $pdf = Pdf::loadView('pdf.captacion', [
+            'property' => $property,
+            'captation' => $captation,
+        ]);
+
+        $fileName = 'captacion_propiedad_' . $property->id . '.pdf';
+        $filePath = 'public/captations/' . $fileName;
+
+        Storage::put($filePath, $pdf->output());
+        $captation->update(['pdf_path' => $fileName]);
+
+        if (!Storage::exists($filePath)) {
+            return response()->json(['message' => 'El archivo del formulario no fue encontrado.'], 404);
+        }
+
+        return Storage::download(
+            $filePath,
+            $fileName,
+            ['Content-Type' => 'application/pdf']
+        );
+    }
 
     public function edit(Request $request, $id)
     {
@@ -214,6 +253,15 @@ class PropertyController extends Controller
                 Exclusivity::create($exData);
             }
         }
+        $captationData = $this->extractCaptationData($request);
+        if ($captationData !== null) {
+            $captationData['user_id'] = Auth::id();
+
+            $property->captation()->updateOrCreate(
+                ['property_id' => $property->id],
+                $captationData
+            );
+        }
 
         return created_responses('Transaction');
     }
@@ -225,7 +273,8 @@ class PropertyController extends Controller
             'documents',
             'exclusivities' => function ($query) {
                 $query->latest();
-            }
+            },
+            'captation',
         ])->findOrFail($id);
 
         return response()->json($property);
@@ -348,6 +397,69 @@ class PropertyController extends Controller
                 'User-Agent' => config('app.name', 'Laravel') . '/1.0 map-proxy',
             ],
         ]);
+    }
+    private function extractCaptationData(Request $request): ?array
+    {
+        if (!$request->has('captation_data') || !is_array($request->captation_data)) {
+            return null;
+        }
+
+        $captationData = $request->captation_data;
+
+        foreach ($captationData as $value) {
+            if ($this->isFilledCaptationValue($value)) {
+                return $this->normalizeCaptationData($captationData);
+            }
+        }
+
+        return null;
+    }
+
+    private function isFilledCaptationValue($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (string) $value !== '';
+        }
+
+        return $value !== null && trim((string) $value) !== '';
+    }
+
+    private function normalizeCaptationData(array $captationData): array
+    {
+        $booleanFields = [
+            'fotos_descargadas',
+            'enviado_para_flyer',
+            'recepcion_documentos_correo',
+            'cliente_es_propietario',
+            'cliente_es_apoderado',
+            'cliente_es_encargado',
+            'listo_para_habitar',
+            'para_remodelar',
+            'hipoteca',
+            'autoriza_venta',
+            'autoriza_alquiler',
+            'medio_instagram_facebook',
+            'medio_pendon_sticker',
+            'medio_video_publicitario',
+        ];
+
+        foreach ($booleanFields as $field) {
+            if (array_key_exists($field, $captationData)) {
+                $captationData[$field] = filter_var($captationData[$field], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            }
+        }
+
+        foreach (['fecha_captacion', 'fecha_verificacion'] as $field) {
+            if (!empty($captationData[$field])) {
+                $captationData[$field] = Carbon::parse($captationData[$field])->format('Y-m-d');
+            }
+        }
+
+        return $captationData;
     }
 }
 

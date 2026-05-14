@@ -36,6 +36,8 @@ class Operation extends Model
     protected $fillable = [
         'type',
         'property_id',
+        'owner_client_id',
+        'buyer_client_id',
         'amount',
         'property_price',
         'start_date',
@@ -55,6 +57,16 @@ class Operation extends Model
     public function clients()
     {
         return $this->belongsToMany(Client::class, 'operation_client');
+    }
+
+    public function ownerClient()
+    {
+        return $this->belongsTo(Client::class, 'owner_client_id');
+    }
+
+    public function buyerClient()
+    {
+        return $this->belongsTo(Client::class, 'buyer_client_id');
     }
 
     public function sellers()

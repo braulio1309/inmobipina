@@ -14,6 +14,7 @@ use App\Models\Core\Auth\Traits\Scope\UserScope;
 use Spatie\Activitylog\Traits\CausesActivity;
 use Altek\Eventually\Eventually;
 use App\Models\Core\Auth\User;
+use App\Models\PropertyCaptation;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Model;
 
@@ -58,6 +59,11 @@ class Property extends Model
     public function exclusivities()
     {
         return $this->hasMany(Exclusivity::class);
+    }
+
+    public function captation()
+    {
+        return $this->hasOne(PropertyCaptation::class);
     }
 
     public function activities()
