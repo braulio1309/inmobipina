@@ -35,6 +35,18 @@ class Client extends Model
 
     protected $fillable = ['name', 'email', 'phone', 'notes', 'rif', 'ci', 'source', 'status', 'assigned_to', 'user_id'];
 
+    public function getNameAttribute($value)
+    {
+        if ($value !== null && trim((string) $value) !== '') {
+            return $value;
+        }
+
+        $firstName = trim((string) ($this->attributes['first_name'] ?? ''));
+        $lastName = trim((string) ($this->attributes['last_name'] ?? ''));
+
+        return trim($firstName . ' ' . $lastName);
+    }
+
 
     public function user()
     {

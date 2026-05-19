@@ -59,13 +59,22 @@ class ActivityController extends Controller
             ->select('id', 'title', 'address', 'status')
             ->orderBy('title')
             ->get()
-            ->map(fn ($property) => [
-                'id' => (string) $property->id,
-                'value' => trim(($property->title ?? '') . ' - ' . ($property->address ?? '')),
-                'title' => $property->title,
-                'address' => $property->address,
-                'status' => $property->status,
-            ])
+            ->map(function ($property) {
+                $title = trim((string) ($property->title ?? ''));
+                $address = trim((string) ($property->address ?? ''));
+
+                if (mb_strlen($address) > 30) {
+                    $address = mb_substr($address, 0, 30) . '...';
+                }
+
+                return [
+                    'id' => (string) $property->id,
+                    'value' => $address !== '' ? trim($title . ' - ' . $address) : $title,
+                    'title' => $property->title,
+                    'address' => $property->address,
+                    'status' => $property->status,
+                ];
+            })
             ->values();
 
         return response()->json([

@@ -391,7 +391,15 @@ class OperationController extends Controller
 
     public function formData()
     {
-        $clients = Client::select('id', 'name', 'email', 'phone', 'ci')->get();
+        $hasClientCi = true;
+
+        try {
+            $clients = Client::select('id', 'name', 'email', 'phone', 'ci')->get();
+        } catch (\Throwable $exception) {
+            report($exception);
+            $hasClientCi = false;
+            $clients = Client::select('id', 'name', 'email', 'phone')->get();
+        }
 
         try {
             $users = User::select('id', 'first_name', 'last_name', 'email')
@@ -456,7 +464,7 @@ class OperationController extends Controller
                 'value' => $client->name,
                 'email' => $client->email,
                 'phone' => $client->phone,
-                'ci' => $client->ci,
+                'ci' => $hasClientCi ? $client->ci : null,
             ])->values(),
             'users'      => $users,
         ]);
