@@ -9,6 +9,7 @@ use App\Models\Core\Auth\User;
 use App\Notifications\Core\User\UserNotification;
 use App\Services\Core\Auth\UserService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -101,7 +102,29 @@ class UserController extends Controller
     public function updateUserName(Request $request, $id)
     {
         $user = $this->service->find($id);
-        $this->service->where('id', $id)->update(\request()->only('first_name', 'last_name'));
+
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:191',
+            'last_name' => 'nullable|string|max:191',
+            'email' => 'required|email|max:191|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:6',
+            'roles' => 'required|array|min:1',
+            'roles.*' => 'exists:roles,id',
+        ]);
+
+        $updateData = [
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'] ?? null,
+            'email' => $validated['email'],
+        ];
+
+        if (!empty($validated['password'])) {
+            $updateData['password'] = Hash::make($validated['password']);
+        }
+
+        $this->service->where('id', $id)->update($updateData);
+        $user->refresh();
+        $user->roles()->sync(array_unique($validated['roles']));
 
         notify()
             ->on('user_updated')

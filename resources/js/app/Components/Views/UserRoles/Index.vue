@@ -115,9 +115,7 @@
                     this.openConfirmationModal();
 
                 } else if(actionObj.title == this.$t('edit')) {
-                    //this.selectedUrl = `${actions.UPDATE_USER_NAME}/${rowData.id}`;
-                    //this.openUserModal();
-                    this.$router.push({ name: 'EditUser', params: { id: rowData.id } });
+                    this.openUserModal();
 
                 } else if (actionObj.title == this.$t('active')) {
 
