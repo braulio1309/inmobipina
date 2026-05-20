@@ -26,6 +26,12 @@
             <input type="text" v-model="client.phone" class="form-control" required>
           </div>
 
+          <!-- Fecha -->
+          <div class="mb-3">
+            <label class="form-label">Fecha</label>
+            <input type="date" v-model="client.date" class="form-control">
+          </div>
+
           <!-- Asesor asignado -->
           <div v-if="isAdmin" class="mb-3">
             <label class="form-label">Asesor asignado</label>
@@ -119,6 +125,7 @@ export default {
         name: "",
         email: "",
         phone: "",
+        date: new Date().toISOString().slice(0, 10),
         notes: "",
         assigned_to: "",
         property_ids: [],
@@ -190,6 +197,7 @@ export default {
           name: c.name || "",
           email: c.email || "",
           phone: c.phone || "",
+          date: c.date ? String(c.date).slice(0, 10) : "",
           notes: c.notes || "",
           assigned_to: this.isAdmin
             ? (c.assigned_to ? c.assigned_to.toString() : "")
@@ -216,6 +224,7 @@ export default {
             name: "",
             email: "",
             phone: "",
+            date: new Date().toISOString().slice(0, 10),
             notes: "",
             assigned_to: this.isAdmin ? "" : (this.currentUserId || ""),
             property_ids: [],

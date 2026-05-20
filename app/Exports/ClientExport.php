@@ -22,13 +22,13 @@ class ClientExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
     {
         $query = Client::with(['advisor']);
 
-        // Filter by date range (created_at)
+        // Filter by client date range
         $date = $this->request->input('date');
         if (is_string($date)) {
             $date = json_decode(htmlspecialchars_decode($date), true);
         }
         if ($date && is_array($date) && isset($date['start'])) {
-            $query->whereBetween(DB::raw('DATE(created_at)'), [$date['start'], $date['end']]);
+            $query->whereBetween(DB::raw('DATE(date)'), [$date['start'], $date['end']]);
         }
 
         // Filter by advisor (assigned_to)
@@ -74,7 +74,7 @@ class ClientExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             'Estatus',
             'Asesor asignado',
             'Notas',
-            'Fecha de registro',
+            'Fecha',
         ];
     }
 
@@ -100,7 +100,7 @@ class ClientExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             $row->status ? ucfirst($row->status) : '—',
             $advisorName,
             $row->notes ?: '',
-            $row->created_at ? $row->created_at->format('Y-m-d H:i') : '',
+            $row->date ? $row->date->format('Y-m-d') : '',
         ];
     }
 }

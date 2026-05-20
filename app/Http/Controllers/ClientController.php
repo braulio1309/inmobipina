@@ -36,6 +36,7 @@ class ClientController extends Controller
         $clients->getCollection()->transform(function ($client) {
             $client->name = trim((string) ($client->name ?? ''));
             $client->display_name = $client->name !== '' ? $client->name : 'Sin nombre';
+            $client->date = $client->date ? $client->date->format('Y-m-d') : null;
 
             $client->advisor_name = $client->advisor
                 ? trim(($client->advisor->first_name ?? '') . ' ' . ($client->advisor->last_name ?? ''))
@@ -86,7 +87,11 @@ class ClientController extends Controller
 
     public function create(Request $request)
     {
-        $data = $request->only(['name', 'email', 'phone', 'notes', 'source', 'status', 'assigned_to']);
+        $request->validate([
+            'date' => 'nullable|date',
+        ]);
+
+        $data = $request->only(['name', 'email', 'phone', 'date', 'notes', 'source', 'status', 'assigned_to']);
         /** @var User $authUser */
         $authUser = Auth::user();
 
@@ -108,7 +113,11 @@ class ClientController extends Controller
     public function edit(Request $request, $id)
     {
         $Client = Client::where('id', $id)->first();
-        $data = $request->only(['name', 'email', 'phone', 'notes', 'source', 'status', 'assigned_to']);
+        $request->validate([
+            'date' => 'nullable|date',
+        ]);
+
+        $data = $request->only(['name', 'email', 'phone', 'date', 'notes', 'source', 'status', 'assigned_to']);
         /** @var User $authUser */
         $authUser = Auth::user();
 

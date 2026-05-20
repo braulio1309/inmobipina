@@ -108,6 +108,20 @@
                             }
                         },
                         {
+                            title: 'Fecha',
+                            type: 'object',
+                            key: 'date',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value) => {
+                                if (!value) {
+                                    return '—';
+                                }
+
+                                return String(value).split('T')[0].split(' ')[0];
+                            }
+                        },
+                        {
                             title: 'Medio',
                             type: 'text',
                             key: 'source',
@@ -155,7 +169,7 @@
                     ],
                     filters: [
                         {
-                            "title": 'Fecha de registro',
+                            "title": 'Fecha',
                             "type": "range-picker",
                             "key": "date",
                             "option": ["today", "thisMonth", "last7Days", "lastYear"]
