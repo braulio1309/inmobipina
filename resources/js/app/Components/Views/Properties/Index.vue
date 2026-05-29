@@ -124,6 +124,22 @@
                             }
                         },
                         {
+                            title: 'Asesor responsable',
+                            type: 'text',
+                            key: 'advisor_name',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value, row) => {
+                                const advisor = row.agent || row.creator;
+
+                                if (!advisor) {
+                                    return 'Sin asesor';
+                                }
+
+                                return [advisor.first_name, advisor.last_name].filter(Boolean).join(' ').trim() || 'Sin asesor';
+                            }
+                        },
+                        {
                             title: 'Tipo',
                             type: 'custom-html',
                             key: 'type',

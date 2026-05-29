@@ -8,6 +8,7 @@ use App\Models\PropertyImage;
 use App\Models\PropertyDocument;
 use App\Models\Exclusivity;
 use App\Models\PropertyCaptation;
+use App\Models\Activity;
 use App\Filters\Common\Auth\PropertyFilter as AppUserFilter;
 use App\Filters\Core\PropertyFilter;
 use App\Services\Core\Auth\PropertyService;
@@ -33,6 +34,10 @@ class PropertyController extends Controller
     {
         return (new AppUserFilter(
             $this->service
+                ->with([
+                    'agent:id,first_name,last_name',
+                    'creator:id,first_name,last_name',
+                ])
                 ->filters($this->filter)
                 ->latest()
         ))->filter()
@@ -52,10 +57,14 @@ class PropertyController extends Controller
             ? $data['agent_id']
             : null;
 
-        $data['created_by'] = Auth::id();
-
         /** @var \App\Models\Core\Auth\User|null $authUser */
         $authUser = Auth::user();
+
+        if (!$data['agent_id'] && $authUser && !$authUser->isAppAdmin()) {
+            $data['agent_id'] = $authUser->id;
+        }
+
+        $data['created_by'] = $data['agent_id'] ?: Auth::id();
 
         if ($authUser && $authUser->isAppAdmin()) {
             $data['status'] = 'Disponible';
@@ -86,9 +95,11 @@ class PropertyController extends Controller
         $captationData = $this->extractCaptationData($request);
         if ($captationData !== null) {
             $captationData['property_id'] = $property->id;
-            $captationData['user_id'] = Auth::id();
+            $captationData['user_id'] = $data['agent_id'] ?: Auth::id();
             PropertyCaptation::create($captationData);
         }
+
+        $this->registerCaptationActivity($property, $captationData, $data['agent_id'] ?: $data['created_by']);
 
         return response()->json(['message' => 'Propiedad creada exitosamente.', 'data' => $property], 201);
     }
@@ -515,6 +526,27 @@ class PropertyController extends Controller
         }
 
         return $captationData;
+    }
+
+    private function registerCaptationActivity(Property $property, ?array $captationData, ?int $userId): void
+    {
+        if (!$userId) {
+            return;
+        }
+
+        $activityDate = !empty($captationData['fecha_captacion'] ?? null)
+            ? Carbon::parse($captationData['fecha_captacion'])->startOfDay()
+            : now()->startOfDay();
+
+        $propertyLabel = trim((string) ($property->title ?: $property->address ?: ('Propiedad #' . $property->id)));
+
+        Activity::create([
+            'user_id' => $userId,
+            'property_id' => $property->id,
+            'type' => 'captación',
+            'description' => 'Captación registrada para ' . $propertyLabel,
+            'date' => $activityDate,
+        ]);
     }
 }
 

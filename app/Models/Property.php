@@ -46,6 +46,11 @@ class Property extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function agent()
+    {
+        return $this->belongsTo(User::class, 'agent_id');
+    }
+
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
