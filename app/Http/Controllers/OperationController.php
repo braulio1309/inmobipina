@@ -126,7 +126,9 @@ class OperationController extends Controller
     // Actualizar status de la propiedad según tipo de operación
     if ($operation->type === 'reserva') {
         Property::where('id', $operation->property_id)->update(['status' => 'Reservado']);
-    } elseif (in_array($operation->type, ['venta', 'traspaso', 'alquiler'])) {
+    } elseif ($operation->type === 'alquiler') {
+        Property::where('id', $operation->property_id)->update(['status' => 'Alquilado']);
+    } elseif (in_array($operation->type, ['venta', 'traspaso'])) {
         Property::where('id', $operation->property_id)->update(['status' => 'Vendido']);
     }
 
@@ -203,9 +205,9 @@ class OperationController extends Controller
 
         $operation = Operation::where('id', $id)->firstOrFail();
 
-        // Block editing if the property is already Reservado or Vendido
+        // Block editing if the property is already Reservado, Vendido or Alquilado
         $property = Property::find($operation->property_id);
-        if ($property && in_array($property->status, ['Reservado', 'Vendido'])) {
+        if ($property && in_array($property->status, ['Reservado', 'Vendido', 'Alquilado'])) {
             return response()->json(['message' => 'Este cierre no puede editarse porque el inmueble ya está ' . $property->status . '.'], 403);
         }
 
@@ -263,7 +265,7 @@ class OperationController extends Controller
         $resolvedBuyerClient = $this->resolveOperationBuyerClient($operation, $resolvedOwnerClient);
 
         $propertyStatus = $operation->property ? $operation->property->status : null;
-        $isLocked = in_array($propertyStatus, ['Reservado', 'Vendido']);
+        $isLocked = in_array($propertyStatus, ['Reservado', 'Vendido', 'Alquilado']);
 
         return response()->json([
             'id' => $operation->id,
@@ -434,7 +436,7 @@ class OperationController extends Controller
                 ->where(function ($query) {
                     $query->whereNull('status')
                         ->orWhere('status', '')
-                        ->orWhereNotIn('status', ['Reservado', 'Vendido']);
+                        ->orWhereNotIn('status', ['Reservado', 'Vendido', 'Alquilado']);
                 })
                 ->get()
                 ->map(function ($property) use ($clients) {

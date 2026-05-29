@@ -94,7 +94,7 @@ class SidebarComposer
                 'icon' => 'bar-chart-2',
                 'name' => 'Reportes',
                 'permission' => true,
-                'subMenu' => array_filter([
+                'subMenu' => [
                     [
                         'name' => 'Reporte de asesores',
                         'url' => request()->root() . '/report/advisor',
@@ -102,10 +102,10 @@ class SidebarComposer
                     ],
                     [
                         'name' => 'Resumen de clientes',
-                        'url' => request()->root() . '/report/advisor#clientes',
+                        'url' => request()->root() . '/report/advisor',
                         'permission' => true,
                     ],
-                ]),
+                ],
             ],
             $isAdmin ? [
                 'icon' => 'user-check',
