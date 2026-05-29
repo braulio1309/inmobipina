@@ -311,7 +311,7 @@
         <div v-if="activeTab === 0">
             <h5 class="mb-3">Formulario de Captación</h5>
             <p class="text-muted mb-3">
-                Este formulario es opcional. Dejamos visibles solo los datos que faltan y completamos automáticamente la información que ya viene de los tabs anteriores.
+                Este formulario es opcional. Completamos automáticamente la información base, pero puedes ajustarla manualmente cuando lo necesites.
             </p>
 
             <div class="card border-0 bg-light mb-4">
@@ -320,39 +320,43 @@
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted small mb-1">Asesor responsable</label>
-                            <input :value="captationData.asesor_responsable" type="text" class="form-control" readonly>
+                            <input v-model="captationData.asesor_responsable" type="text" class="form-control">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted small mb-1">Tipo de inmueble</label>
-                            <input :value="captationData.tipo_inmueble" type="text" class="form-control" readonly>
+                            <input v-model="captationData.tipo_inmueble" type="text" class="form-control">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted small mb-1">Tipo de negociación</label>
-                            <input :value="captationData.tipo_negociacion" type="text" class="form-control" readonly>
+                            <input v-model="captationData.tipo_negociacion" type="text" class="form-control">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted small mb-1">Precio cliente</label>
-                            <input :value="captationData.precio_cliente ? '$' + (parseFloat(captationData.precio_cliente)||0).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2}) : ''" type="text" class="form-control" readonly>
+                            <input v-model="captationData.precio_cliente" type="number" step="0.01" class="form-control">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted small mb-1">Ubicación</label>
-                            <input :value="captationData.ubicacion" type="text" class="form-control" readonly>
+                            <input v-model="captationData.ubicacion" type="text" class="form-control">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted small mb-1">M2 construcción</label>
-                            <input :value="captationData.m2_construccion" type="text" class="form-control" readonly>
+                            <input v-model="captationData.m2_construccion" type="number" step="0.01" class="form-control">
                         </div>
                         <div class="col-md-4 mb-0">
                             <label class="form-label text-muted small mb-1">Precio por m2</label>
-                            <input :value="captationData.precio_m2" type="text" class="form-control" readonly>
+                            <input v-model="captationData.precio_m2" type="number" step="0.01" class="form-control">
                         </div>
-                        <div class="col-md-4 mb-0">
-                            <label class="form-label text-muted small mb-1">Distribución</label>
-                            <input :value="`${captationData.cantidad_habitaciones || 0} hab. / ${captationData.cantidad_banos || 0} baños`" type="text" class="form-control" readonly>
+                        <div class="col-md-2 mb-0">
+                            <label class="form-label text-muted small mb-1">Habitaciones</label>
+                            <input v-model="captationData.cantidad_habitaciones" type="number" class="form-control">
+                        </div>
+                        <div class="col-md-2 mb-0">
+                            <label class="form-label text-muted small mb-1">Baños</label>
+                            <input v-model="captationData.cantidad_banos" type="number" class="form-control">
                         </div>
                         <div class="col-md-4 mb-0">
                             <label class="form-label text-muted small mb-1">Estacionamiento</label>
-                            <input :value="captationData.capacidad_estacionamiento" type="text" class="form-control" readonly>
+                            <input v-model="captationData.capacidad_estacionamiento" type="text" class="form-control">
                         </div>
                     </div>
                 </div>
@@ -1606,6 +1610,20 @@ export default {
             return (totalPrice / totalArea).toFixed(2);
         },
 
+        preferEditableCaptationValue(currentValue, fallbackValue) {
+            if (typeof currentValue === 'string') {
+                return currentValue.trim() !== '' ? currentValue : fallbackValue;
+            }
+
+            if (typeof currentValue === 'number') {
+                return Number.isNaN(currentValue) ? fallbackValue : currentValue;
+            }
+
+            return currentValue !== null && currentValue !== undefined && currentValue !== ''
+                ? currentValue
+                : fallbackValue;
+        },
+
         deriveAuthorizationCharacter() {
             const roles = [];
 
@@ -1642,25 +1660,25 @@ export default {
             this.captationData = {
                 ...this.captationData,
                 fecha_captacion: this.captationData.fecha_captacion || today,
-                asesor_responsable: advisorName || this.captationData.asesor_responsable,
-                tipo_inmueble: propertyType,
-                precio_inmobiliaria: this.captationData.precio_inmobiliaria || propertyPrice,
-                precio_cliente: propertyPrice,
-                porcentaje_comision: this.captationData.porcentaje_comision || 5,
-                tipo_negociacion: propertyTypeSale,
-                ubicacion: propertyAddress,
-                m2_construccion: propertyArea,
-                precio_m2: pricePerSquareMeter,
-                cantidad_habitaciones: source.bedrooms || this.property.bedrooms || '',
-                cantidad_banos: source.bathrooms || this.property.bathrooms || '',
-                capacidad_estacionamiento: source.parking_spots || this.property.parking_spots || '',
+                asesor_responsable: this.preferEditableCaptationValue(this.captationData.asesor_responsable, advisorName || ''),
+                tipo_inmueble: this.preferEditableCaptationValue(this.captationData.tipo_inmueble, propertyType),
+                precio_inmobiliaria: this.preferEditableCaptationValue(this.captationData.precio_inmobiliaria, propertyPrice),
+                precio_cliente: this.preferEditableCaptationValue(this.captationData.precio_cliente, propertyPrice),
+                porcentaje_comision: this.preferEditableCaptationValue(this.captationData.porcentaje_comision, 5),
+                tipo_negociacion: this.preferEditableCaptationValue(this.captationData.tipo_negociacion, propertyTypeSale),
+                ubicacion: this.preferEditableCaptationValue(this.captationData.ubicacion, propertyAddress),
+                m2_construccion: this.preferEditableCaptationValue(this.captationData.m2_construccion, propertyArea),
+                precio_m2: this.preferEditableCaptationValue(this.captationData.precio_m2, pricePerSquareMeter),
+                cantidad_habitaciones: this.preferEditableCaptationValue(this.captationData.cantidad_habitaciones, source.bedrooms || this.property.bedrooms || ''),
+                cantidad_banos: this.preferEditableCaptationValue(this.captationData.cantidad_banos, source.bathrooms || this.property.bathrooms || ''),
+                capacidad_estacionamiento: this.preferEditableCaptationValue(this.captationData.capacidad_estacionamiento, source.parking_spots || this.property.parking_spots || ''),
                 autorizacion_nombre: this.captationData.cliente_nombre_apellido || '',
                 autorizacion_caracter: authorizationCharacter,
                 autoriza_venta: ['venta', 'ambos'].includes(normalizedTypeSale),
                 autoriza_alquiler: ['alquiler', 'ambos'].includes(normalizedTypeSale),
                 autorizacion_inmueble_constituido: propertyDescription,
                 autorizacion_ubicado_en: propertyAddress,
-                autorizacion_precio: propertyPrice ? `${propertyPrice} USD` : '',
+                autorizacion_precio: this.captationData.precio_cliente ? `${this.captationData.precio_cliente} USD` : (propertyPrice ? `${propertyPrice} USD` : ''),
                 autorizacion_comision: this.captationData.porcentaje_comision ? `${this.captationData.porcentaje_comision}%` : '',
                 autorizacion_nacionalidad: this.captationData.autorizacion_nacionalidad || 'Venezolano(a)',
             };

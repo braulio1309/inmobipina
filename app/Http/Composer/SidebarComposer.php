@@ -96,13 +96,8 @@ class SidebarComposer
                 'permission' => true,
                 'subMenu' => [
                     [
-                        'name' => 'Reporte de asesores',
-                        'url' => request()->root() . '/report/advisor',
-                        'permission' => true,
-                    ],
-                    [
-                        'name' => 'Resumen de clientes',
-                        'url' => request()->root() . '/report/advisor',
+                            'name' => 'Reportes',
+                            'url' => request()->root() . '/report-view',
                         'permission' => true,
                     ],
                 ],

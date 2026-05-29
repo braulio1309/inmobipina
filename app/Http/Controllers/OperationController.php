@@ -78,29 +78,32 @@ class OperationController extends Controller
         return response()->json(['message' => 'No tienes permiso para crear cierres.'], 403);
     }
 
-    // Total commission is always 5%: company always gets 2.5%, advisors share the remaining 2.5%
     $amount = $request->amount ?? 0;
     $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
     $numSellers = count($sellers);
-    $companyPct = 2.5;
+    $participants = $this->resolveOperationParticipants($request);
+    $companyPct = $request->filled('company_commission_percentage')
+        ? (float) $request->input('company_commission_percentage')
+        : 2.5;
     $companyAmt = round($amount * $companyPct / 100, 2);
-    $eachAdvisorPct = $numSellers > 0 ? round(2.5 / $numSellers, 4) : 0;
+    $remainingPct = max(0, 5 - $companyPct);
+    $eachAdvisorPct = $numSellers > 0 ? round($remainingPct / $numSellers, 4) : 0;
 
     // Use per-seller percentages if provided
     $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
         ? $request->sellers_commissions
         : [];
-
     // 1. Crear la Operación
     $operation = Operation::create(array_merge(
-        $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes', 'external_property_title']),
+        $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes', 'external_property_title']),
+        $participants,
         [
             'company_commission_percentage' => $companyPct,
             'company_commission_amount'     => $companyAmt,
         ]
     ));
 
-    $operation->clients()->sync($this->buildClientSyncIds($request));
+    $operation->clients()->sync($this->buildClientSyncIdsFromParticipants($participants));
 
     // Guardar sellers con comisiones
     if ($numSellers > 0) {
@@ -214,9 +217,13 @@ class OperationController extends Controller
         $amount = $request->amount ?? 0;
         $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
         $numSellers = count($sellers);
-        $companyPct = 2.5;
+        $participants = $this->resolveOperationParticipants($request);
+        $companyPct = $request->filled('company_commission_percentage')
+            ? (float) $request->input('company_commission_percentage')
+            : 2.5;
         $companyAmt = round($amount * $companyPct / 100, 2);
-        $eachAdvisorPct = $numSellers > 0 ? round(2.5 / $numSellers, 4) : 0;
+        $remainingPct = max(0, 5 - $companyPct);
+        $eachAdvisorPct = $numSellers > 0 ? round($remainingPct / $numSellers, 4) : 0;
 
         // Use per-seller percentages if provided
         $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
@@ -224,14 +231,15 @@ class OperationController extends Controller
             : [];
 
         $operation->update(array_merge(
-            $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes', 'external_property_title']),
+            $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes', 'external_property_title']),
+            $participants,
             [
                 'company_commission_percentage' => $companyPct,
                 'company_commission_amount' => $companyAmt,
             ]
         ));
 
-        $operation->clients()->sync($this->buildClientSyncIds($request));
+        $operation->clients()->sync($this->buildClientSyncIdsFromParticipants($participants));
 
         if ($numSellers > 0) {
             $syncData = [];
@@ -281,6 +289,7 @@ class OperationController extends Controller
             'end_date' => $operation->end_date,
             'fecha_cierre' => $operation->fecha_cierre,
             'notes' => $operation->notes,
+            'company_commission_percentage' => $operation->company_commission_percentage,
             'owner_client_id' => $resolvedOwnerClient?->id ? (string) $resolvedOwnerClient->id : '',
             'buyer_client_id' => $resolvedBuyerClient?->id ? (string) $resolvedBuyerClient->id : '',
             'owner_client_name' => $resolvedOwnerClient?->name,
@@ -318,8 +327,11 @@ class OperationController extends Controller
 
         $sellers    = $operation->sellers->pluck('id')->toArray();
         $numSellers = count($sellers);
-        $companyPct = 2.5;
-        $eachAdvisorPct = $numSellers > 0 ? round(2.5 / $numSellers, 4) : 0;
+        $companyPct = $request->filled('company_commission_percentage')
+            ? (float) $request->input('company_commission_percentage')
+            : (float) ($operation->company_commission_percentage ?? 2.5);
+        $remainingPct = max(0, 5 - $companyPct);
+        $eachAdvisorPct = $numSellers > 0 ? round($remainingPct / $numSellers, 4) : 0;
 
         // Use per-seller percentages if provided, otherwise recalculate
         $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
@@ -546,12 +558,49 @@ class OperationController extends Controller
         return Excel::download(new OperationExport($request), $fileName);
     }
 
-    private function buildClientSyncIds(Request $request): array
+    private function buildClientSyncIdsFromParticipants(array $participants): array
     {
         return collect([
-            $request->input('owner_client_id'),
-            $request->input('buyer_client_id'),
+            $participants['owner_client_id'] ?? null,
+            $participants['buyer_client_id'] ?? null,
         ])->filter()->unique()->values()->all();
+    }
+
+    private function resolveOperationParticipants(Request $request): array
+    {
+        return [
+            'owner_client_id' => $this->resolveClientId(
+                $request->input('owner_client_id'),
+                $request->input('owner_client_name_manual')
+            ),
+            'buyer_client_id' => $this->resolveClientId(
+                $request->input('buyer_client_id'),
+                $request->input('buyer_client_name_manual')
+            ),
+        ];
+    }
+
+    private function resolveClientId($clientId, $manualName = null): ?int
+    {
+        if (filled($clientId) && is_numeric($clientId)) {
+            return (int) $clientId;
+        }
+
+        $candidateName = trim((string) $manualName);
+
+        if ($candidateName === '' && filled($clientId) && !is_numeric($clientId)) {
+            $candidateName = trim((string) $clientId);
+        }
+
+        if ($candidateName === '') {
+            return null;
+        }
+
+        $client = Client::query()->firstOrCreate([
+            'name' => $candidateName,
+        ]);
+
+        return $client->id;
     }
 
     private function resolveOperationOwnerClient(Operation $operation)

@@ -64,7 +64,7 @@
                         <div class="col-5"><strong>Inmobiliaria</strong></div>
                         <div class="col-4">
                             <div class="input-group input-group-sm">
-                                <input type="number" class="form-control" :value="confirmCompanyPct" readonly>
+                                <input type="number" class="form-control" v-model="confirmData.company_commission_percentage" min="0" max="100" step="0.01" @input="recalcConfirmCommissions">
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
@@ -120,6 +120,7 @@
                     reservation_amount: 0,
                     net_amount: 0,
                     amount: '',
+                    company_commission_percentage: 2.5,
                     sellers_commissions: [],
                 },
                 options: {
@@ -287,7 +288,8 @@
         },
         computed: {
             confirmCompanyPct() {
-                return 2.5;
+                const pct = parseFloat(this.confirmData.company_commission_percentage);
+                return Number.isFinite(pct) ? pct : 0;
             },
             confirmCompanyAmt() {
                 const amt = parseFloat(this.confirmData.amount) || 0;
@@ -333,8 +335,10 @@
                     const res = await this.axiosGet(`/operations/${rowData.id}`);
                     const op = res.data;
                     const numSellers = (op.sellers || []).length;
+                    const companyPct = parseFloat(op.company_commission_percentage ?? 2.5) || 0;
+                    const remainingPct = Math.max(0, this.COMMISSION_RATE - companyPct);
                     const equalPct = numSellers > 0
-                        ? parseFloat((2.5 / numSellers).toFixed(4))
+                        ? parseFloat((remainingPct / numSellers).toFixed(4))
                         : 0;
 
                     const propertyPrice    = parseFloat(op.property_price  || 0);
@@ -360,6 +364,7 @@
                         reservation_amount: reservationAmt,
                         net_amount:         netAmount,
                         amount:             netAmount > 0 ? netAmount : (op.amount || ''),
+                        company_commission_percentage: companyPct,
                         sellers_commissions: sellersWithNames,
                     };
                     this.showConfirmModal = true;
@@ -373,6 +378,7 @@
                 try {
                     await axios.post(`/operations/${this.confirmData.id}/confirm-sale`, {
                         amount: this.confirmData.amount,
+                        company_commission_percentage: this.confirmCompanyPct,
                         sellers_commissions: this.confirmData.sellers_commissions,
                     });
                     this.$toastr.s('Venta confirmada correctamente');

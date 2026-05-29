@@ -159,26 +159,72 @@
 
         <!-- CLIENTE PROPIETARIO -->
         <div class="mb-3">
-            <label class="form-label">Cliente propietario</label>
-            <app-input 
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <label class="form-label mb-0">Cliente propietario</label>
+                <div class="form-check form-check-inline mb-0" v-if="!isLocked">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="manualOwnerClientCheck"
+                        v-model="useManualOwnerClient"
+                        @change="onOwnerClientModeChanged"
+                    >
+                    <label class="form-check-label small text-muted" for="manualOwnerClientCheck">
+                        Escribir manualmente
+                    </label>
+                </div>
+            </div>
+            <app-input
+                v-if="!useManualOwnerClient"
                 type="search-select"
                 v-model="operation.owner_client_id"
                 :list="buyersList"
                 placeholder="Selecciona el cliente propietario"
                 :disabled="isLocked"
             />
+            <input
+                v-else
+                v-model="operation.owner_client_name_manual"
+                type="text"
+                class="form-control"
+                placeholder="Escribe el nombre del cliente propietario"
+                :disabled="isLocked"
+            >
         </div>
 
         <!-- CLIENTE COMPRADOR -->
         <div class="mb-3">
-            <label class="form-label">Cliente comprador</label>
-            <app-input 
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <label class="form-label mb-0">Cliente comprador</label>
+                <div class="form-check form-check-inline mb-0" v-if="!isLocked">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="manualBuyerClientCheck"
+                        v-model="useManualBuyerClient"
+                        @change="onBuyerClientModeChanged"
+                    >
+                    <label class="form-check-label small text-muted" for="manualBuyerClientCheck">
+                        Escribir manualmente
+                    </label>
+                </div>
+            </div>
+            <app-input
+                v-if="!useManualBuyerClient"
                 type="search-select"
                 v-model="operation.buyer_client_id"
                 :list="buyersList"
                 placeholder="Selecciona el cliente comprador"
                 :disabled="isLocked"
             />
+            <input
+                v-else
+                v-model="operation.buyer_client_name_manual"
+                type="text"
+                class="form-control"
+                placeholder="Escribe el nombre del cliente comprador"
+                :disabled="isLocked"
+            >
         </div>
 
         <!-- VENDEDORES (multi-select con autocomplete) -->
@@ -198,22 +244,23 @@
         <div v-if="operation.sellers.length > 0 && showAmount" class="mb-3 border rounded p-3 bg-light">
             <h6 class="mb-3">Distribución de Comisiones ({{ COMMISSION_RATE }}% del monto)</h6>
 
-            <!-- Comisión Inmobiliaria (siempre 2.5%) -->
+            <!-- Comisión Inmobiliaria -->
             <div class="row mb-2 align-items-center">
                 <div class="col-md-4">
                     <strong>Inmobiliaria</strong>
-                    <small class="text-muted d-block">50% de la comisión total</small>
+                    <small class="text-muted d-block">Editable igual que la comisión de asesores</small>
                 </div>
                 <div class="col-md-3">
                     <div class="input-group input-group-sm">
                         <input
                             type="number"
                             class="form-control"
-                            :value="companyCommissionPct"
+                            v-model="operation.company_commission_percentage"
                             min="0"
                             max="100"
                             step="0.01"
-                            readonly
+                            @input="onCompanyCommissionChanged"
+                            :readonly="isLocked"
                         >
                         <span class="input-group-text">%</span>
                     </div>
@@ -318,6 +365,8 @@ export default {
             suggestedMessage: "",
             isLocked: false,
             propertyStatus: null,
+            useManualOwnerClient: false,
+            useManualBuyerClient: false,
 
             COMMISSION_RATE: 5,
 
@@ -335,13 +384,16 @@ export default {
                 property_id: "",
                 external_property_title: "",
                 owner_client_id: "",
+                owner_client_name_manual: "",
                 buyer_client_id: "",
+                buyer_client_name_manual: "",
                 type: "",
                 amount: "",
                 property_price: "",
                 start_date: "",
                 end_date: "",
                 fecha_cierre: "",
+                company_commission_percentage: 2.5,
                 sellers: [],
                 notes: "",
             }
@@ -367,12 +419,14 @@ export default {
             return this.operationId ? 'Actualizar Operación' : 'Guardar Operación';
         },
         companyCommissionPct() {
-            return 2.5;
+            const pct = parseFloat(this.operation.company_commission_percentage);
+            return Number.isFinite(pct) ? pct : 0;
         },
         eachPartyPercentage() {
-            // Kept for backward compatibility; advisors each get 2.5% / numSellers
+            // Kept for backward compatibility; advisors split the remaining percentage.
             const numSellers = this.sellersCommissions.length;
-            return numSellers > 0 ? parseFloat((2.5 / numSellers).toFixed(4)) : 0;
+            const distributablePercentage = Math.max(this.COMMISSION_RATE - this.companyCommissionPct, 0);
+            return numSellers > 0 ? parseFloat((distributablePercentage / numSellers).toFixed(4)) : 0;
         },
         companyCommissionAmount() {
             const amt = parseFloat(this.operation.amount) || 0;
@@ -458,10 +512,24 @@ export default {
                 end_date: operation.end_date || '',
                 fecha_cierre: operation.fecha_cierre || '',
                 owner_client_id: operation.owner_client_id || '',
+                owner_client_name_manual: '',
                 buyer_client_id: operation.buyer_client_id || '',
+                buyer_client_name_manual: '',
+                company_commission_percentage: operation.company_commission_percentage ?? 2.5,
                 sellers: operation.sellers || [],
                 notes: operation.notes || '',
             };
+
+            this.useManualOwnerClient = !this.operation.owner_client_id && Boolean(operation.owner_client_name);
+            this.useManualBuyerClient = !this.operation.buyer_client_id && Boolean(operation.buyer_client_name);
+
+            if (this.useManualOwnerClient) {
+                this.operation.owner_client_name_manual = operation.owner_client_name || '';
+            }
+
+            if (this.useManualBuyerClient) {
+                this.operation.buyer_client_name_manual = operation.buyer_client_name || '';
+            }
 
             this.isExternalProperty = !operation.property_id && !!operation.external_property_title;
 
@@ -480,7 +548,7 @@ export default {
         },
 
         applySuggestedOwnerClient(selectedProperty) {
-            if (!selectedProperty || !selectedProperty.suggestedOwnerClientId) {
+            if (this.useManualOwnerClient || !selectedProperty || !selectedProperty.suggestedOwnerClientId) {
                 return;
             }
 
@@ -539,8 +607,9 @@ export default {
 
         onSellersChanged(selectedIds, existingCommissions = []) {
             const numSellers = selectedIds.length;
+            const distributablePercentage = Math.max(this.COMMISSION_RATE - this.companyCommissionPct, 0);
             const equalPct = numSellers > 0
-                ? parseFloat((2.5 / numSellers).toFixed(4))
+                ? parseFloat((distributablePercentage / numSellers).toFixed(4))
                 : 0;
 
             this.sellersCommissions = selectedIds.map(id => {
@@ -555,17 +624,41 @@ export default {
         },
 
         recalculateCommissions() {
-            const numSellers = this.sellersCommissions.length;
-            if (numSellers === 0) return;
-            const equalPct = parseFloat((2.5 / numSellers).toFixed(4));
             this.sellersCommissions = this.sellersCommissions.map(s => ({
                 ...s,
-                percentage: equalPct,
+                percentage: this.normalizePercentage(s.percentage),
             }));
         },
 
         onCommissionChanged() {
-            // Allow manual override
+            this.recalculateCommissions();
+        },
+
+        onCompanyCommissionChanged() {
+            this.operation.company_commission_percentage = this.normalizePercentage(this.operation.company_commission_percentage);
+        },
+
+        onOwnerClientModeChanged() {
+            if (this.useManualOwnerClient) {
+                this.operation.owner_client_id = '';
+                return;
+            }
+
+            this.operation.owner_client_name_manual = '';
+        },
+
+        onBuyerClientModeChanged() {
+            if (this.useManualBuyerClient) {
+                this.operation.buyer_client_id = '';
+                return;
+            }
+
+            this.operation.buyer_client_name_manual = '';
+        },
+
+        normalizePercentage(value) {
+            const pct = parseFloat(value);
+            return Number.isFinite(pct) ? pct : 0;
         },
 
         sellerCommissionAmount(pct) {
@@ -594,12 +687,12 @@ export default {
             }
 
             if (['venta', 'reserva', 'traspaso', 'alquiler'].includes(this.operation.type)) {
-                if (!this.operation.owner_client_id) {
+                if (!this.operation.owner_client_id && !String(this.operation.owner_client_name_manual || '').trim()) {
                     this.$toastr.e('Debes seleccionar el cliente propietario para generar el pago');
                     return false;
                 }
 
-                if (!this.operation.buyer_client_id) {
+                if (!this.operation.buyer_client_id && !String(this.operation.buyer_client_name_manual || '').trim()) {
                     this.$toastr.e('Debes seleccionar el cliente comprador para generar el pago');
                     return false;
                 }
@@ -623,9 +716,10 @@ export default {
                     ...this.operation,
                     is_external_property: this.isExternalProperty,
                     sellers: this.operation.sellers,
+                    company_commission_percentage: this.companyCommissionPct,
                     sellers_commissions: this.sellersCommissions.map(s => ({
                         id: s.id,
-                        percentage: s.percentage,
+                        percentage: this.normalizePercentage(s.percentage),
                     })),
                 };
 
@@ -647,17 +741,22 @@ export default {
                         property_id: "",
                         external_property_title: "",
                         owner_client_id: "",
+                        owner_client_name_manual: "",
                         buyer_client_id: "",
+                        buyer_client_name_manual: "",
                         type: "",
                         amount: "",
                         property_price: "",
                         start_date: "",
                         end_date: "",
                         fecha_cierre: "",
+                        company_commission_percentage: 2.5,
                         sellers: [],
                         notes: "",
                     };
                     this.isExternalProperty = false;
+                    this.useManualOwnerClient = false;
+                    this.useManualBuyerClient = false;
                     this.selectedPropertyPrice = null;
                     this.sellersCommissions = [];
                 }
