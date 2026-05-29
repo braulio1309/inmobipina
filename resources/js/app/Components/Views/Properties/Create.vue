@@ -18,8 +18,8 @@
 
     <div class="tab-content border rounded p-3">
 
-        <!-- TAB 1: Detalles -->
-        <div v-if="activeTab === 0">
+        <!-- TAB 3: Detalles -->
+        <div v-if="activeTab === 2">
             <h5 class="mb-3">Detalles de la Propiedad</h5>
 
             <div class="mb-3">
@@ -96,8 +96,8 @@
             </div>
         </div>
 
-        <!-- TAB 2: Ubicación -->
-        <div v-if="activeTab === 1">
+        <!-- TAB 4: Ubicación -->
+        <div v-if="activeTab === 3">
             <h5 class="mb-3">Información de Ubicación</h5>
 
             <div class="mb-3">
@@ -136,8 +136,8 @@
             </div>      
         </div>
 
-        <!-- TAB 3: Extras -->
-        <div v-if="activeTab === 2">
+        <!-- TAB 5: Precio (Extras) -->
+        <div v-if="activeTab === 4">
             <h5 class="mb-3">Información Extra</h5>
 
             <div class="mb-3">
@@ -182,8 +182,8 @@
             </div>
         </div>
 
-        <!-- TAB 4: Fotos -->
-        <div v-if="activeTab === 3">
+        <!-- TAB 6: Fotos -->
+        <div v-if="activeTab === 5">
             <h5 class="mb-3">Imágenes del Inmueble</h5>
 
             <div v-if="!savedPropertyId" class="alert alert-info">
@@ -206,8 +206,8 @@
 
                 <div v-if="selectedFiles.length > 0" class="mb-3">
                     <div class="row">
-                        <div class="col-md-3 mb-2" v-for="(preview, idx) in filePreviews" :key="idx">
-                            <img :src="preview" class="img-thumbnail" style="height:120px;object-fit:cover;width:100%;">
+                        <div class="col-6 col-md-2 mb-2" v-for="(preview, idx) in filePreviews" :key="idx">
+                            <img :src="preview" class="img-thumbnail" style="height:80px;object-fit:cover;width:100%;">
                         </div>
                     </div>
                 </div>
@@ -215,8 +215,8 @@
                 <div v-if="uploadedImages.length > 0" class="mb-3">
                     <h6>Imágenes guardadas:</h6>
                     <div class="row">
-                        <div class="col-md-3 mb-2" v-for="(img, idx) in uploadedImages" :key="idx">
-                            <img :src="'/storage/' + img.path" class="img-thumbnail" style="height:120px;object-fit:cover;width:100%;">
+                        <div class="col-6 col-md-2 mb-2" v-for="(img, idx) in uploadedImages" :key="idx">
+                            <img :src="'/storage/' + img.path" class="img-thumbnail" style="height:80px;object-fit:cover;width:100%;">
                         </div>
                     </div>
                 </div>
@@ -227,8 +227,8 @@
             </div>
         </div>
 
-        <!-- TAB 5: Documentos -->
-        <div v-if="activeTab === 4">
+        <!-- TAB 2: Documentos -->
+        <div v-if="activeTab === 1">
             <h5 class="mb-3">Documentos del Inmueble</h5>
 
             <div v-if="!savedPropertyId" class="alert alert-info">
@@ -307,8 +307,8 @@
             </div>
         </div>
 
-        <!-- TAB 6: Captación -->
-        <div v-if="activeTab === 5">
+        <!-- TAB 1: Captación -->
+        <div v-if="activeTab === 0">
             <h5 class="mb-3">Formulario de Captación</h5>
             <p class="text-muted mb-3">
                 Este formulario es opcional. Dejamos visibles solo los datos que faltan y completamos automáticamente la información que ya viene de los tabs anteriores.
@@ -332,7 +332,7 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted small mb-1">Precio cliente</label>
-                            <input :value="captationData.precio_cliente" type="text" class="form-control" readonly>
+                            <input :value="captationData.precio_cliente ? '$' + (parseFloat(captationData.precio_cliente)||0).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2}) : ''" type="text" class="form-control" readonly>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted small mb-1">Ubicación</label>
@@ -358,40 +358,43 @@
                 </div>
             </div>
 
-            <h6 class="mb-2 text-primary">Control interno</h6>
-            <div class="row">
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Fecha de captación</label>
-                    <input v-model="captationData.fecha_captacion" type="date" class="form-control">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Código de publicación</label>
+            <hr class="my-4">
+            <h6 class="mb-3 text-primary">Control interno</h6>
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Nro. de Publicación</label>
                     <input v-model="captationData.codigo_publicacion" type="text" class="form-control"
                         placeholder="Ej: INM-0012">
                 </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Fotos descargadas</label>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Fotos descargadas</label>
                     <select v-model="captationData.fotos_descargadas" class="form-control">
                         <option :value="null">Selecciona</option>
                         <option :value="true">Si</option>
                         <option :value="false">No</option>
                     </select>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Enviado para flyer</label>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Enviado para flyer</label>
                     <select v-model="captationData.enviado_para_flyer" class="form-control">
                         <option :value="null">Selecciona</option>
                         <option :value="true">Si</option>
                         <option :value="false">No</option>
                     </select>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Recepción de documentos en correo</label>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Recepción de documentos en correo</label>
                     <select v-model="captationData.recepcion_documentos_correo" class="form-control">
                         <option :value="null">Selecciona</option>
                         <option :value="true">Si</option>
                         <option :value="false">No</option>
                     </select>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Fecha de captación</label>
+                    <input v-model="captationData.fecha_captacion" type="date" class="form-control">
                 </div>
             </div>
 
@@ -765,10 +768,10 @@ const PUERTO_ORDAZ_CENTER = {
 };
 
 const PUERTO_ORDAZ_BOUNDS = {
-    xmin: -63.1,
-    ymin: 8.0,
-    xmax: -62.3,
-    ymax: 8.6,
+    xmin: -62.85,
+    ymin: 8.20,
+    xmax: -62.55,
+    ymax: 8.40,
 };
 
 
@@ -806,12 +809,12 @@ export default {
                 { id: "", value: "Elige uno" },
             ],
             tabs: [
+                { label: "Captación" },
+                { label: "Documentos" },
                 { label: "Detalles" },
                 { label: "Ubicación" },
-                { label: "Extras" },
+                { label: "Precio (Extras)" },
                 { label: "Fotos" },
-                { label: "Documentos" },
-                { label: "Captación" },
                 { label: "Exclusividad" },
             ],
 
@@ -989,7 +992,7 @@ export default {
 
     watch: {
         activeTab(newTab) {
-            if (newTab === 1) {
+            if (newTab === 3) {
                 this.$nextTick(() => {
                     this.initMap();
                     this.refreshMapSize();
@@ -1171,7 +1174,7 @@ export default {
 
                 this.$nextTick(() => {
                     this.syncMapMarker();
-                    if (this.activeTab === 1) {
+                    if (this.activeTab === 3) {
                         this.initMap();
                         this.refreshMapSize();
                     }

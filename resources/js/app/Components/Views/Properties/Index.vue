@@ -177,7 +177,8 @@
                             default: "",
                             isVisible: true,
                             modifier:(value, row)=>{
-                                return '$'+row.price;
+                                const num = parseFloat(row.price) || 0;
+                                return '$' + num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             }
                         },
                         {
@@ -210,6 +211,8 @@
                                     clase = 'danger'
                                 if (value == 'Vendido')
                                     clase = 'success'
+                                if (value == 'Alquilado')
+                                    clase = 'info'
                                 
                                 return `<span class="badge badge-sm badge-pill badge-${clase}">${row.status}</span>`;
                             }
@@ -275,6 +278,7 @@
                                 {id: 'No disponible', value: 'No disponible'},
                                 {id: 'Reservado', value: 'Reservado'},
                                 {id: 'Vendido', value: 'Vendido'},
+                                {id: 'Alquilado', value: 'Alquilado'},
                             ],
                         },
                        

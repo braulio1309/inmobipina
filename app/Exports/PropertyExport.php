@@ -21,7 +21,7 @@ class PropertyExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function query()
     {
-        $query = Property::with(['creator']);
+        $query = Property::with(['creator', 'agent']);
 
         // Filter by type
         $types = $this->request->input('type');
@@ -114,9 +114,11 @@ class PropertyExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function map($row): array
     {
-        $creatorName = $row->creator
-            ? trim(($row->creator->first_name ?? '') . ' ' . ($row->creator->last_name ?? ''))
-            : 'N/A';
+        $creatorName = $row->agent
+            ? trim(($row->agent->first_name ?? '') . ' ' . ($row->agent->last_name ?? ''))
+            : ($row->creator
+                ? trim(($row->creator->first_name ?? '') . ' ' . ($row->creator->last_name ?? ''))
+                : 'N/A');
 
         return [
             $row->id,
