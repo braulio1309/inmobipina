@@ -11,8 +11,23 @@
 
         <!-- PROPIEDAD -->
         <div class="mb-3">
-            <label class="form-label">Propiedad</label>
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <label class="form-label mb-0">Propiedad</label>
+                <div class="form-check form-check-inline mb-0" v-if="!isLocked">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="externalPropertyCheck"
+                        v-model="isExternalProperty"
+                        @change="onExternalPropertyToggle"
+                    >
+                    <label class="form-check-label small text-muted" for="externalPropertyCheck">
+                        Captación de otra inmobiliaria (ingreso manual)
+                    </label>
+                </div>
+            </div>
             <app-input
+                v-if="!isExternalProperty"
                 type="search-select"
                 v-model="operation.property_id"
                 :list="propertiesList"
@@ -20,6 +35,14 @@
                 @input="onPropertySelected"
                 :disabled="isLocked"
             />
+            <input
+                v-else
+                v-model="operation.external_property_title"
+                type="text"
+                class="form-control"
+                placeholder="Nombre/descripción del inmueble de otra inmobiliaria"
+                :disabled="isLocked"
+            >
         </div>
 
         <!-- TIPO (venta, reserva, exclusividad) -->
@@ -288,6 +311,8 @@ export default {
             buyersList: [],
             sellersList: [],
 
+            isExternalProperty: false,
+
             selectedPropertyPrice: null,
             showAmount: true,
             suggestedMessage: "",
@@ -298,6 +323,7 @@ export default {
 
             operationTypes: [
                 { id: "venta", value: "Venta" },
+                { id: "alquiler", value: "Alquiler" },
                 { id: "reserva", value: "Reserva" },
                 { id: "exclusividad", value: "Exclusividad" },
                 { id: "traspaso", value: "Traspaso" },
@@ -307,6 +333,7 @@ export default {
 
             operation: {
                 property_id: "",
+                external_property_title: "",
                 owner_client_id: "",
                 buyer_client_id: "",
                 type: "",
@@ -355,7 +382,7 @@ export default {
             return this.sellersCommissions.reduce((sum, s) => sum + (parseFloat(s.percentage) || 0), 0);
         },
         canDownloadCommissionPdf() {
-            return Boolean(this.operationId) && ['reserva', 'venta', 'traspaso'].includes(this.operation.type);
+            return Boolean(this.operationId) && ['reserva', 'venta', 'alquiler', 'traspaso'].includes(this.operation.type);
         },
     },
 
@@ -423,6 +450,7 @@ export default {
 
             this.operation = {
                 property_id: operation.property_id || '',
+                external_property_title: operation.external_property_title || '',
                 type: operation.type || '',
                 amount: operation.amount || '',
                 property_price: operation.property_price || '',
@@ -434,6 +462,8 @@ export default {
                 sellers: operation.sellers || [],
                 notes: operation.notes || '',
             };
+
+            this.isExternalProperty = !operation.property_id && !!operation.external_property_title;
 
             this.setSelectedPropertyPrice(this.operation.property_id);
             this.applyTypeState(true);
@@ -489,7 +519,7 @@ export default {
                 return;
             }
 
-            if (this.operation.type === "venta" || this.operation.type === "traspaso") {
+            if (this.operation.type === "venta" || this.operation.type === "traspaso" || this.operation.type === "alquiler") {
                 this.operation.amount = this.selectedPropertyPrice;
                 this.operation.property_price = "";
             } else if (this.operation.type === "reserva") {
@@ -548,8 +578,13 @@ export default {
         },
 
         validateOperationBeforeSave() {
-            if (!this.operation.property_id) {
+            if (!this.isExternalProperty && !this.operation.property_id) {
                 this.$toastr.e('Debes seleccionar una propiedad');
+                return false;
+            }
+
+            if (this.isExternalProperty && !this.operation.external_property_title) {
+                this.$toastr.e('Debes ingresar el nombre del inmueble');
                 return false;
             }
 
@@ -558,7 +593,7 @@ export default {
                 return false;
             }
 
-            if (['venta', 'reserva', 'traspaso'].includes(this.operation.type)) {
+            if (['venta', 'reserva', 'traspaso', 'alquiler'].includes(this.operation.type)) {
                 if (!this.operation.owner_client_id) {
                     this.$toastr.e('Debes seleccionar el cliente propietario para generar el pago');
                     return false;
@@ -586,6 +621,7 @@ export default {
             try {
                 const payload = {
                     ...this.operation,
+                    is_external_property: this.isExternalProperty,
                     sellers: this.operation.sellers,
                     sellers_commissions: this.sellersCommissions.map(s => ({
                         id: s.id,
@@ -609,6 +645,7 @@ export default {
                 if (!this.operationId) {
                     this.operation = {
                         property_id: "",
+                        external_property_title: "",
                         owner_client_id: "",
                         buyer_client_id: "",
                         type: "",
@@ -620,6 +657,7 @@ export default {
                         sellers: [],
                         notes: "",
                     };
+                    this.isExternalProperty = false;
                     this.selectedPropertyPrice = null;
                     this.sellersCommissions = [];
                 }
@@ -629,7 +667,16 @@ export default {
                 this.$toastr.e(msg);
                 console.error(error);
             }
-        }
+        },
+
+        onExternalPropertyToggle() {
+            if (this.isExternalProperty) {
+                this.operation.property_id = "";
+                this.selectedPropertyPrice = null;
+            } else {
+                this.operation.external_property_title = "";
+            }
+        },
     },
 };
 </script>

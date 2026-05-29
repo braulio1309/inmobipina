@@ -55,11 +55,13 @@ class OperationController extends Controller
                 ];
             })->values()->toArray();
 
-            $item->property_title = $item->property ? $item->property->title : '';
+            $item->property_title = $item->property
+                ? $item->property->title
+                : ($item->external_property_title ?: '');
             $item->contract_url = $item->contract_path
                 ? Storage::url('contracts/' . $item->contract_path)
                 : null;
-            $item->can_download_commission_pdf = in_array($item->type, ['reserva', 'venta', 'traspaso']);
+            $item->can_download_commission_pdf = in_array($item->type, ['reserva', 'venta', 'alquiler', 'traspaso']);
 
             return $item;
         });
@@ -91,7 +93,7 @@ class OperationController extends Controller
 
     // 1. Crear la Operación
     $operation = Operation::create(array_merge(
-        $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes']),
+        $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes', 'external_property_title']),
         [
             'company_commission_percentage' => $companyPct,
             'company_commission_amount'     => $companyAmt,
@@ -124,7 +126,7 @@ class OperationController extends Controller
     // Actualizar status de la propiedad según tipo de operación
     if ($operation->type === 'reserva') {
         Property::where('id', $operation->property_id)->update(['status' => 'Reservado']);
-    } elseif ($operation->type === 'venta' || $operation->type === 'traspaso') {
+    } elseif (in_array($operation->type, ['venta', 'traspaso', 'alquiler'])) {
         Property::where('id', $operation->property_id)->update(['status' => 'Vendido']);
     }
 
@@ -220,7 +222,7 @@ class OperationController extends Controller
             : [];
 
         $operation->update(array_merge(
-            $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes']),
+            $request->only(['type', 'property_id', 'owner_client_id', 'buyer_client_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes', 'external_property_title']),
             [
                 'company_commission_percentage' => $companyPct,
                 'company_commission_amount' => $companyAmt,
@@ -268,6 +270,7 @@ class OperationController extends Controller
             'type' => $operation->type,
             'property_id' => (string) $operation->property_id,
             'property_title' => $operation->property ? $operation->property->title : null,
+            'external_property_title' => $operation->external_property_title,
             'property_status' => $propertyStatus,
             'is_locked' => $isLocked,
             'amount' => $operation->amount,

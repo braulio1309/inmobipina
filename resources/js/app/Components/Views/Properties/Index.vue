@@ -177,7 +177,8 @@
                             default: "",
                             isVisible: true,
                             modifier:(value, row)=>{
-                                return '$'+row.price;
+                                const num = parseFloat(row.price) || 0;
+                                return '$' + num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             }
                         },
                         {

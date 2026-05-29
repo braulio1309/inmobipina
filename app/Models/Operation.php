@@ -36,6 +36,7 @@ class Operation extends Model
     protected $fillable = [
         'type',
         'property_id',
+        'external_property_title',
         'owner_client_id',
         'buyer_client_id',
         'amount',

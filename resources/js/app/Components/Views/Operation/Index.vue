@@ -172,6 +172,8 @@
                                     clase = 'warning'
                                 if (value == 'exclusividad')
                                     clase = 'success'
+                                if (value == 'alquiler')
+                                    clase = 'info'
                                 return `<span class="badge badge-sm badge-pill badge-${clase}">${row.type}</span>`;
                             }
                         },
@@ -182,7 +184,9 @@
                             default: "",
                             isVisible: true,
                             modifier:(value, row)=>{
-                                return (value)?'$'+row.amount: 'N/A';
+                                if (!value) return 'N/A';
+                                const num = parseFloat(row.amount) || 0;
+                                return '$' + num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             }
                         },
                         {
@@ -199,7 +203,7 @@
                                     .replace(/>/g, '&gt;')
                                     .replace(/"/g, '&quot;');
                                 const lines = value.map(d =>
-                                    `<div><strong>${escape(d.name)}</strong>: $${escape(parseFloat(d.amount).toFixed(2))} (${escape(parseFloat(d.percentage).toFixed(2))}%)</div>`
+                                    `<div><strong>${escape(d.name)}</strong>: $${escape((parseFloat(d.amount)||0).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2}))} (${escape(parseFloat(d.percentage).toFixed(2))}%)</div>`
                                 );
                                 return lines.join('');
                             }
@@ -249,6 +253,7 @@
                             "key": "type",
                             "option": [
                                 {id: 'venta', value: 'Venta'},
+                                {id: 'alquiler', value: 'Alquiler'},
                                 {id: 'reserva', value: 'Reserva'},
                                 {id: 'exclusividad', value: 'Exclusividad'},
                                 {id: 'traspaso', value: 'Traspaso'},
@@ -269,7 +274,7 @@
                         {
                             title: 'Descargar Pago Comisión',
                             type: 'none',
-                            modifier: (row) => ['reserva', 'venta', 'traspaso'].includes(row.type),
+                            modifier: (row) => ['reserva', 'venta', 'alquiler', 'traspaso'].includes(row.type),
                         },
                         {
                             title: 'Confirmar Venta',
@@ -312,7 +317,8 @@
                 });
             },
             formatAmt(val) {
-                return (parseFloat(val) || 0).toFixed(2);
+                const num = parseFloat(val) || 0;
+                return num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             },
             recalcConfirmCommissions() {
                 // Trigger reactivity; amounts are computed inline in the template
