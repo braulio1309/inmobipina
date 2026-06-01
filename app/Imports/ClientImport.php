@@ -7,6 +7,7 @@ use App\Models\Core\Auth\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
@@ -58,15 +59,10 @@ class ClientImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
                     }
                 }
 
-                $advisorId = null;
                 $advisorName = trim((string) ($row['as_asignado'] ?? ''));
-                if ($advisorName !== '') {
-                    $user = User::where(function ($q) use ($advisorName) {
-                        $q->whereRaw("CONCAT(COALESCE(first_name,''), ' ', COALESCE(last_name,'')) LIKE ?", ["%{$advisorName}%"])
-                          ->orWhereRaw("first_name LIKE ?", ["%{$advisorName}%"])
-                          ->orWhereRaw("last_name LIKE ?", ["%{$advisorName}%"]);
-                    })->first();
-                    $advisorId = $user ? $user->id : null;
+                $advisorId = $this->resolveAdvisorId($advisorName);
+                if ($advisorName !== '' && $advisorId === null) {
+                    $this->errors[] = "Fila {$rowNumber}: no se encontro un asesor para '{$advisorName}'.";
                 }
 
                 // Determine final advisor
@@ -121,5 +117,139 @@ class ClientImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
         ];
 
         return $map[mb_strtolower($source)] ?? $source;
+    }
+
+    private function resolveAdvisorId(string $advisorName): ?int
+    {
+        $normalizedAdvisorName = $this->normalizeAdvisorName($advisorName);
+        if ($normalizedAdvisorName === '') {
+            return null;
+        }
+
+        $advisorTokens = $this->tokenizeAdvisorName($normalizedAdvisorName);
+        $users = User::query()
+            ->select('id', 'first_name', 'last_name', 'email')
+            ->get();
+
+        foreach ($users as $user) {
+            foreach ($this->advisorCandidatesForUser($user) as $candidate) {
+                if ($candidate === $normalizedAdvisorName) {
+                    return $user->id;
+                }
+            }
+        }
+
+        if (!empty($advisorTokens)) {
+            $inputSignature = $this->normalizeTokenSignature($advisorTokens);
+
+            foreach ($users as $user) {
+                foreach ($this->advisorCandidatesForUser($user) as $candidate) {
+                    $candidateTokens = $this->tokenizeAdvisorName($candidate);
+                    if (!empty($candidateTokens) && $this->normalizeTokenSignature($candidateTokens) === $inputSignature) {
+                        return $user->id;
+                    }
+                }
+            }
+        }
+
+        $bestUserId = null;
+        $bestScore = 0.0;
+
+        foreach ($users as $user) {
+            $score = $this->scoreAdvisorMatch($normalizedAdvisorName, $advisorTokens, $user);
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestUserId = $user->id;
+            }
+        }
+
+        return $bestScore >= 120.0 ? $bestUserId : null;
+    }
+
+    private function scoreAdvisorMatch(string $advisorName, array $advisorTokens, User $user): float
+    {
+        $bestScore = 0.0;
+
+        foreach ($this->advisorCandidatesForUser($user) as $candidate) {
+            if ($candidate === '') {
+                continue;
+            }
+
+            $candidateTokens = $this->tokenizeAdvisorName($candidate);
+            $matchingTokens = array_intersect($advisorTokens, $candidateTokens);
+            $score = 0.0;
+
+            if (Str::contains($candidate, $advisorName) || Str::contains($advisorName, $candidate)) {
+                $score += 90;
+            }
+
+            $score += count($matchingTokens) * 45;
+
+            if (!empty($advisorTokens) && count($matchingTokens) === count($advisorTokens)) {
+                $score += 80;
+            }
+
+            similar_text($advisorName, $candidate, $similarityPercentage);
+            $score += $similarityPercentage;
+
+            $distance = levenshtein($advisorName, $candidate);
+            $score += max(0, 40 - ($distance * 3));
+
+            $bestScore = max($bestScore, $score);
+        }
+
+        return $bestScore;
+    }
+
+    private function normalizeAdvisorName(string $value): string
+    {
+        return (string) Str::of(Str::ascii($value))
+            ->lower()
+            ->replaceMatches('/[^a-z0-9\s]+/', ' ')
+            ->squish();
+    }
+
+    private function tokenizeAdvisorName(string $value): array
+    {
+        if ($value === '') {
+            return [];
+        }
+
+        return collect(explode(' ', $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function normalizeTokenSignature(array $tokens): string
+    {
+        sort($tokens);
+
+        return implode(' ', $tokens);
+    }
+
+    private function advisorCandidatesForUser(User $user): array
+    {
+        $firstName = trim((string) ($user->first_name ?? ''));
+        $lastName = trim((string) ($user->last_name ?? ''));
+        $fullName = trim($firstName . ' ' . $lastName);
+        $reversedName = trim($lastName . ' ' . $firstName);
+        $email = trim((string) ($user->email ?? ''));
+        $emailLocalPart = $email !== '' ? Str::before($email, '@') : '';
+
+        return collect([
+            $this->normalizeAdvisorName($fullName),
+            $this->normalizeAdvisorName($reversedName),
+            $this->normalizeAdvisorName($firstName),
+            $this->normalizeAdvisorName($lastName),
+            $this->normalizeAdvisorName($email),
+            $this->normalizeAdvisorName($emailLocalPart),
+        ])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 }

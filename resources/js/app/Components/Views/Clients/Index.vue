@@ -168,6 +168,16 @@
                             }
                         },
                         {
+                            title: 'Tipo de negociación',
+                            type: 'text',
+                            key: 'tipo_neg',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value) => {
+                                return value || '—';
+                            }
+                        },
+                        {
                             title: 'Asesor',
                             type: 'text',
                             key: 'advisor_name',
