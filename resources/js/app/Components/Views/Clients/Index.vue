@@ -35,8 +35,8 @@
                         </ul>
                     </div>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary btn-sm" @click="runImport" :disabled="importing">
+                <div class="d-flex">
+                    <button class="btn btn-primary btn-sm mr-2" @click="runImport" :disabled="importing">
                         <span v-if="importing"><i class="fas fa-spinner fa-spin mr-1"></i>Importando...</span>
                         <span v-else><i class="fas fa-upload mr-1"></i>Importar</span>
                     </button>

@@ -9,7 +9,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 
 class ClientImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
@@ -37,7 +36,7 @@ class ClientImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
 
         foreach ($rows as $index => $row) {
             try {
-                $rowNumber = $index + 2; // +2 because heading is row 1
+                $rowNumber = $index + 2; // +2: index is 0-based, and row 1 is the heading row
 
                 $name = trim((string) ($row['nombre_del_cliente'] ?? ''));
                 if ($name === '') {
