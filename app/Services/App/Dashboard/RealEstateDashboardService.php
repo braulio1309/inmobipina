@@ -56,8 +56,8 @@ class RealEstateDashboardService
             ->count();
 
         // Total company commission from operations in the date range
-        $totalCompanyCommission = \DB::table('operations')
-            ->whereBetween('created_at', [$startDate, $endDate])
+        $totalCompanyCommission = DB::table('operations')
+            ->whereBetween(DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), [$startDate, $endDate])
             ->whereIn('type', ['venta', 'reserva'])
             ->sum('company_commission_amount');
 
@@ -259,10 +259,10 @@ class RealEstateDashboardService
             ->groupBy('source');
 
         if ($startDate) {
-            $query->whereDate('created_at', '>=', Carbon::parse($startDate)->startOfDay());
+            $query->whereDate('date', '>=', Carbon::parse($startDate)->startOfDay());
         }
         if ($endDate) {
-            $query->whereDate('created_at', '<=', Carbon::parse($endDate)->endOfDay());
+            $query->whereDate('date', '<=', Carbon::parse($endDate)->endOfDay());
         }
 
         $rows = $query->get();

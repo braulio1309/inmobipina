@@ -18,8 +18,8 @@
 
     <div class="tab-content border rounded p-3">
 
-        <!-- TAB 3: Detalles -->
-        <div v-if="activeTab === 2">
+        <!-- TAB 1: Detalles -->
+        <div v-if="activeTab === 0">
             <h5 class="mb-3">Detalles de la Propiedad</h5>
 
             <div class="mb-3">
@@ -96,8 +96,8 @@
             </div>
         </div>
 
-        <!-- TAB 4: Ubicación -->
-        <div v-if="activeTab === 3">
+        <!-- TAB 2: Ubicación -->
+        <div v-if="activeTab === 1">
             <h5 class="mb-3">Información de Ubicación</h5>
 
             <div class="mb-3">
@@ -136,8 +136,8 @@
             </div>      
         </div>
 
-        <!-- TAB 5: Precio (Extras) -->
-        <div v-if="activeTab === 4">
+        <!-- TAB 3: Precio -->
+        <div v-if="activeTab === 2">
             <h5 class="mb-3">Información Extra</h5>
 
             <div class="mb-3">
@@ -182,8 +182,8 @@
             </div>
         </div>
 
-        <!-- TAB 6: Fotos -->
-        <div v-if="activeTab === 5">
+        <!-- TAB 5: Fotos -->
+        <div v-if="activeTab === 4">
             <h5 class="mb-3">Imágenes del Inmueble</h5>
 
             <div v-if="!savedPropertyId" class="alert alert-info">
@@ -227,8 +227,8 @@
             </div>
         </div>
 
-        <!-- TAB 2: Documentos -->
-        <div v-if="activeTab === 1">
+        <!-- TAB 6: Documentos -->
+        <div v-if="activeTab === 5">
             <h5 class="mb-3">Documentos del Inmueble</h5>
 
             <div v-if="!savedPropertyId" class="alert alert-info">
@@ -307,8 +307,8 @@
             </div>
         </div>
 
-        <!-- TAB 1: Captación -->
-        <div v-if="activeTab === 0">
+        <!-- TAB 4: Captación -->
+        <div v-if="activeTab === 3">
             <h5 class="mb-3">Formulario de Captación</h5>
             <p class="text-muted mb-3">
                 Este formulario es opcional. Completamos automáticamente la información base, pero puedes ajustarla manualmente cuando lo necesites.
@@ -813,12 +813,12 @@ export default {
                 { id: "", value: "Elige uno" },
             ],
             tabs: [
-                { label: "Captación" },
-                { label: "Documentos" },
                 { label: "Detalles" },
                 { label: "Ubicación" },
-                { label: "Precio (Extras)" },
+                { label: "Precio" },
+                { label: "Captación" },
                 { label: "Fotos" },
+                { label: "Documentos" },
                 { label: "Exclusividad" },
             ],
 
@@ -996,7 +996,7 @@ export default {
 
     watch: {
         activeTab(newTab) {
-            if (newTab === 3) {
+            if (newTab === 1) {
                 this.$nextTick(() => {
                     this.initMap();
                     this.refreshMapSize();
@@ -1178,7 +1178,7 @@ export default {
 
                 this.$nextTick(() => {
                     this.syncMapMarker();
-                    if (this.activeTab === 3) {
+                    if (this.activeTab === 1) {
                         this.initMap();
                         this.refreshMapSize();
                     }
@@ -1200,18 +1200,17 @@ export default {
             const hasCoordinates = this.hasValidCoordinates(this.property.map_lat, this.property.map_lng);
             const defaultLat = hasCoordinates ? parseFloat(this.property.map_lat) : PUERTO_ORDAZ_CENTER.lat;
             const defaultLng = hasCoordinates ? parseFloat(this.property.map_lng) : PUERTO_ORDAZ_CENTER.lng;
-            const defaultZoom = hasCoordinates ? 15 : PUERTO_ORDAZ_CENTER.zoom;
+            const defaultZoom = hasCoordinates ? 16 : PUERTO_ORDAZ_CENTER.zoom;
 
             this.leafletMap = L.map(mapEl).setView([defaultLat, defaultLng], defaultZoom);
 
-            this.leafletTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles &copy; Esri',
+            this.leafletTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                 maxZoom: 19,
                 detectRetina: true,
                 updateWhenIdle: true,
                 updateWhenZooming: false,
                 keepBuffer: 6,
-                crossOrigin: true,
             }).addTo(this.leafletMap);
 
             this.syncMapMarker();
@@ -1245,7 +1244,7 @@ export default {
                 this.leafletMarker = L.marker([lat, lng]).addTo(this.leafletMap);
             }
 
-            this.leafletMap.setView([lat, lng], this.leafletMap.getZoom() < 15 ? 15 : this.leafletMap.getZoom());
+            this.leafletMap.setView([lat, lng], this.leafletMap.getZoom() < 16 ? 16 : this.leafletMap.getZoom());
         },
 
         refreshMapSize() {
@@ -1260,16 +1259,22 @@ export default {
             });
         },
 
-        onAddressEnter() {
-            if (this.addressSuggestions.length === 0) {
+        async onAddressEnter() {
+            if (!this.property.address || this.property.address.trim().length < 3) {
                 return;
             }
-            if (this.addressSuggestionIndex >= 0) {
-                this.selectAddressSuggestion(this.addressSuggestionIndex);
-            } else {
-                // Highlight first item so the user can confirm with Enter again
-                this.addressSuggestionIndex = 0;
+
+            if (this.addressSuggestionIndex >= 0 && this.addressSuggestions.length > 0) {
+                await this.selectAddressSuggestion(this.addressSuggestionIndex);
+                return;
             }
+
+            if (this.addressSuggestions.length > 0) {
+                await this.selectAddressSuggestion(0);
+                return;
+            }
+
+            await this.applyAddressQuery(this.property.address);
         },
 
         onAddressInput() {
@@ -1286,17 +1291,88 @@ export default {
 
         async searchAddress(query) {
             try {
-                let suggestions = await this.searchAddressWithArcGis(query);
+                const contextualQuery = this.buildContextualAddressQuery(query);
+                let suggestions = await this.searchAddressWithArcGis(contextualQuery);
 
                 if (!suggestions.length) {
-                    suggestions = await this.searchAddressWithNominatim(query);
+                    suggestions = await this.searchAddressWithNominatim(contextualQuery);
                 }
 
-                this.addressSuggestions = suggestions;
+                this.addressSuggestions = this.rankAddressCandidates(query, suggestions).slice(0, 8);
             } catch (e) {
                 console.error('Error al buscar dirección:', e);
                 this.addressSuggestions = [];
             }
+        },
+
+        normalizeAddressText(value) {
+            return (value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        },
+
+        buildContextualAddressQuery(query) {
+            const normalizedQuery = this.normalizeAddressText(query);
+
+            if (!normalizedQuery) {
+                return query;
+            }
+
+            const alreadyHasContext = [
+                'ciudad guayana',
+                'puerto ordaz',
+                'san felix',
+                'bolivar',
+                'venezuela',
+            ].some((term) => normalizedQuery.includes(term));
+
+            return alreadyHasContext ? query : `${query}, Ciudad Guayana, Bolivar, Venezuela`;
+        },
+
+        scoreAddressCandidate(query, candidate) {
+            const normalizedQuery = this.normalizeAddressText(query);
+            const normalizedCandidate = this.normalizeAddressText(candidate.display_name);
+
+            if (!normalizedQuery || !normalizedCandidate) {
+                return 0;
+            }
+
+            const queryTokens = normalizedQuery.split(' ').filter((token) => token.length > 2);
+            let score = 0;
+
+            queryTokens.forEach((token) => {
+                if (normalizedCandidate.includes(token)) {
+                    score += token.length * 4;
+                }
+            });
+
+            if (normalizedCandidate.includes(normalizedQuery)) {
+                score += 40;
+            }
+
+            if (normalizedCandidate.startsWith(normalizedQuery)) {
+                score += 20;
+            }
+
+            if (normalizedQuery.includes('puerto ordaz') && normalizedCandidate.includes('san felix')) {
+                score -= 35;
+            }
+
+            if (normalizedQuery.includes('san felix') && normalizedCandidate.includes('puerto ordaz')) {
+                score -= 35;
+            }
+
+            return score;
+        },
+
+        rankAddressCandidates(query, candidates) {
+            return [...(candidates || [])].sort((left, right) => {
+                return this.scoreAddressCandidate(query, right) - this.scoreAddressCandidate(query, left);
+            });
         },
 
         async searchAddressWithArcGis(query) {
@@ -1305,8 +1381,6 @@ export default {
                 text: query,
                 maxSuggestions: '8',
                 countryCode: 'VEN',
-                location: `${PUERTO_ORDAZ_CENTER.lng},${PUERTO_ORDAZ_CENTER.lat}`,
-                searchExtent: `${PUERTO_ORDAZ_BOUNDS.xmin},${PUERTO_ORDAZ_BOUNDS.ymin},${PUERTO_ORDAZ_BOUNDS.xmax},${PUERTO_ORDAZ_BOUNDS.ymax}`,
             });
 
             const response = await fetch(
@@ -1335,7 +1409,7 @@ export default {
 
         async searchAddressWithNominatim(query) {
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5&viewbox=${PUERTO_ORDAZ_BOUNDS.xmin},${PUERTO_ORDAZ_BOUNDS.ymax},${PUERTO_ORDAZ_BOUNDS.xmax},${PUERTO_ORDAZ_BOUNDS.ymin}&bounded=1`,
+                `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5`,
                 {
                     headers: {
                         'Accept': 'application/json',
@@ -1363,10 +1437,8 @@ export default {
                 f: 'json',
                 magicKey: suggestion.magicKey,
                 SingleLine: suggestion.display_name,
-                maxLocations: '1',
+                maxLocations: '5',
                 outSR: '4326',
-                location: `${PUERTO_ORDAZ_CENTER.lng},${PUERTO_ORDAZ_CENTER.lat}`,
-                searchExtent: `${PUERTO_ORDAZ_BOUNDS.xmin},${PUERTO_ORDAZ_BOUNDS.ymin},${PUERTO_ORDAZ_BOUNDS.xmax},${PUERTO_ORDAZ_BOUNDS.ymax}`,
             });
 
             const response = await fetch(
@@ -1383,17 +1455,91 @@ export default {
             }
 
             const data = await response.json();
-            const candidate = data.candidates && data.candidates[0];
+            const candidate = this.rankAddressCandidates(
+                suggestion.display_name,
+                (data.candidates || []).map((item) => ({
+                    display_name: item.address || suggestion.display_name,
+                    lat: String(item.location?.y || ''),
+                    lon: String(item.location?.x || ''),
+                }))
+            )[0];
 
-            if (!candidate || !candidate.location) {
+            if (!candidate || !candidate.lat || !candidate.lon) {
                 return null;
             }
 
-            return {
-                display_name: candidate.address || suggestion.display_name,
-                lat: String(candidate.location.y),
-                lon: String(candidate.location.x),
-            };
+            return candidate;
+        },
+
+        async geocodeAddressWithArcGis(query) {
+            const params = new URLSearchParams({
+                f: 'json',
+                SingleLine: this.buildContextualAddressQuery(query),
+                maxLocations: '5',
+                outSR: '4326',
+                sourceCountry: 'VEN',
+            });
+
+            const response = await fetch(
+                `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`,
+                {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`ArcGIS direct geocode failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+            const candidate = this.rankAddressCandidates(
+                query,
+                (data.candidates || []).map((item) => ({
+                    display_name: item.address || query,
+                    lat: String(item.location?.y || ''),
+                    lon: String(item.location?.x || ''),
+                }))
+            )[0];
+
+            if (!candidate || !candidate.lat || !candidate.lon) {
+                return null;
+            }
+
+            return candidate;
+        },
+
+        async applyAddressQuery(query) {
+            const normalizedQuery = (query || '').trim();
+
+            if (normalizedQuery.length < 3) {
+                return;
+            }
+
+            try {
+                let resolved = await this.geocodeAddressWithArcGis(normalizedQuery);
+
+                if (!resolved) {
+                    const fallbackSuggestions = await this.searchAddressWithNominatim(this.buildContextualAddressQuery(normalizedQuery));
+                    resolved = this.rankAddressCandidates(normalizedQuery, fallbackSuggestions)[0] || null;
+                }
+
+                if (!resolved || !resolved.lat || !resolved.lon) {
+                    this.$toastr.w('No se pudo ubicar esa dirección en el mapa');
+                    return;
+                }
+
+                this.property.address = resolved.display_name;
+                this.property.map_lat = parseFloat(resolved.lat).toFixed(6);
+                this.property.map_lng = parseFloat(resolved.lon).toFixed(6);
+                this.addressSuggestions = [];
+                this.addressSuggestionIndex = -1;
+                this.syncMapMarker();
+            } catch (e) {
+                console.error('Error al ubicar dirección:', e);
+                this.$toastr.e('Error al ubicar la dirección en el mapa');
+            }
         },
 
         moveAddressSuggestion(direction) {

@@ -38,7 +38,7 @@ class ReportController extends Controller
             ->whereNotNull('assigned_to')
             ->groupBy('assigned_to');
 
-        $this->applyDateRangeFilter($assignedClientsQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRangeFilter($assignedClientsQuery, 'date', $startDate, $endDate);
 
         $query = DB::table('operation_user')
             ->join('users', 'operation_user.user_id', '=', 'users.id')
@@ -59,7 +59,7 @@ class ReportController extends Controller
             $query->where('operation_user.user_id', $user->id);
         }
 
-        $this->applyDateRangeFilter($query, 'operations.created_at', $startDate, $endDate);
+        $this->applyDateRangeFilter($query, DB::raw('COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)'), $startDate, $endDate);
 
         return $query->orderByDesc('value')->get()->map(function ($row) {
             return [
@@ -186,12 +186,12 @@ class ReportController extends Controller
 
         $reservationsCount = DB::table('operations')
             ->where('type', 'reserva')
-            ->whereBetween('created_at', [$start, $end])
+            ->whereBetween(DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), [$start, $end])
             ->count();
 
         $companyCommission = DB::table('operations')
             ->whereIn('type', ['venta', 'reserva'])
-            ->whereBetween('created_at', [$start, $end])
+            ->whereBetween(DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), [$start, $end])
             ->sum('company_commission_amount');
 
         return response()->json([
@@ -225,11 +225,11 @@ class ReportController extends Controller
 
         $data = DB::table('operations')
             ->select(
-                DB::raw("DATE_FORMAT(created_at, '$format') as period"),
+                DB::raw("DATE_FORMAT(COALESCE(fecha_cierre, start_date, end_date), '$format') as period"),
                 DB::raw('SUM(company_commission_amount) as total')
             )
             ->whereIn('type', ['venta', 'reserva'])
-            ->whereBetween('created_at', [$start, $end])
+            ->whereBetween(DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), [$start, $end])
             ->groupBy('period')
             ->orderBy('period')
             ->get();
