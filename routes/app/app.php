@@ -42,6 +42,7 @@ Route::get('property/{id}/summary', [PropertyController::class, 'summary'])->nam
 Route::get('property/{id}', [PropertyController::class, 'show'])->name('property.show');
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');
 Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->name('property.approve');
+Route::patch('property/{id}/toggle-availability', [PropertyController::class, 'toggleAvailability'])->name('property.toggle-availability');
 Route::post('edit/property/{id}', [PropertyController::class, 'edit'])->name('property.edit');
 Route::post('property/{id}/images', [PropertyController::class, 'uploadImages'])->name('property.images');
 Route::post('property/{id}/documents', [PropertyController::class, 'uploadDocuments'])->name('property.documents');
@@ -52,6 +53,7 @@ Route::get('property/{id}/captation-pdf', [PropertyController::class, 'generateC
 Route::get('client/listar', [ClientController::class, 'listado'])->name('client.listar');
 Route::get('client/export', [ClientController::class, 'export'])->name('client.export');
 Route::get('client/form-data', [ClientController::class, 'formData'])->name('client.form-data');
+Route::post('client/import', [ClientController::class, 'import'])->name('client.import');
 Route::post('client/create', [ClientController::class, 'create'])->name('client.crear');
 Route::post('edit/client/{id}', [ClientController::class, 'edit'])->name('client.edit');
 Route::patch('client/{id}/status', [ClientController::class, 'changeStatus'])->name('client.status');
