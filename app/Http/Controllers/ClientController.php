@@ -10,6 +10,7 @@ use App\Filters\Common\Auth\ClientFilter as AppUserFilter;
 use App\Filters\Core\ClientFilter;
 use App\Services\Core\Auth\ClientService;
 use App\Exports\ClientExport;
+use App\Imports\ClientImport;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -46,6 +47,22 @@ class ClientController extends Controller
         });
 
         return $clients;
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ]);
+
+        $import = new ClientImport();
+        Excel::import($import, $request->file('file'));
+
+        return response()->json([
+            'message' => "Se importaron {$import->getImportedCount()} clientes correctamente.",
+            'imported' => $import->getImportedCount(),
+            'errors'   => $import->getErrors(),
+        ]);
     }
 
     public function export(Request $request)

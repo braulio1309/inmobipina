@@ -110,7 +110,7 @@
                         @input="onAddressInput"
                         @keydown.down.prevent="moveAddressSuggestion(1)"
                         @keydown.up.prevent="moveAddressSuggestion(-1)"
-                        @keydown.enter.prevent="selectAddressSuggestion(addressSuggestionIndex)"
+                        @keydown.enter.prevent="onAddressEnter"
                         autocomplete="off"
                     >
                     <ul v-if="addressSuggestions.length > 0" class="list-group position-absolute w-100" style="z-index:1000; top:100%;">
@@ -1258,6 +1258,18 @@ export default {
                     this.leafletMap.invalidateSize(false);
                 });
             });
+        },
+
+        onAddressEnter() {
+            if (this.addressSuggestions.length === 0) {
+                return;
+            }
+            if (this.addressSuggestionIndex >= 0) {
+                this.selectAddressSuggestion(this.addressSuggestionIndex);
+            } else {
+                // Highlight first item so the user can confirm with Enter again
+                this.addressSuggestionIndex = 0;
+            }
         },
 
         onAddressInput() {

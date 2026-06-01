@@ -198,6 +198,20 @@ class PropertyController extends Controller
             return response()->json(['message' => 'Propiedad rechazada.']);
         }
     }
+
+    public function toggleAvailability($id)
+    {
+        $property = Property::findOrFail($id);
+
+        if ($property->status === 'Disponible') {
+            $property->update(['status' => 'No disponible']);
+            return response()->json(['message' => 'Propiedad marcada como No disponible.', 'status' => 'No disponible']);
+        } else {
+            $property->update(['status' => 'Disponible', 'approved_by' => Auth::id()]);
+            return response()->json(['message' => 'Propiedad marcada como Disponible.', 'status' => 'Disponible']);
+        }
+    }
+
     public function generateCaptationPdf($id)
     {
         $property = Property::with(['captation', 'creator'])->findOrFail($id);

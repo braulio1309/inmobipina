@@ -6,9 +6,41 @@
             </div>
             <div class="col-sm-12 col-md-6 breadcrumb-side-button">
                 <div class="float-md-right mb-3 mb-sm-3 mb-md-0">
+                    <button type="button" class="btn btn-primary btn-with-shadow mr-2" @click="showImportModal = true">
+                        <i class="fas fa-file-import mr-1"></i> Importar Excel
+                    </button>
                     <button type="button" class="btn btn-success btn-with-shadow" @click="exportClients">
                         <i class="fas fa-file-excel mr-1"></i> Exportar Excel
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal importar clientes -->
+        <div v-if="showImportModal" class="modal-backdrop" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1050;display:flex;align-items:center;justify-content:center;">
+            <div class="card p-4" style="min-width:360px;max-width:520px;z-index:1060;">
+                <h6 class="mb-3">Importar clientes desde Excel</h6>
+                <p class="text-muted small mb-3">
+                    El archivo debe tener las columnas en la primera fila:<br>
+                    <strong>FECHA, NOMBRE DEL CLIENTE, UBICACION, TIPO DE INMUEBLE, TIPO DE NEG, TELEFONO, MEDIO, AS. ASIGNADO</strong>
+                </p>
+                <div class="mb-3">
+                    <input type="file" class="form-control" ref="importFileInput" accept=".xlsx,.xls,.csv">
+                </div>
+                <div v-if="importResult" class="mb-3">
+                    <div :class="importResult.errors && importResult.errors.length ? 'alert alert-warning' : 'alert alert-success'" class="py-2 px-3 small">
+                        {{ importResult.message }}
+                        <ul v-if="importResult.errors && importResult.errors.length" class="mt-1 mb-0 pl-3">
+                            <li v-for="(err, i) in importResult.errors" :key="i">{{ err }}</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm" @click="runImport" :disabled="importing">
+                        <span v-if="importing"><i class="fas fa-spinner fa-spin mr-1"></i>Importando...</span>
+                        <span v-else><i class="fas fa-upload mr-1"></i>Importar</span>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" @click="closeImportModal">Cerrar</button>
                 </div>
             </div>
         </div>
@@ -54,6 +86,9 @@
                 showStatusModal: false,
                 selectedClient: null,
                 newStatus: 'potencial',
+                showImportModal: false,
+                importing: false,
+                importResult: null,
                 statusOptions: [
                     { id: "potencial", value: "Potencial" },
                     { id: "no potencial", value: "No potencial" },
@@ -219,6 +254,37 @@
                         }))
                     });
                 });
+            },
+            closeImportModal() {
+                this.showImportModal = false;
+                this.importResult = null;
+                if (this.$refs.importFileInput) {
+                    this.$refs.importFileInput.value = '';
+                }
+            },
+            async runImport() {
+                const fileInput = this.$refs.importFileInput;
+                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                    this.$toastr.e('Selecciona un archivo Excel primero.');
+                    return;
+                }
+                this.importing = true;
+                this.importResult = null;
+                try {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    const response = await axios.post('/client/import', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    this.importResult = response.data;
+                    this.$hub.$emit('reload-default-filter-table');
+                } catch (error) {
+                    const msg = error.response?.data?.message || 'Error al importar el archivo.';
+                    this.importResult = { message: msg, errors: [] };
+                    this.$toastr.e(msg);
+                } finally {
+                    this.importing = false;
+                }
             },
             exportClients() {
                 const urlParams = new URLSearchParams(window.location.search);

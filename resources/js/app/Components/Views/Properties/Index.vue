@@ -125,7 +125,7 @@
                         },
                         {
                             title: 'Asesor responsable',
-                            type: 'text',
+                            type: 'object',
                             key: 'advisor_name',
                             default: "",
                             isVisible: true,
@@ -292,6 +292,8 @@
                         { title: 'Detalle', type: 'none' },
                         { title: 'Editar', type: 'none' },
                         { title: 'Compartir', type: 'none', modifier: (row) => !!row.approved_by || row.status === 'Disponible' },
+                        { title: 'Habilitar', type: 'none', modifier: (row) => row.status !== 'Disponible' },
+                        { title: 'Deshabilitar', type: 'none', modifier: (row) => row.status === 'Disponible' },
                     ],
                 },
             }
@@ -354,6 +356,16 @@
                 } else if (actionObj.title === 'Compartir') {
                     const shareUrl = `${window.location.origin}/property/share/${rowData.id}`;
                     window.open(shareUrl, '_blank');
+                } else if (actionObj.title === 'Habilitar' || actionObj.title === 'Deshabilitar') {
+                    this.axiosPatch({
+                        url: `property/${rowData.id}/toggle-availability`,
+                        data: {}
+                    }).then(res => {
+                        this.$toastr.s(res.data.message || 'Estado actualizado.');
+                        this.$hub.$emit('reload-default-filter-table');
+                    }).catch(err => {
+                        this.$toastr.e(err.response?.data?.message || 'Error al cambiar el estado.');
+                    });
                 } else if (actionObj.title === 'Aprobar') {
                     this.axiosPatch({
                         url: `property/${rowData.id}/approve`,
