@@ -32,6 +32,7 @@ Vue.component('payment-method-create-edit-modal', require('./Components/Views/Se
 // Propiedades
 Vue.component('properties', require('./Components/Views/Properties/Index').default);
 Vue.component('create-properties', require('./Components/Views/Properties/Create').default);
+Vue.component('active-rentals-properties', require('./Components/Views/Properties/ActiveRentals').default);
 
 
 //Operations

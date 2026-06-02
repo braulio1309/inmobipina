@@ -809,7 +809,7 @@ return [
     'default_dashboard' => 'Panel predeterminado',
     'academy_dashboard' => 'Panel de academia',
     'e_commerce_dashboard' => 'Panel de comercio electrónico',
-    'hospital_dashboard' => 'Panel de hospital',
+    'hospital_dashboard' => 'Panel',
     'hrm_dashboard' => 'Panel de RRHH',
     // Notificaciones
     'all_notifications' => 'Todas las notificaciones',

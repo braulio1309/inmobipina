@@ -38,6 +38,11 @@ class SidebarComposer
                         'url' => request()->root() . '/properties',
                         'permission' => $authUser->can('view_academy'),
                     ],
+                    [
+                        'name' => 'Alquileres activos',
+                        'url' => request()->root() . '/properties/active-rentals',
+                        'permission' => $authUser->can('view_academy'),
+                    ],
                 ]),
             ],
             [

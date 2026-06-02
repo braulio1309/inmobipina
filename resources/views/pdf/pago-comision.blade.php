@@ -133,6 +133,8 @@
         $propertyAddress = trim((string) ($property->address ?? ''));
         $operationLabel = strtoupper($operation->type ?? 'VENTA');
         $propertyPrice = $operation->property_price ?: ($property->price ?? 0);
+        $totalCommissionPct = (float) ($operation->total_commission_percentage ?? 5);
+        $companyPctOfOperation = (float) ($operation->company_commission_percentage ?? 0);
         $ownerName = trim((string) ($ownerClient?->name ?? ''));
         $ownerCi = trim((string) ($ownerClient?->ci ?? ''));
         $buyerName = trim((string) ($buyerClient?->name ?? ''));
@@ -145,7 +147,9 @@
                 'ci' => $companyRepresentative['ci'],
                 'email' => null,
                 'amount' => (float) ($operation->company_commission_amount ?? 0),
-                'share_percentage' => 50,
+                'share_percentage' => $totalCommissionPct > 0
+                    ? round(($companyPctOfOperation / $totalCommissionPct) * 100, 2)
+                    : 0,
                 'is_company' => true,
             ],
         ])->merge($advisors->map(function ($advisor) use ($formatFullName) {
@@ -158,7 +162,9 @@
                 'ci' => trim((string) ($advisor->ci ?? '')),
                 'email' => $advisor->email ?? null,
                 'amount' => $advisorCommission,
-                'share_percentage' => $advisorPctOfOperation > 0 ? round(($advisorPctOfOperation / 5) * 100, 2) : 0,
+                'share_percentage' => ($advisorPctOfOperation > 0 && $totalCommissionPct > 0)
+                    ? round(($advisorPctOfOperation / $totalCommissionPct) * 100, 2)
+                    : 0,
                 'is_company' => false,
             ];
         }));

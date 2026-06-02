@@ -69,6 +69,56 @@ class OperationController extends Controller
         return $operations;
     }
 
+    public function activeRentals()
+    {
+        $operations = Operation::with([
+                'property:id,title,address,status,agent_id,created_by',
+                'property.agent:id,first_name,last_name',
+                'property.creator:id,first_name,last_name',
+                'clients',
+                'sellers:id,first_name,last_name,email',
+                'ownerClient',
+                'buyerClient',
+            ])
+            ->where('type', 'alquiler')
+            ->whereHas('property', function ($query) {
+                $query->where('status', 'Alquilado');
+            })
+            ->orderByDesc('fecha_cierre')
+            ->paginate(request()->get('per_page', 10));
+
+        $operations->getCollection()->transform(function (Operation $operation) {
+            $resolvedOwnerClient = $this->resolveOperationOwnerClient($operation) ?: $this->makeAnonymousClient();
+            $resolvedBuyerClient = $this->resolveOperationBuyerClient($operation, $resolvedOwnerClient) ?: $this->makeAnonymousClient();
+            $property = $operation->property;
+            $operationAdvisorNames = $operation->sellers
+                ->map(fn ($seller) => trim(($seller->first_name ?? '') . ' ' . ($seller->last_name ?? '')) ?: ($seller->email ?? ''))
+                ->filter()
+                ->values();
+            $propertyAdvisor = $property?->agent ?: $property?->creator;
+            $propertyAdvisorName = $propertyAdvisor
+                ? (trim(($propertyAdvisor->first_name ?? '') . ' ' . ($propertyAdvisor->last_name ?? '')) ?: 'Sin asesor')
+                : 'Sin asesor';
+
+            return [
+                'id' => $operation->id,
+                'property_title' => $property?->title ?: ($operation->external_property_title ?: 'Sin título'),
+                'property_address' => $property?->address ?: 'Sin ubicación',
+                'operation_amount' => $operation->amount,
+                'owner_name' => $resolvedOwnerClient->name ?: 'Sin propietario',
+                'buyer_name' => $resolvedBuyerClient->name ?: 'Sin comprador',
+                'operation_advisor_name' => $operationAdvisorNames->isNotEmpty()
+                    ? $operationAdvisorNames->implode(', ')
+                    : $propertyAdvisorName,
+                'payment_frequency' => $this->formatPaymentFrequencyLabel($operation->payment_frequency),
+                'next_cutoff_date' => $this->calculateNextRentalCutoffDate($operation),
+                'final_date' => $operation->fecha_corte,
+            ];
+        });
+
+        return $operations;
+    }
+
     public function create(Request $request)
 {
     /** @var \App\Models\Core\Auth\User|null $authUser */
@@ -82,22 +132,80 @@ class OperationController extends Controller
     $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
     $numSellers = count($sellers);
     $participants = $this->resolveOperationParticipants($request);
-    $companyPct = $request->filled('company_commission_percentage')
-        ? (float) $request->input('company_commission_percentage')
-        : 2.5;
-    $companyAmt = round($amount * $companyPct / 100, 2);
-    $remainingPct = max(0, 5 - $companyPct);
-    $eachAdvisorPct = $numSellers > 0 ? round($remainingPct / $numSellers, 4) : 0;
+    $isRental = $request->input('type') === 'alquiler';
+    $mesesAdelanto = max(0, (int) $request->input('meses_adelanto', 0));
+    $mesAdministrativo = max(0, (int) $request->input('mes_administrativo', 0));
+    $fechaInicio = $request->input('start_date');
+    $fechaCorte = $request->input('fecha_corte');
+    $paymentFrequency = $request->input('payment_frequency');
+
+    if ($isRental && $numSellers === 0) {
+        return response()->json(['message' => 'Debes seleccionar al menos un asesor para el alquiler.'], 422);
+    }
+
+    if ($isRental && blank($fechaInicio)) {
+        return response()->json(['message' => 'Debes indicar la fecha inicio del alquiler.'], 422);
+    }
+
+    if ($isRental && blank($fechaCorte)) {
+        return response()->json(['message' => 'Debes indicar la fecha corte del alquiler.'], 422);
+    }
+
+    if ($isRental && blank($paymentFrequency)) {
+        return response()->json(['message' => 'Debes indicar el tiempo de pago del alquiler.'], 422);
+    }
+
+    if ($isRental && strtotime((string) $fechaCorte) < strtotime((string) $fechaInicio)) {
+        return response()->json(['message' => 'La fecha corte del alquiler no puede ser menor que la fecha inicio.'], 422);
+    }
+
+    $defaultTotalCommissionAmount = $isRental
+        ? round(((float) $amount) * $mesAdministrativo, 2)
+        : round(((float) $amount) * 0.05, 2);
+    $requestedTotalCommissionAmount = $request->filled('total_commission_amount')
+        ? max(0, (float) $request->input('total_commission_amount'))
+        : $defaultTotalCommissionAmount;
+    $totalCommissionAmt = $requestedTotalCommissionAmount;
+    $totalCommissionPct = (float) $amount > 0
+        ? round(($totalCommissionAmt / (float) $amount) * 100, 4)
+        : 0.0;
+    $defaultCompanyPct = $isRental
+        ? round($totalCommissionPct / 2, 4)
+        : ($numSellers > 0 ? min(2.5, $totalCommissionPct) : $totalCommissionPct);
+    $requestedCompanyAmount = $request->filled('company_commission_amount')
+        ? max(0, (float) $request->input('company_commission_amount'))
+        : ($isRental ? round($totalCommissionAmt / 2, 2) : round(((float) $amount) * $defaultCompanyPct / 100, 2));
+    $companyAmt = $requestedCompanyAmount;
+    $companyAmt = min($companyAmt, $totalCommissionAmt);
+    $companyPct = (float) $amount > 0
+        ? round(($companyAmt / (float) $amount) * 100, 4)
+        : 0.0;
+    $remainingAmount = max(0, $totalCommissionAmt - $companyAmt);
+    $eachAdvisorAmt = $numSellers > 0 ? round($remainingAmount / $numSellers, 2) : 0;
 
     // Use per-seller percentages if provided
     $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
         ? $request->sellers_commissions
         : [];
+    $requestedSellerTotal = collect($sellersWithPct)
+        ->filter(fn ($item) => in_array((string) ($item['id'] ?? ''), array_map('strval', $sellers), true))
+        ->sum(fn ($item) => max(0, (float) ($item['amount'] ?? 0)));
+
+    if ($requestedSellerTotal > ($remainingAmount + 0.0001)) {
+        return response()->json(['message' => 'La suma de comisiones de asesores supera el monto total disponible.'], 422);
+    }
+
     // 1. Crear la Operación
     $operation = Operation::create(array_merge(
-        $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes', 'external_property_title']),
+        $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'meses_adelanto', 'mes_administrativo', 'fecha_corte', 'payment_frequency', 'notes', 'external_property_title']),
         $participants,
         [
+            'meses_adelanto' => $isRental ? $mesesAdelanto : 0,
+            'mes_administrativo' => $isRental ? $mesAdministrativo : 0,
+            'fecha_corte' => $isRental ? $fechaCorte : null,
+            'payment_frequency' => $isRental ? $paymentFrequency : null,
+            'total_commission_percentage' => $totalCommissionPct,
+            'total_commission_amount' => $totalCommissionAmt,
             'company_commission_percentage' => $companyPct,
             'company_commission_amount'     => $companyAmt,
         ]
@@ -110,14 +218,16 @@ class OperationController extends Controller
         $syncData = [];
         foreach ($sellers as $sellerId) {
             $customPct = null;
+            $customAmt = null;
             foreach ($sellersWithPct as $sc) {
                 if ((string)($sc['id'] ?? '') === (string)$sellerId) {
                     $customPct = $sc['percentage'] ?? null;
+                    $customAmt = $sc['amount'] ?? null;
                     break;
                 }
             }
-            $pct = $customPct !== null ? (float)$customPct : $eachAdvisorPct;
-            $amt = round($amount * $pct / 100, 2);
+            $amt = $customAmt !== null ? max(0, (float) $customAmt) : $eachAdvisorAmt;
+            $pct = (float) $amount > 0 ? round(($amt / (float) $amount) * 100, 4) : 0.0;
             $syncData[$sellerId] = [
                 'commission_percentage' => $pct,
                 'commission_amount'     => $amt,
@@ -218,22 +328,79 @@ class OperationController extends Controller
         $sellers = ($request->has('sellers') && is_array($request->sellers)) ? $request->sellers : [];
         $numSellers = count($sellers);
         $participants = $this->resolveOperationParticipants($request);
-        $companyPct = $request->filled('company_commission_percentage')
-            ? (float) $request->input('company_commission_percentage')
-            : 2.5;
-        $companyAmt = round($amount * $companyPct / 100, 2);
-        $remainingPct = max(0, 5 - $companyPct);
-        $eachAdvisorPct = $numSellers > 0 ? round($remainingPct / $numSellers, 4) : 0;
+        $isRental = $request->input('type') === 'alquiler';
+        $mesesAdelanto = max(0, (int) $request->input('meses_adelanto', 0));
+        $mesAdministrativo = max(0, (int) $request->input('mes_administrativo', 0));
+        $fechaInicio = $request->input('start_date');
+        $fechaCorte = $request->input('fecha_corte');
+        $paymentFrequency = $request->input('payment_frequency');
+
+        if ($isRental && $numSellers === 0) {
+            return response()->json(['message' => 'Debes seleccionar al menos un asesor para el alquiler.'], 422);
+        }
+
+        if ($isRental && blank($fechaInicio)) {
+            return response()->json(['message' => 'Debes indicar la fecha inicio del alquiler.'], 422);
+        }
+
+        if ($isRental && blank($fechaCorte)) {
+            return response()->json(['message' => 'Debes indicar la fecha corte del alquiler.'], 422);
+        }
+
+        if ($isRental && blank($paymentFrequency)) {
+            return response()->json(['message' => 'Debes indicar el tiempo de pago del alquiler.'], 422);
+        }
+
+        if ($isRental && strtotime((string) $fechaCorte) < strtotime((string) $fechaInicio)) {
+            return response()->json(['message' => 'La fecha corte del alquiler no puede ser menor que la fecha inicio.'], 422);
+        }
+
+        $defaultTotalCommissionAmount = $isRental
+            ? round(((float) $amount) * $mesAdministrativo, 2)
+            : round(((float) $amount) * 0.05, 2);
+        $requestedTotalCommissionAmount = $request->filled('total_commission_amount')
+            ? max(0, (float) $request->input('total_commission_amount'))
+            : (float) ($operation->total_commission_amount ?? $defaultTotalCommissionAmount);
+        $totalCommissionAmt = $requestedTotalCommissionAmount;
+        $totalCommissionPct = (float) $amount > 0
+            ? round(($totalCommissionAmt / (float) $amount) * 100, 4)
+            : 0.0;
+        $defaultCompanyPct = $isRental
+            ? round($totalCommissionPct / 2, 4)
+            : ($numSellers > 0 ? min(2.5, $totalCommissionPct) : $totalCommissionPct);
+        $requestedCompanyAmount = $request->filled('company_commission_amount')
+            ? max(0, (float) $request->input('company_commission_amount'))
+            : (float) ($operation->company_commission_amount ?? ($isRental ? round($totalCommissionAmt / 2, 2) : round(((float) $amount) * $defaultCompanyPct / 100, 2)));
+        $companyAmt = $requestedCompanyAmount;
+        $companyAmt = min($companyAmt, $totalCommissionAmt);
+        $companyPct = (float) $amount > 0
+            ? round(($companyAmt / (float) $amount) * 100, 4)
+            : 0.0;
+        $remainingAmount = max(0, $totalCommissionAmt - $companyAmt);
+        $eachAdvisorAmt = $numSellers > 0 ? round($remainingAmount / $numSellers, 2) : 0;
 
         // Use per-seller percentages if provided
         $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
             ? $request->sellers_commissions
             : [];
+        $requestedSellerTotal = collect($sellersWithPct)
+            ->filter(fn ($item) => in_array((string) ($item['id'] ?? ''), array_map('strval', $sellers), true))
+            ->sum(fn ($item) => max(0, (float) ($item['amount'] ?? 0)));
+
+        if ($requestedSellerTotal > ($remainingAmount + 0.0001)) {
+            return response()->json(['message' => 'La suma de comisiones de asesores supera el monto total disponible.'], 422);
+        }
 
         $operation->update(array_merge(
-            $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'notes', 'external_property_title']),
+            $request->only(['type', 'property_id', 'amount', 'property_price', 'start_date', 'end_date', 'fecha_cierre', 'meses_adelanto', 'mes_administrativo', 'fecha_corte', 'payment_frequency', 'notes', 'external_property_title']),
             $participants,
             [
+                'meses_adelanto' => $isRental ? $mesesAdelanto : 0,
+                'mes_administrativo' => $isRental ? $mesAdministrativo : 0,
+                'fecha_corte' => $isRental ? $fechaCorte : null,
+                'payment_frequency' => $isRental ? $paymentFrequency : null,
+                'total_commission_percentage' => $totalCommissionPct,
+                'total_commission_amount' => $totalCommissionAmt,
                 'company_commission_percentage' => $companyPct,
                 'company_commission_amount' => $companyAmt,
             ]
@@ -245,14 +412,16 @@ class OperationController extends Controller
             $syncData = [];
             foreach ($sellers as $sellerId) {
                 $customPct = null;
+                $customAmt = null;
                 foreach ($sellersWithPct as $sc) {
                     if ((string)($sc['id'] ?? '') === (string)$sellerId) {
                         $customPct = $sc['percentage'] ?? null;
+                        $customAmt = $sc['amount'] ?? null;
                         break;
                     }
                 }
-                $pct = $customPct !== null ? (float)$customPct : $eachAdvisorPct;
-                $amt = round($amount * $pct / 100, 2);
+                $amt = $customAmt !== null ? max(0, (float) $customAmt) : $eachAdvisorAmt;
+                $pct = (float) $amount > 0 ? round(($amt / (float) $amount) * 100, 4) : 0.0;
                 $syncData[$sellerId] = [
                     'commission_percentage' => $pct,
                     'commission_amount' => $amt,
@@ -271,6 +440,11 @@ class OperationController extends Controller
         $operation = Operation::with(['clients', 'sellers', 'property', 'ownerClient', 'buyerClient'])->findOrFail($id);
         $resolvedOwnerClient = $this->resolveOperationOwnerClient($operation);
         $resolvedBuyerClient = $this->resolveOperationBuyerClient($operation, $resolvedOwnerClient);
+        $sellerCommissionAmount = (float) $operation->sellers->sum(fn ($seller) => $seller->pivot->commission_amount ?? 0);
+        $derivedTotalCommissionAmount = (float) ($operation->company_commission_amount ?? 0) + $sellerCommissionAmount;
+        $rentalReferenceCommissionAmount = $operation->type === 'alquiler'
+            ? round(((float) ($operation->amount ?? 0)) * ((int) ($operation->mes_administrativo ?? 0)), 2)
+            : 0;
 
         $propertyStatus = $operation->property ? $operation->property->status : null;
         $isLocked = in_array($propertyStatus, ['Reservado', 'Vendido', 'Alquilado']);
@@ -288,8 +462,19 @@ class OperationController extends Controller
             'start_date' => $operation->start_date,
             'end_date' => $operation->end_date,
             'fecha_cierre' => $operation->fecha_cierre,
+            'meses_adelanto' => $operation->meses_adelanto,
+            'mes_administrativo' => $operation->mes_administrativo,
+            'fecha_corte' => $operation->fecha_corte,
+            'payment_frequency' => $operation->payment_frequency,
             'notes' => $operation->notes,
+            'total_commission_percentage' => $operation->total_commission_percentage,
+            'total_commission_amount' => (float) ($operation->total_commission_amount ?? 0) > 0
+                ? $operation->total_commission_amount
+                : ($operation->type === 'alquiler' && $rentalReferenceCommissionAmount > 0
+                    ? $rentalReferenceCommissionAmount
+                    : $derivedTotalCommissionAmount),
             'company_commission_percentage' => $operation->company_commission_percentage,
+            'company_commission_amount' => $operation->company_commission_amount,
             'owner_client_id' => $resolvedOwnerClient?->id ? (string) $resolvedOwnerClient->id : '',
             'buyer_client_id' => $resolvedBuyerClient?->id ? (string) $resolvedBuyerClient->id : '',
             'owner_client_name' => $resolvedOwnerClient?->name,
@@ -298,6 +483,7 @@ class OperationController extends Controller
             'sellers_commissions' => $operation->sellers->map(fn ($s) => [
                 'id' => (string) $s->id,
                 'percentage' => $s->pivot->commission_percentage ?? 0,
+                'amount' => $s->pivot->commission_amount ?? 0,
             ])->values(),
         ]);
     }
@@ -327,16 +513,28 @@ class OperationController extends Controller
 
         $sellers    = $operation->sellers->pluck('id')->toArray();
         $numSellers = count($sellers);
+        $totalCommissionPct = $request->filled('total_commission_percentage')
+            ? max(0, (float) $request->input('total_commission_percentage'))
+            : (float) ($operation->total_commission_percentage ?? 5);
+        $defaultCompanyPct = $numSellers > 0 ? min((float) ($operation->company_commission_percentage ?? 2.5), $totalCommissionPct) : $totalCommissionPct;
         $companyPct = $request->filled('company_commission_percentage')
             ? (float) $request->input('company_commission_percentage')
-            : (float) ($operation->company_commission_percentage ?? 2.5);
-        $remainingPct = max(0, 5 - $companyPct);
+            : $defaultCompanyPct;
+        $companyPct = max(0, min($companyPct, $totalCommissionPct));
+        $remainingPct = max(0, $totalCommissionPct - $companyPct);
         $eachAdvisorPct = $numSellers > 0 ? round($remainingPct / $numSellers, 4) : 0;
 
         // Use per-seller percentages if provided, otherwise recalculate
         $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
             ? $request->sellers_commissions
             : [];
+        $requestedSellerTotal = collect($sellersWithPct)
+            ->filter(fn ($item) => in_array((string) ($item['id'] ?? ''), array_map('strval', $sellers), true))
+            ->sum(fn ($item) => (float) ($item['percentage'] ?? 0));
+
+        if ($requestedSellerTotal > ($remainingPct + 0.0001)) {
+            return response()->json(['message' => 'La suma de comisiones de asesores supera el porcentaje total disponible.'], 422);
+        }
 
         // Commission on the net sale amount
         $salCompanyAmt = round($netAmount * $companyPct / 100, 2);
@@ -349,6 +547,7 @@ class OperationController extends Controller
         $operation->update([
             'type'                           => 'venta',
             'amount'                         => $netAmount,
+            'total_commission_percentage'    => $totalCommissionPct,
             'company_commission_percentage'  => $companyPct,
             'company_commission_amount'      => $totalCompanyComm,
             'reservation_company_commission' => $reservationCompanyComm,
@@ -523,12 +722,8 @@ class OperationController extends Controller
             },
         ])->findOrFail($id);
 
-        if (!in_array($operation->type, ['reserva', 'venta', 'traspaso'])) {
+        if (!in_array($operation->type, ['reserva', 'venta', 'alquiler', 'traspaso'])) {
             return response()->json(['message' => 'Esta operación no tiene recibo de pago de comisión.'], 422);
-        }
-
-        if ($operation->sellers->isEmpty()) {
-            return response()->json(['message' => 'La operación no tiene asesores asociados.'], 422);
         }
 
         $resolvedOwnerClient = $this->resolveOperationOwnerClient($operation) ?: $this->makeAnonymousClient();
@@ -786,6 +981,53 @@ class OperationController extends Controller
         }
 
         return '';
+    }
+
+    private function formatPaymentFrequencyLabel(?string $paymentFrequency): string
+    {
+        return match (trim((string) $paymentFrequency)) {
+            'quincenal' => 'Quincenal',
+            'mensual' => 'Mensual',
+            'semestral' => 'Semestral',
+            'anual' => 'Anual',
+            default => 'Sin definir',
+        };
+    }
+
+    private function calculateNextRentalCutoffDate(Operation $operation): ?string
+    {
+        $startDate = $operation->start_date ? Carbon::parse($operation->start_date)->startOfDay() : null;
+        $finalDate = $operation->fecha_corte ? Carbon::parse($operation->fecha_corte)->startOfDay() : null;
+        $paymentFrequency = trim((string) $operation->payment_frequency);
+
+        if (!$startDate || !$finalDate || $paymentFrequency === '') {
+            return null;
+        }
+
+        $today = Carbon::today();
+        $nextDate = $startDate->copy();
+
+        while ($nextDate->lt($today)) {
+            $candidate = match ($paymentFrequency) {
+                'quincenal' => $nextDate->copy()->addDays(15),
+                'mensual' => $nextDate->copy()->addMonthNoOverflow(),
+                'semestral' => $nextDate->copy()->addMonthsNoOverflow(6),
+                'anual' => $nextDate->copy()->addYearNoOverflow(),
+                default => null,
+            };
+
+            if (!$candidate || $candidate->equalTo($nextDate)) {
+                break;
+            }
+
+            $nextDate = $candidate;
+        }
+
+        if ($nextDate->gt($finalDate)) {
+            return null;
+        }
+
+        return $nextDate->toDateString();
     }
 
     private function makeAnonymousClient()

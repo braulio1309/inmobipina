@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::view('/properties', 'properties.index');
 Route::view('/properties/create', 'properties.create');
+Route::view('/properties/active-rentals', 'properties.active-rentals');
 Route::view('/clients', 'clients.index');
 Route::view('/clients/create', 'clients.create');
 
@@ -67,6 +68,7 @@ Route::post('edit/activities/{id}', [ActivityController::class, 'edit'])->name('
 Route::get('activities/{activity}', [ActivityController::class, 'show'])->name('Activity.show');
 
 Route::get('operations/listar', [OperationController::class, 'listado'])->name('operation.listar');
+Route::get('operations/active-rentals', [OperationController::class, 'activeRentals'])->name('operation.active-rentals');
 Route::get('operations/export', [OperationController::class, 'export'])->name('operations.export');
 Route::post('operations/create', [OperationController::class, 'create'])->name('operations.crear');
 Route::post('edit/operations/{id}', [OperationController::class, 'edit'])->name('operations.edit');

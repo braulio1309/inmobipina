@@ -58,8 +58,18 @@
                     >
                 </div>
 
-                <div v-if="confirmData.sellers_commissions.length > 0" class="mb-3 border rounded p-3 bg-light">
-                    <h6 class="mb-2">Comisiones sobre monto neto ({{ COMMISSION_RATE }}% distribuido)</h6>
+                <div class="mb-3 border rounded p-3 bg-light">
+                    <h6 class="mb-2">Comisiones sobre monto neto</h6>
+                    <div class="row mb-1 align-items-center">
+                        <div class="col-5"><strong>Comisión total</strong></div>
+                        <div class="col-4">
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" v-model="confirmData.total_commission_percentage" min="0" max="100" step="0.01" @input="recalcConfirmCommissions">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="col-3 text-dark fw-bold">${{ confirmTotalCompanyPoolAmt }}</div>
+                    </div>
                     <div class="row mb-1 align-items-center">
                         <div class="col-5"><strong>Inmobiliaria</strong></div>
                         <div class="col-4">
@@ -79,6 +89,9 @@
                             </div>
                         </div>
                         <div class="col-3 text-primary fw-bold">${{ formatAmt(parseFloat(confirmData.amount || 0) * parseFloat(sc.percentage || 0) / 100) }}</div>
+                    </div>
+                    <div v-if="confirmData.sellers_commissions.length === 0" class="small text-muted">
+                        Solo la inmobiliaria está involucrada en esta comisión.
                     </div>
                 </div>
 
@@ -110,7 +123,6 @@
         extends: CoreLibrary,
         data() {
             return {
-                COMMISSION_RATE: 5,
                 showConfirmModal: false,
                 confirmLoading: false,
                 confirmData: {
@@ -120,7 +132,8 @@
                     reservation_amount: 0,
                     net_amount: 0,
                     amount: '',
-                    company_commission_percentage: 2.5,
+                    total_commission_percentage: 5,
+                    company_commission_percentage: 5,
                     sellers_commissions: [],
                 },
                 options: {
@@ -287,9 +300,17 @@
             }
         },
         computed: {
+            confirmTotalCommissionPct() {
+                const pct = parseFloat(this.confirmData.total_commission_percentage);
+                return Number.isFinite(pct) ? pct : 0;
+            },
             confirmCompanyPct() {
                 const pct = parseFloat(this.confirmData.company_commission_percentage);
                 return Number.isFinite(pct) ? pct : 0;
+            },
+            confirmTotalCompanyPoolAmt() {
+                const amt = parseFloat(this.confirmData.amount) || 0;
+                return this.formatAmt(amt * this.confirmTotalCommissionPct / 100);
             },
             confirmCompanyAmt() {
                 const amt = parseFloat(this.confirmData.amount) || 0;
@@ -323,7 +344,26 @@
                 return num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             },
             recalcConfirmCommissions() {
-                // Trigger reactivity; amounts are computed inline in the template
+                const totalPct = this.confirmTotalCommissionPct;
+
+                if (this.confirmCompanyPct > totalPct) {
+                    this.confirmData.company_commission_percentage = totalPct;
+                }
+
+                if (this.confirmData.sellers_commissions.length === 0) {
+                    this.confirmData.company_commission_percentage = totalPct;
+                    return;
+                }
+
+                const remainingPct = Math.max(0, totalPct - this.confirmCompanyPct);
+                const evenPct = this.confirmData.sellers_commissions.length > 0
+                    ? parseFloat((remainingPct / this.confirmData.sellers_commissions.length).toFixed(4))
+                    : 0;
+
+                this.confirmData.sellers_commissions = this.confirmData.sellers_commissions.map((item) => ({
+                    ...item,
+                    percentage: Number.isFinite(parseFloat(item.percentage)) ? parseFloat(item.percentage) : evenPct,
+                }));
             },
             exportOperations() {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -335,8 +375,9 @@
                     const res = await this.axiosGet(`/operations/${rowData.id}`);
                     const op = res.data;
                     const numSellers = (op.sellers || []).length;
-                    const companyPct = parseFloat(op.company_commission_percentage ?? 2.5) || 0;
-                    const remainingPct = Math.max(0, this.COMMISSION_RATE - companyPct);
+                    const totalPct = parseFloat(op.total_commission_percentage ?? 5) || 0;
+                    const companyPct = parseFloat(op.company_commission_percentage ?? totalPct) || 0;
+                    const remainingPct = Math.max(0, totalPct - companyPct);
                     const equalPct = numSellers > 0
                         ? parseFloat((remainingPct / numSellers).toFixed(4))
                         : 0;
@@ -364,6 +405,7 @@
                         reservation_amount: reservationAmt,
                         net_amount:         netAmount,
                         amount:             netAmount > 0 ? netAmount : (op.amount || ''),
+                        total_commission_percentage: totalPct,
                         company_commission_percentage: companyPct,
                         sellers_commissions: sellersWithNames,
                     };
@@ -378,6 +420,7 @@
                 try {
                     await axios.post(`/operations/${this.confirmData.id}/confirm-sale`, {
                         amount: this.confirmData.amount,
+                        total_commission_percentage: this.confirmTotalCommissionPct,
                         company_commission_percentage: this.confirmCompanyPct,
                         sellers_commissions: this.confirmData.sellers_commissions,
                     });

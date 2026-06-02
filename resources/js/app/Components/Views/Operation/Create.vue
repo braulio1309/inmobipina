@@ -122,6 +122,73 @@
             </small>
         </div>
 
+        <div v-if="operation.type === 'alquiler'" class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Meses de adelanto</label>
+                <input
+                    v-model="operation.meses_adelanto"
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="form-control"
+                    placeholder="Cantidad de meses"
+                    :readonly="isLocked"
+                >
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Fecha inicio</label>
+                <input
+                    v-model="operation.start_date"
+                    type="date"
+                    class="form-control"
+                    :readonly="isLocked"
+                >
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Mes administrativo</label>
+                <input
+                    v-model="operation.mes_administrativo"
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="form-control"
+                    placeholder="0 o 1"
+                    @input="onAdministrativeMonthsChanged"
+                    :readonly="isLocked"
+                >
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Fecha corte</label>
+                <input
+                    v-model="operation.fecha_corte"
+                    type="date"
+                    class="form-control"
+                    :readonly="isLocked"
+                >
+                <small class="text-muted">Fecha final del alquiler para calcular la duración.</small>
+            </div>
+
+            <div class="col-md-6 mb-3 d-flex align-items-end">
+                <small class="text-muted">
+                    La duración del alquiler se toma desde la fecha inicio hasta la fecha corte.
+                </small>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Tiempo de pago</label>
+                <app-input
+                    type="select"
+                    v-model="operation.payment_frequency"
+                    :list="paymentFrequencyOptions"
+                    placeholder="Selecciona la periodicidad"
+                    :disabled="isLocked"
+                />
+            </div>
+        </div>
+
         <!-- EXCLUSIVIDAD: fechas -->
         <div v-if="operation.type === 'exclusividad'" class="row">
             <div class="col-md-6 mb-3">
@@ -241,16 +308,65 @@
         </div>
 
         <!-- COMISIONES -->
-        <div v-if="operation.sellers.length > 0 && showAmount" class="mb-3 border rounded p-3 bg-light">
-            <h6 class="mb-3">Distribución de Comisiones ({{ COMMISSION_RATE }}% del monto)</h6>
+        <div v-if="showAmount" class="mb-3 border rounded p-3 bg-light">
+            <h6 class="mb-3">Distribución de Comisiones</h6>
+
+            <div v-if="!isRentalOperation" class="row mb-2 align-items-center">
+                <div class="col-md-4">
+                    <strong>Comisión total</strong>
+                    <small class="text-muted d-block">Porcentaje referencial sobre el monto de la operación</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <input
+                            type="number"
+                            class="form-control"
+                            v-model="operation.total_commission_percentage"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            @input="onTotalCommissionChanged"
+                            :readonly="isLocked"
+                        >
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <div class="col-md-5 text-muted small">
+                    {{ commissionReferenceText }}
+                </div>
+            </div>
+
+            <div class="row mb-3 align-items-center">
+                <div class="col-md-4">
+                    <strong>Monto de comisión</strong>
+                    <small class="text-muted d-block">{{ isRentalOperation ? 'Monto a repartir entre la inmobiliaria y los asesores.' : 'Monto editable sobre el que se reparte la comisión' }}</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input
+                            type="number"
+                            class="form-control"
+                            v-model="operation.total_commission_amount"
+                            min="0"
+                            step="0.01"
+                            @input="onTotalCommissionAmountChanged"
+                            :readonly="isLocked"
+                        >
+                    </div>
+                </div>
+                <div class="col-md-5 text-muted small">
+                    Referencia actual: ${{ formatAmount(referenceCommissionAmount) }}.
+                </div>
+            </div>
 
             <!-- Comisión Inmobiliaria -->
             <div class="row mb-2 align-items-center">
                 <div class="col-md-4">
                     <strong>Inmobiliaria</strong>
-                    <small class="text-muted d-block">Editable igual que la comisión de asesores</small>
+                    <small class="text-muted d-block">{{ isRentalOperation ? 'En alquiler se sugiere 50% para la inmobiliaria, pero puedes editarlo.' : 'Editable igual que la comisión de asesores' }}</small>
                 </div>
-                <div class="col-md-3">
+                <div v-if="!isRentalOperation" class="col-md-3">
                     <div class="input-group input-group-sm">
                         <input
                             type="number"
@@ -265,10 +381,19 @@
                         <span class="input-group-text">%</span>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <span class="text-success fw-bold">
-                        ${{ formatAmount(companyCommissionAmount) }}
-                    </span>
+                <div :class="isRentalOperation ? 'col-md-5' : 'col-md-3'">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input
+                            type="number"
+                            class="form-control"
+                            v-model="operation.company_commission_amount"
+                            min="0"
+                            step="0.01"
+                            @input="onCompanyCommissionAmountChanged"
+                            :readonly="isLocked"
+                        >
+                    </div>
                 </div>
             </div>
 
@@ -281,7 +406,7 @@
                 <div class="col-md-4">
                     <span>{{ seller.name }}</span>
                 </div>
-                <div class="col-md-3">
+                <div v-if="!isRentalOperation" class="col-md-3">
                     <div class="input-group input-group-sm">
                         <input
                             type="number"
@@ -290,23 +415,48 @@
                             min="0"
                             max="100"
                             step="0.01"
-                            @input="onCommissionChanged"
+                            @input="onSellerPercentageChanged(seller, seller.percentage)"
                             :readonly="isLocked"
                         >
                         <span class="input-group-text">%</span>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <span class="text-primary fw-bold">
-                        ${{ formatAmount(sellerCommissionAmount(seller.percentage)) }}
-                    </span>
+                <div :class="isRentalOperation ? 'col-md-5' : 'col-md-3'">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input
+                            type="number"
+                            class="form-control"
+                            v-model="seller.amount"
+                            min="0"
+                            step="0.01"
+                            @input="onSellerCommissionAmountChanged(seller)"
+                            :readonly="isLocked"
+                        >
+                    </div>
                 </div>
             </div>
 
-            <small class="text-muted">
+            <div v-if="sellersCommissions.length === 0" class="small text-muted mb-2">
+                Solo está involucrada la inmobiliaria en esta comisión.
+            </div>
+
+            <div v-if="isRentalOperation" class="small text-muted mb-2">
+                En alquiler la comisión sugerida es monto por meses administrativos. La distribución inicia 50% para la inmobiliaria y 50% para los asesores, pero puedes modificarla.
+            </div>
+
+            <small v-if="!isRentalOperation" class="text-muted">
                 Total asesores: {{ totalAdvisorPercentage.toFixed(2) }}% — 
                 Inmobiliaria: {{ companyCommissionPct.toFixed(2) }}% — 
-                Total: {{ (totalAdvisorPercentage + companyCommissionPct).toFixed(2) }}%
+                Total asignado: {{ (totalAdvisorPercentage + companyCommissionPct).toFixed(2) }}% —
+                Monto asignado: ${{ formatAmount(totalAssignedCommissionAmount) }} —
+                Total comisión: {{ totalCommissionPct.toFixed(2) }}%
+            </small>
+            <small v-else class="text-muted">
+                Monto asesores: ${{ formatAmount(totalAdvisorCommissionAmount) }} —
+                Monto inmobiliaria: ${{ formatAmount(companyCommissionAmount) }} —
+                Monto asignado: ${{ formatAmount(totalAssignedCommissionAmount) }} —
+                Total comisión: ${{ formatAmount(totalCommissionAmount) }}
             </small>
         </div>
 
@@ -367,8 +517,8 @@ export default {
             propertyStatus: null,
             useManualOwnerClient: false,
             useManualBuyerClient: false,
-
-            COMMISSION_RATE: 5,
+            hasEditedTotalCommissionAmount: false,
+            hasEditedCommissionDistribution: false,
 
             operationTypes: [
                 { id: "venta", value: "Venta" },
@@ -376,6 +526,13 @@ export default {
                 { id: "reserva", value: "Reserva" },
                 { id: "exclusividad", value: "Exclusividad" },
                 { id: "traspaso", value: "Traspaso" },
+            ],
+            paymentFrequencyOptions: [
+                { id: "", value: "Selecciona una opción" },
+                { id: "quincenal", value: "Quincenal" },
+                { id: "mensual", value: "Mensual" },
+                { id: "semestral", value: "Semestral" },
+                { id: "anual", value: "Anual" },
             ],
 
             sellersCommissions: [],
@@ -393,7 +550,14 @@ export default {
                 start_date: "",
                 end_date: "",
                 fecha_cierre: "",
-                company_commission_percentage: 2.5,
+                meses_adelanto: 0,
+                mes_administrativo: 0,
+                fecha_corte: "",
+                payment_frequency: "",
+                total_commission_percentage: 5,
+                total_commission_amount: 0,
+                company_commission_percentage: 5,
+                company_commission_amount: 0,
                 sellers: [],
                 notes: "",
             }
@@ -419,21 +583,55 @@ export default {
             return this.operationId ? 'Actualizar Operación' : 'Guardar Operación';
         },
         companyCommissionPct() {
-            const pct = parseFloat(this.operation.company_commission_percentage);
-            return Number.isFinite(pct) ? pct : 0;
+            return this.totalCommissionAmount > 0
+                ? (this.companyCommissionAmount / this.totalCommissionAmount) * 100
+                : 0;
+        },
+        isRentalOperation() {
+            return this.operation.type === 'alquiler';
+        },
+        totalCommissionPct() {
+            const operationAmount = parseFloat(this.operation.amount) || 0;
+            return operationAmount > 0
+                ? (this.totalCommissionAmount / operationAmount) * 100
+                : 0;
         },
         eachPartyPercentage() {
-            // Kept for backward compatibility; advisors split the remaining percentage.
             const numSellers = this.sellersCommissions.length;
-            const distributablePercentage = Math.max(this.COMMISSION_RATE - this.companyCommissionPct, 0);
+            const distributablePercentage = Math.max(100 - this.companyCommissionPct, 0);
             return numSellers > 0 ? parseFloat((distributablePercentage / numSellers).toFixed(4)) : 0;
         },
-        companyCommissionAmount() {
+        totalCommissionAmount() {
+            return this.normalizeMoney(this.operation.total_commission_amount);
+        },
+        referenceCommissionAmount() {
             const amt = parseFloat(this.operation.amount) || 0;
-            return amt * this.companyCommissionPct / 100;
+            if (this.isRentalOperation) {
+                const administrativeMonths = Math.max(0, parseInt(this.operation.mes_administrativo, 10) || 0);
+                return amt * administrativeMonths;
+            }
+
+            return amt * 0.05;
+        },
+        commissionReferenceText() {
+            if (this.isRentalOperation) {
+                const administrativeMonths = Math.max(0, parseInt(this.operation.mes_administrativo, 10) || 0);
+                return `Referencia sugerida: monto de la operacion x meses administrativos (${administrativeMonths}).`;
+            }
+
+            return 'Referencia sugerida: 5% del monto de la operación.';
+        },
+        companyCommissionAmount() {
+            return this.normalizeMoney(this.operation.company_commission_amount);
         },
         totalAdvisorPercentage() {
             return this.sellersCommissions.reduce((sum, s) => sum + (parseFloat(s.percentage) || 0), 0);
+        },
+        totalAdvisorCommissionAmount() {
+            return this.sellersCommissions.reduce((sum, s) => sum + this.normalizeMoney(s.amount), 0);
+        },
+        totalAssignedCommissionAmount() {
+            return this.companyCommissionAmount + this.totalAdvisorCommissionAmount;
         },
         canDownloadCommissionPdf() {
             return Boolean(this.operationId) && ['reserva', 'venta', 'alquiler', 'traspaso'].includes(this.operation.type);
@@ -511,17 +709,26 @@ export default {
                 start_date: operation.start_date || '',
                 end_date: operation.end_date || '',
                 fecha_cierre: operation.fecha_cierre || '',
+                meses_adelanto: operation.meses_adelanto ?? 0,
+                mes_administrativo: operation.mes_administrativo ?? 0,
+                fecha_corte: operation.fecha_corte ?? '',
+                payment_frequency: operation.payment_frequency ?? '',
+                total_commission_percentage: operation.total_commission_percentage ?? 5,
+                total_commission_amount: operation.total_commission_amount ?? 0,
                 owner_client_id: operation.owner_client_id || '',
                 owner_client_name_manual: '',
                 buyer_client_id: operation.buyer_client_id || '',
                 buyer_client_name_manual: '',
                 company_commission_percentage: operation.company_commission_percentage ?? 2.5,
+                company_commission_amount: operation.company_commission_amount ?? 0,
                 sellers: operation.sellers || [],
                 notes: operation.notes || '',
             };
 
             this.useManualOwnerClient = !this.operation.owner_client_id && Boolean(operation.owner_client_name);
             this.useManualBuyerClient = !this.operation.buyer_client_id && Boolean(operation.buyer_client_name);
+            this.hasEditedTotalCommissionAmount = true;
+            this.hasEditedCommissionDistribution = true;
 
             if (this.useManualOwnerClient) {
                 this.operation.owner_client_name_manual = operation.owner_client_name || '';
@@ -569,6 +776,34 @@ export default {
             this.applyTypeState();
         },
 
+        applySuggestedRentalCommissionSplit(force = false) {
+            if (!this.isRentalOperation || this.sellersCommissions.length === 0) {
+                return;
+            }
+
+            if (!force && this.hasEditedCommissionDistribution) {
+                this.recalculateCommissionAmountsFromPercentages();
+                return;
+            }
+
+            const halfAmount = parseFloat((this.totalCommissionAmount / 2).toFixed(2));
+            this.operation.company_commission_amount = halfAmount;
+            this.syncCompanyPercentageFromAmount();
+
+            const sellerShare = this.sellersCommissions.length > 0
+                ? parseFloat((50 / this.sellersCommissions.length).toFixed(4))
+                : 0;
+            const sellerAmount = this.sellersCommissions.length > 0
+                ? parseFloat((halfAmount / this.sellersCommissions.length).toFixed(2))
+                : 0;
+
+            this.sellersCommissions = this.sellersCommissions.map((seller) => ({
+                ...seller,
+                percentage: sellerShare,
+                amount: sellerAmount,
+            }));
+        },
+
         applyTypeState(preserveAmount = false) {
             if (this.operation.type === "exclusividad") {
                 this.showAmount = false;
@@ -595,6 +830,11 @@ export default {
                 this.operation.amount = (this.selectedPropertyPrice * 0.10).toFixed(2);
             }
 
+            if (!this.normalizeMoney(this.operation.total_commission_amount)) {
+                this.operation.total_commission_amount = this.referenceCommissionAmount.toFixed(2);
+                this.syncTotalCommissionPercentageFromAmount();
+            }
+
             this.recalculateCommissions();
         },
 
@@ -606,8 +846,28 @@ export default {
         },
 
         onSellersChanged(selectedIds, existingCommissions = []) {
+            const previousSellerCount = this.sellersCommissions.length;
+
+            if (selectedIds.length === 0) {
+                this.sellersCommissions = [];
+                this.operation.company_commission_amount = this.totalCommissionAmount;
+                this.syncCompanyPercentageFromAmount();
+                return;
+            }
+
+            if (
+                previousSellerCount === 0
+                && existingCommissions.length === 0
+                && this.companyCommissionAmount >= this.totalCommissionAmount
+            ) {
+                this.operation.company_commission_amount = parseFloat(
+                    (this.totalCommissionAmount / (selectedIds.length + 1)).toFixed(2)
+                );
+                this.syncCompanyPercentageFromAmount();
+            }
+
             const numSellers = selectedIds.length;
-            const distributablePercentage = Math.max(this.COMMISSION_RATE - this.companyCommissionPct, 0);
+            const distributablePercentage = Math.max(100 - this.companyCommissionPct, 0);
             const equalPct = numSellers > 0
                 ? parseFloat((distributablePercentage / numSellers).toFixed(4))
                 : 0;
@@ -618,24 +878,115 @@ export default {
                 return {
                     id: id,
                     name: seller ? seller.value : id,
-                    percentage: existing ? parseFloat(existing.percentage) : equalPct,
+                    percentage: existing
+                        ? this.percentageFromCommissionAmount(existing.amount)
+                        : equalPct,
+                    amount: existing ? this.normalizeMoney(existing.amount) : parseFloat((this.sellerCommissionAmount(equalPct)).toFixed(2)),
                 };
             });
+
+            this.applySuggestedRentalCommissionSplit(existingCommissions.length === 0);
         },
 
         recalculateCommissions() {
-            this.sellersCommissions = this.sellersCommissions.map(s => ({
-                ...s,
-                percentage: this.normalizePercentage(s.percentage),
-            }));
+            if (this.isRentalOperation) {
+                if (!this.hasEditedTotalCommissionAmount) {
+                    this.operation.total_commission_amount = parseFloat(this.referenceCommissionAmount.toFixed(2));
+                }
+                this.syncTotalCommissionPercentageFromAmount();
+                this.applySuggestedRentalCommissionSplit();
+                return;
+            }
+
+            this.recalculateCommissionAmountsFromPercentages();
         },
 
         onCommissionChanged() {
             this.recalculateCommissions();
         },
 
+        onTotalCommissionChanged() {
+            this.hasEditedTotalCommissionAmount = true;
+            this.operation.total_commission_percentage = this.normalizePercentage(this.operation.total_commission_percentage);
+            this.operation.total_commission_amount = parseFloat(this.referenceCommissionAmountFor(this.operation.total_commission_percentage).toFixed(2));
+
+            if (this.isRentalOperation) {
+                this.applySuggestedRentalCommissionSplit(true);
+                return;
+            }
+
+            if (this.sellersCommissions.length === 0) {
+                this.operation.company_commission_percentage = 100;
+                this.operation.company_commission_amount = this.totalCommissionAmount;
+                return;
+            }
+
+            if (this.companyCommissionPct > 100) {
+                this.operation.company_commission_percentage = 100;
+                this.operation.company_commission_amount = this.totalCommissionAmount;
+            }
+
+            this.recalculateCommissions();
+        },
+
+        onTotalCommissionAmountChanged() {
+            this.hasEditedTotalCommissionAmount = true;
+            this.operation.total_commission_amount = this.normalizeMoney(this.operation.total_commission_amount);
+            this.syncTotalCommissionPercentageFromAmount();
+
+            if (this.isRentalOperation) {
+                this.applySuggestedRentalCommissionSplit(true);
+                return;
+            }
+
+            if (this.sellersCommissions.length === 0) {
+                this.operation.company_commission_percentage = 100;
+                this.operation.company_commission_amount = this.totalCommissionAmount;
+            }
+        },
+
         onCompanyCommissionChanged() {
+            this.hasEditedCommissionDistribution = true;
             this.operation.company_commission_percentage = this.normalizePercentage(this.operation.company_commission_percentage);
+
+            if (this.companyCommissionPct > 100) {
+                this.operation.company_commission_percentage = 100;
+            }
+
+            this.recalculateCommissionAmountsFromPercentages();
+        },
+
+        onCompanyCommissionAmountChanged() {
+            this.hasEditedCommissionDistribution = true;
+            this.operation.company_commission_amount = this.normalizeMoney(this.operation.company_commission_amount);
+            if (this.operation.company_commission_amount > this.totalCommissionAmount) {
+                this.operation.company_commission_amount = this.totalCommissionAmount;
+            }
+            this.syncCompanyPercentageFromAmount();
+        },
+
+        onSellerPercentageChanged(seller, value) {
+            this.hasEditedCommissionDistribution = true;
+            seller.percentage = this.normalizePercentage(value);
+            seller.amount = parseFloat(this.sellerCommissionAmount(seller.percentage).toFixed(2));
+        },
+
+        onSellerCommissionAmountChanged(seller) {
+            this.onSellerAmountChanged(seller);
+        },
+
+        onSellerAmountChanged(seller) {
+            this.hasEditedCommissionDistribution = true;
+            seller.amount = this.normalizeMoney(seller.amount);
+            seller.percentage = this.percentageFromCommissionAmount(seller.amount);
+        },
+
+        onAdministrativeMonthsChanged() {
+            if (!this.isRentalOperation) {
+                return;
+            }
+
+            this.recalculateCommissions();
         },
 
         onOwnerClientModeChanged() {
@@ -661,12 +1012,54 @@ export default {
             return Number.isFinite(pct) ? pct : 0;
         },
 
-        sellerCommissionAmount(pct) {
+        normalizeMoney(value) {
+            const amount = parseFloat(value);
+            return Number.isFinite(amount) ? amount : 0;
+        },
+
+        syncTotalCommissionPercentageFromAmount() {
+            const operationAmount = parseFloat(this.operation.amount) || 0;
+            this.operation.total_commission_percentage = operationAmount > 0
+                ? parseFloat(((this.totalCommissionAmount / operationAmount) * 100).toFixed(4))
+                : 0;
+        },
+
+        syncCompanyPercentageFromAmount() {
+            this.operation.company_commission_percentage = this.percentageFromCommissionAmount(this.operation.company_commission_amount);
+        },
+
+        percentageFromCommissionAmount(amount) {
+            return this.totalCommissionAmount > 0
+                ? parseFloat(((this.normalizeMoney(amount) / this.totalCommissionAmount) * 100).toFixed(4))
+                : 0;
+        },
+
+        referenceCommissionAmountFor(percentage) {
             const amt = parseFloat(this.operation.amount) || 0;
-            return amt * (parseFloat(pct) || 0) / 100;
+            return amt * (this.normalizePercentage(percentage) / 100);
+        },
+
+        sellerCommissionAmount(pct) {
+            return this.totalCommissionAmount * (parseFloat(pct) || 0) / 100;
+        },
+
+        recalculateCommissionAmountsFromPercentages() {
+            const normalizedCompanyPercentage = Math.min(100, Math.max(0, this.normalizePercentage(this.operation.company_commission_percentage)));
+            this.operation.company_commission_percentage = normalizedCompanyPercentage;
+            this.operation.company_commission_amount = parseFloat(this.sellerCommissionAmount(normalizedCompanyPercentage).toFixed(2));
+
+            this.sellersCommissions = this.sellersCommissions.map(s => ({
+                ...s,
+                percentage: this.normalizePercentage(s.percentage),
+                amount: parseFloat(this.sellerCommissionAmount(s.percentage).toFixed(2)),
+            }));
         },
 
         formatAmount(val) {
+            return (parseFloat(val) || 0).toFixed(2);
+        },
+
+        formatPercentage(val) {
             return (parseFloat(val) || 0).toFixed(2);
         },
 
@@ -697,8 +1090,45 @@ export default {
                     return false;
                 }
 
-                if (!this.operation.sellers.length) {
-                    this.$toastr.e('Debes seleccionar al menos un asesor');
+                if (this.isRentalOperation) {
+                    if (!this.operation.sellers.length) {
+                        this.$toastr.e('Debes seleccionar al menos un asesor para el alquiler');
+                        return false;
+                    }
+
+                    if (!this.operation.start_date) {
+                        this.$toastr.e('Debes indicar la fecha inicio del alquiler');
+                        return false;
+                    }
+
+                    if (!this.operation.fecha_corte) {
+                        this.$toastr.e('Debes indicar la fecha corte del alquiler');
+                        return false;
+                    }
+
+                    if (new Date(this.operation.fecha_corte) < new Date(this.operation.start_date)) {
+                        this.$toastr.e('La fecha corte no puede ser menor que la fecha inicio');
+                        return false;
+                    }
+
+                    if ((parseInt(this.operation.meses_adelanto, 10) || 0) < 0) {
+                        this.$toastr.e('Los meses de adelanto no pueden ser negativos');
+                        return false;
+                    }
+
+                    if ((parseInt(this.operation.mes_administrativo, 10) || 0) < 0) {
+                        this.$toastr.e('El mes administrativo no puede ser negativo');
+                        return false;
+                    }
+
+                    if (!this.operation.payment_frequency) {
+                        this.$toastr.e('Debes indicar el tiempo de pago del alquiler');
+                        return false;
+                    }
+                }
+
+                if (this.totalAssignedCommissionAmount > this.totalCommissionAmount + 0.0001) {
+                    this.$toastr.e('La distribución supera el monto total de comisión');
                     return false;
                 }
             }
@@ -716,10 +1146,14 @@ export default {
                     ...this.operation,
                     is_external_property: this.isExternalProperty,
                     sellers: this.operation.sellers,
+                    total_commission_percentage: this.totalCommissionPct,
+                    total_commission_amount: this.totalCommissionAmount,
                     company_commission_percentage: this.companyCommissionPct,
+                    company_commission_amount: this.companyCommissionAmount,
                     sellers_commissions: this.sellersCommissions.map(s => ({
                         id: s.id,
                         percentage: this.normalizePercentage(s.percentage),
+                        amount: this.normalizeMoney(s.amount),
                     })),
                 };
 
@@ -750,13 +1184,22 @@ export default {
                         start_date: "",
                         end_date: "",
                         fecha_cierre: "",
-                        company_commission_percentage: 2.5,
+                        meses_adelanto: 0,
+                        mes_administrativo: 0,
+                        fecha_corte: "",
+                        payment_frequency: "",
+                        total_commission_percentage: 5,
+                        total_commission_amount: 0,
+                        company_commission_percentage: 5,
+                        company_commission_amount: 0,
                         sellers: [],
                         notes: "",
                     };
                     this.isExternalProperty = false;
                     this.useManualOwnerClient = false;
                     this.useManualBuyerClient = false;
+                    this.hasEditedTotalCommissionAmount = false;
+                    this.hasEditedCommissionDistribution = false;
                     this.selectedPropertyPrice = null;
                     this.sellersCommissions = [];
                 }
