@@ -152,7 +152,7 @@
                     : 0,
                 'is_company' => true,
             ],
-        ])->merge($advisors->map(function ($advisor) use ($formatFullName) {
+        ])->merge($advisors->map(function ($advisor) use ($formatFullName, $totalCommissionPct) {
             $advisorName = $formatFullName($advisor);
             $advisorCommission = (float) ($advisor->pivot->commission_amount ?? 0);
             $advisorPctOfOperation = (float) ($advisor->pivot->commission_percentage ?? 0);
