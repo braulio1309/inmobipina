@@ -170,6 +170,7 @@
                     <div class="card card-with-shadow border-0">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
                             <h5 class="card-title d-inline-block mb-0">Últimas Negociaciones</h5>
+                            <small class="text-white-50">Últimos cierres</small>
                         </div>
                         <div class="card-body p-0">
                             <div v-if="realEstateData.latestNegotiations && realEstateData.latestNegotiations.data && realEstateData.latestNegotiations.data.length > 0">
@@ -195,7 +196,7 @@
                                 </table>
                             </div>
                             <div v-else class="p-primary text-center text-muted">
-                                No hay negociaciones registradas
+                                No hay cierres registrados
                             </div>
                         </div>
                     </div>
@@ -213,7 +214,7 @@
                                             <th>Vendedor</th>
                                             <th>Email</th>
                                             <th>Cierres</th>
-                                            <th>Total</th>
+                                            <th>Comisiones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -221,7 +222,7 @@
                                             <td>{{ seller.name }}</td>
                                             <td>{{ seller.email }}</td>
                                             <td>{{ seller.closures_count }}</td>
-                                            <td>{{ seller.total_revenue ? '$' + numberFormat(seller.total_revenue) : '$0' }}</td>
+                                            <td>{{ seller.total_commission ? '$' + numberFormat(seller.total_commission) : '$0' }}</td>
                                         </tr>
                                     </tbody>
                                 </table>

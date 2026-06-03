@@ -150,11 +150,11 @@ class RealEstateDashboardService
                 'users.last_name',
                 'users.email',
                 DB::raw('COUNT(DISTINCT operations.id) as closures_count'),
-                DB::raw('SUM(' . $this->qualifiedOperationAmountExpression() . ') as total_revenue')
+                DB::raw('SUM(COALESCE(operation_user.commission_amount, 0)) as total_commission')
             )
             ->groupBy('users.id', 'users.first_name', 'users.last_name', 'users.email')
             ->orderByDesc('closures_count')
-            ->orderByDesc('total_revenue')
+            ->orderByDesc('total_commission')
             ->limit(10)
             ->get();
 
@@ -167,7 +167,7 @@ class RealEstateDashboardService
                     'email' => $seller->email ?: 'N/A',
                     'image' => $defaultImage,
                     'closures_count' => $seller->closures_count,
-                    'total_revenue' => $seller->total_revenue,
+                    'total_commission' => $seller->total_commission,
                 ];
             })
         ];
@@ -180,17 +180,12 @@ class RealEstateDashboardService
 
     private function operationDateExpression(): string
     {
-        return 'COALESCE(fecha_cierre, start_date, end_date)';
+        return 'COALESCE(fecha_cierre, end_date, start_date, created_at)';
     }
 
     private function operationAmountExpression(): string
     {
         return 'COALESCE(NULLIF(amount, 0), property_price, 0)';
-    }
-
-    private function qualifiedOperationAmountExpression(): string
-    {
-        return 'COALESCE(NULLIF(operations.amount, 0), operations.property_price, 0)';
     }
 
     private function getSalesOverTime($startDate, $endDate)
