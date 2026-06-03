@@ -54,7 +54,7 @@ class SidebarComposer
                     [
                         'name' => 'Registrar cliente',
                         'url' => request()->root() . '/clients/create',
-                        'permission' => $authUser->can('view_default'),
+                        'permission' => authorize_any(['view_default', 'view_academy', 'view_ecmommerce', 'view_hospital', 'view_hrm']),
                     ],
                     [
                         'name' => 'Listar',

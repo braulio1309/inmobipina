@@ -73,15 +73,22 @@ class ClientController extends Controller
 
     public function formData()
     {
-        $users = User::query()
-            ->select('id', 'first_name', 'last_name')
-            ->orderBy('first_name')
-            ->get()
-            ->map(fn ($user) => [
-                'id' => (string) $user->id,
-                'value' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ('Usuario #' . $user->id),
-            ])
-            ->values();
+        /** @var User $authUser */
+        $authUser = Auth::user();
+
+        $users = collect();
+
+        if ($authUser->isAdmin()) {
+            $users = User::query()
+                ->select('id', 'first_name', 'last_name')
+                ->orderBy('first_name')
+                ->get()
+                ->map(fn ($user) => [
+                    'id' => (string) $user->id,
+                    'value' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ('Usuario #' . $user->id),
+                ])
+                ->values();
+        }
 
         $properties = Property::query()
             ->select('id', 'title', 'address', 'status')
@@ -108,7 +115,7 @@ class ClientController extends Controller
             'date' => 'nullable|date',
         ]);
 
-        $data = $request->only(['name', 'email', 'phone', 'date', 'notes', 'source', 'status', 'assigned_to']);
+        $data = $request->only(['name', 'email', 'phone', 'date', 'notes', 'source', 'tipo_neg', 'status', 'assigned_to']);
         /** @var User $authUser */
         $authUser = Auth::user();
 
@@ -117,9 +124,10 @@ class ClientController extends Controller
             ? $this->normalizeAssignedTo($data['assigned_to'] ?? null)
             : $authUser->id;
 
-        if (empty($data['status'])) {
-            $data['status'] = 'potencial';
-        }
+        $data['status'] = $authUser->isAdmin() && !empty($data['status'])
+            ? $data['status']
+            : 'potencial';
+
         $Client = Client::create($data);
 
         $Client->properties()->sync($this->normalizePropertyIds($request->input('property_ids', [])));
@@ -134,13 +142,17 @@ class ClientController extends Controller
             'date' => 'nullable|date',
         ]);
 
-        $data = $request->only(['name', 'email', 'phone', 'date', 'notes', 'source', 'status', 'assigned_to']);
+        $data = $request->only(['name', 'email', 'phone', 'date', 'notes', 'source', 'tipo_neg', 'status', 'assigned_to']);
         /** @var User $authUser */
         $authUser = Auth::user();
 
         $data['assigned_to'] = $authUser->isAdmin()
             ? $this->normalizeAssignedTo($data['assigned_to'] ?? null)
             : $authUser->id;
+
+        if (!$authUser->isAdmin()) {
+            unset($data['status']);
+        }
 
         $Client->update($data);
         $Client->properties()->sync($this->normalizePropertyIds($request->input('property_ids', [])));
@@ -150,6 +162,11 @@ class ClientController extends Controller
 
     public function changeStatus(Request $request, $id)
     {
+        /** @var User $authUser */
+        $authUser = Auth::user();
+
+        abort_if(!$authUser->isAdmin(), 403);
+
         $request->validate([
             'status' => 'required|in:potencial,no potencial,atendido,cerrado',
         ]);

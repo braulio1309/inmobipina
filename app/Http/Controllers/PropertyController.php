@@ -201,6 +201,13 @@ class PropertyController extends Controller
 
     public function toggleAvailability($id)
     {
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser || !$authUser->isAdmin()) {
+            return response()->json(['message' => 'No tienes permisos para cambiar la disponibilidad de la propiedad.'], 403);
+        }
+
         $property = Property::findOrFail($id);
 
         if ($property->status === 'Disponible') {

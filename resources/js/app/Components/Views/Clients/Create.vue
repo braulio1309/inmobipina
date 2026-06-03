@@ -65,8 +65,18 @@
             />
           </div>
 
-          <!-- Estatus -->
           <div class="mb-3">
+            <label class="form-label">Tipo de negociación</label>
+            <app-input
+              type="select"
+              v-model="client.tipo_neg"
+              :list="tipoNegociacionOptions"
+              placeholder="Selecciona el tipo de negociación"
+            />
+          </div>
+
+          <!-- Estatus -->
+          <div v-if="isAdmin" class="mb-3">
             <label class="form-label">Estatus</label>
             <app-input
               type="select"
@@ -130,6 +140,7 @@ export default {
         assigned_to: "",
         property_ids: [],
         source: "",
+        tipo_neg: "",
         status: "potencial",
       },
       sourceOptions: [
@@ -138,6 +149,11 @@ export default {
         { id: "instagram", value: "Instagram" },
         { id: "tu_inmueble", value: "Tu Inmueble" },
         { id: "pendon", value: "Pendón" },
+      ],
+      tipoNegociacionOptions: [
+        { id: "", value: "Elige uno" },
+        { id: "VENTA", value: "VENTA" },
+        { id: "ALQUILER", value: "ALQUILER" },
       ],
       statusOptions: [
         { id: "potencial", value: "Potencial" },
@@ -169,16 +185,19 @@ export default {
     async loadFormData() {
       try {
         const res = await axios.get('/client/form-data');
-        const users = Array.isArray(res.data.users) ? res.data.users : [];
         const properties = Array.isArray(res.data.properties) ? res.data.properties : [];
 
-        this.agentsList = [
-          { id: "", value: "Elige uno" },
-          ...users.map(a => ({
-            id: a.id.toString(),
-            value: a.value,
-          }))
-        ];
+        if (this.isAdmin) {
+          const users = Array.isArray(res.data.users) ? res.data.users : [];
+
+          this.agentsList = [
+            { id: "", value: "Elige uno" },
+            ...users.map(a => ({
+              id: a.id.toString(),
+              value: a.value,
+            }))
+          ];
+        }
 
         this.propertiesList = properties.map(property => ({
           id: property.id.toString(),
@@ -204,6 +223,7 @@ export default {
             : (this.currentUserId || (c.assigned_to ? c.assigned_to.toString() : "")),
           property_ids: Array.isArray(c.properties) ? c.properties.map(property => property.id.toString()) : [],
           source: c.source || "",
+          tipo_neg: c.tipo_neg || "",
           status: c.status || "potencial",
         };
       } catch (error) {
@@ -229,6 +249,7 @@ export default {
             assigned_to: this.isAdmin ? "" : (this.currentUserId || ""),
             property_ids: [],
             source: "",
+            tipo_neg: "",
             status: "potencial",
           };
         }

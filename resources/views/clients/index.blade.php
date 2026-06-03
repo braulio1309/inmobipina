@@ -3,5 +3,7 @@
 @section('title', 'Clientes')
 
 @section('contents')
-    <clients></clients>
+    @php($isAdmin = auth()->user()->isAdmin())
+
+    <clients :is-admin='@json($isAdmin)'></clients>
 @endsection

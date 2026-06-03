@@ -91,6 +91,12 @@
         name: "Properties",
         mixins: [TableHelpers],
         extends: CoreLibrary,
+            props: {
+                isAdmin: {
+                    type: Boolean,
+                    default: false,
+                },
+            },
         data() {
             return {
                 showDetailModal: false,
@@ -292,15 +298,17 @@
                         { title: 'Detalle', type: 'none' },
                         { title: 'Editar', type: 'none' },
                         { title: 'Compartir', type: 'none', modifier: (row) => !!row.approved_by || row.status === 'Disponible' },
-                        { title: 'Habilitar', type: 'none', modifier: (row) => row.status !== 'Disponible' },
-                        { title: 'Deshabilitar', type: 'none', modifier: (row) => row.status === 'Disponible' },
                     ],
                 },
             }
         },
         created() {
             //this.options.columns = [...this.tableColumns];
-            if (this.$isAdmin()) {
+            if (this.isAdmin) {
+                this.options.actions.push(
+                    { title: 'Habilitar', type: 'none', modifier: (row) => row.status !== 'Disponible' },
+                    { title: 'Deshabilitar', type: 'none', modifier: (row) => row.status === 'Disponible' }
+                );
                 this.options.actions.push(
                     { title: 'Aprobar', type: 'none', modifier: (row) => row.status === 'pending' },
                     { title: 'Rechazar', type: 'none', modifier: (row) => row.status === 'pending' }
@@ -357,6 +365,11 @@
                     const shareUrl = `${window.location.origin}/property/share/${rowData.id}`;
                     window.open(shareUrl, '_blank');
                 } else if (actionObj.title === 'Habilitar' || actionObj.title === 'Deshabilitar') {
+                    if (!this.isAdmin) {
+                        this.$toastr.e('No tienes permisos para cambiar la disponibilidad de la propiedad.');
+                        return;
+                    }
+
                     this.axiosPatch({
                         url: `property/${rowData.id}/toggle-availability`,
                         data: {}

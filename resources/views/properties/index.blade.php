@@ -3,5 +3,7 @@
 @section('title', 'Propiedades')
 
 @section('contents')
-    <properties></properties>
+    @php($isAdmin = auth()->user()->isAdmin())
+
+    <properties :is-admin='@json($isAdmin)'></properties>
 @endsection

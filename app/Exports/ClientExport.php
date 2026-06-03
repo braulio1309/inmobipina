@@ -57,7 +57,10 @@ class ClientExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
         /** @var \App\Models\Core\Auth\User $user */
         $user = auth()->user();
         if (!$user->isAdmin()) {
-            $query->where('user_id', $user->id);
+            $query->where(function ($builder) use ($user) {
+                $builder->where('user_id', $user->id)
+                    ->orWhere('assigned_to', $user->id);
+            });
         }
 
         return $query->latest();

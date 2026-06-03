@@ -81,6 +81,12 @@
         name: "Clients",
         mixins: [TableHelpers],
         extends: CoreLibrary,
+        props: {
+            isAdmin: {
+                type: Boolean,
+                default: false,
+            },
+        },
         data() {
             return {
                 showStatusModal: false,
@@ -238,12 +244,14 @@
                     showAction: true,
                     actions: [
                         { title: 'Editar', type: 'none' },
-                        { title: 'Cambiar estatus', type: 'none' },
                     ],
                 },
             }
         },
         created() {
+            if (this.isAdmin) {
+                this.options.actions.push({ title: 'Cambiar estatus', type: 'none' });
+            }
             this.searchAndSelectFilterOptions();
         },
         methods: {
@@ -311,6 +319,9 @@
                 }
             },
             async applyStatusChange() {
+                if (!this.isAdmin) {
+                    return;
+                }
                 try {
                     await axios.patch(`/client/${this.selectedClient.id}/status`, { status: this.newStatus });
                     this.$toastr.s('Estatus actualizado correctamente');

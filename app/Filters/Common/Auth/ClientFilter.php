@@ -5,6 +5,7 @@ namespace App\Filters\Common\Auth;
 
 
 use App\Filters\Common\FilterContact;
+use App\Models\Core\Auth\User;
 use Illuminate\Database\Eloquent\Builder;
 
 class ClientFilter extends FilterContact
@@ -16,8 +17,14 @@ class ClientFilter extends FilterContact
      */
     public function filter() : Builder
     {
-        if (!auth()->user()->isAdmin()) {
-            $this->query->where('user_id', auth()->id());
+        /** @var User $authUser */
+        $authUser = auth()->user();
+
+        if (!$authUser->isAdmin()) {
+            $this->query->where(function (Builder $builder) {
+                $builder->where('user_id', auth()->id())
+                    ->orWhere('assigned_to', auth()->id());
+            });
         }
 
         return $this->query;
