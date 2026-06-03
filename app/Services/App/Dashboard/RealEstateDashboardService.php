@@ -2,11 +2,10 @@
 
 namespace App\Services\App\Dashboard;
 
-use App\Models\Sale;
 use App\Models\Exclusivity;
+use App\Models\Operation;
 use App\Models\Property;
 use App\Models\Activity;
-use App\Models\Core\Auth\User;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -30,7 +29,7 @@ class RealEstateDashboardService
         return [
             'defaultData' => $this->getDefaultData($startDate, $endDate),
             'activitiesByType' => $this->getActivitiesByType($startDate, $endDate),
-            'latestSales' => $this->getLatestSales($startDate, $endDate),
+            'latestNegotiations' => $this->getLatestNegotiations($startDate, $endDate),
             'topSellers' => $this->getTopSellers($startDate, $endDate),
             'salesOverTime' => $this->getSalesOverTime($startDate, $endDate),
         ];
@@ -38,9 +37,10 @@ class RealEstateDashboardService
 
     private function getDefaultData($startDate, $endDate)
     {
-        // Total sales revenue
-        $totalSalesRevenue = Sale::whereBetween('date', [$startDate, $endDate])
-            ->sum('total_amount');
+        $totalClosingsRevenue = DB::table('operations')
+            ->whereIn('type', $this->closingOperationTypes())
+            ->whereBetween(DB::raw($this->operationDateExpression()), [$startDate, $endDate])
+            ->sum(DB::raw($this->operationAmountExpression()));
 
         // Count of exclusivities
         $exclusivitiesCount = Exclusivity::whereBetween('start_date', [$startDate, $endDate])
@@ -57,12 +57,12 @@ class RealEstateDashboardService
 
         // Total company commission from operations in the date range
         $totalCompanyCommission = DB::table('operations')
-            ->whereBetween(DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), [$startDate, $endDate])
-            ->whereIn('type', ['venta', 'reserva'])
+            ->whereBetween(DB::raw($this->operationDateExpression()), [$startDate, $endDate])
+            ->whereIn('type', $this->closingOperationTypes())
             ->sum('company_commission_amount');
 
         return [
-            ['label' => 'Total Ganancias en Ventas', 'number' => $totalSalesRevenue, 'icon' => 'dollar-sign'],
+            ['label' => 'Total Ganancias en Cierres', 'number' => $totalClosingsRevenue, 'icon' => 'dollar-sign'],
             ['label' => 'Exclusividades', 'number' => $exclusivitiesCount, 'icon' => 'award'],
             ['label' => 'Captaciones Aprobadas', 'number' => $captacionesCount, 'icon' => 'home'],
             ['label' => 'Comisión Inmobiliaria', 'number' => $totalCompanyCommission, 'icon' => 'percent'],
@@ -112,23 +112,26 @@ class RealEstateDashboardService
         ];
     }
 
-    private function getLatestSales($startDate, $endDate)
+    private function getLatestNegotiations($startDate, $endDate)
     {
-        $sales = Sale::with(['property', 'buyer', 'seller'])
-            ->whereBetween('date', [$startDate, $endDate])
-            ->orderBy('date', 'desc')
+        $operations = Operation::with(['property', 'buyerClient', 'ownerClient'])
+            ->whereIn('type', $this->closingOperationTypes())
+            ->whereBetween(DB::raw($this->operationDateExpression()), [$startDate, $endDate])
+            ->orderByRaw($this->operationDateExpression() . ' DESC')
             ->limit(10)
             ->get();
 
         return [
-            'data' => $sales->map(function ($sale) {
+            'data' => $operations->map(function (Operation $operation) {
+                $counterparty = $operation->buyerClient ?: $operation->ownerClient;
+
                 return [
-                    'id' => $sale->id,
-                    'property' => $sale->property ? $sale->property->title : 'N/A',
-                    'buyer' => $sale->buyer ? $sale->buyer->name : 'N/A',
-                    'seller' => $sale->seller ? $sale->seller->full_name : 'N/A',
-                    'amount' => $sale->total_amount,
-                    'date' => Carbon::parse($sale->date)->format('Y-m-d'),
+                    'id' => $operation->id,
+                    'property' => $operation->property?->title ?: ($operation->external_property_title ?: 'N/A'),
+                    'type' => strtoupper((string) ($operation->type ?? 'N/A')),
+                    'client' => $counterparty?->name ?: 'N/A',
+                    'amount' => (float) ($operation->amount ?: $operation->property_price ?: 0),
+                    'date' => Carbon::parse($operation->fecha_cierre ?: $operation->start_date ?: $operation->end_date)->format('Y-m-d'),
                 ];
             })
         ];
@@ -136,27 +139,58 @@ class RealEstateDashboardService
 
     private function getTopSellers($startDate, $endDate)
     {
-        $topSellers = Sale::select('seller_id', DB::raw('COUNT(*) as sales_count'), DB::raw('SUM(total_amount) as total_revenue'))
-            ->whereBetween('date', [$startDate, $endDate])
-            ->groupBy('seller_id')
-            ->orderBy('total_revenue', 'desc')
+        $topSellers = DB::table('operation_user')
+            ->join('operations', 'operation_user.operation_id', '=', 'operations.id')
+            ->join('users', 'operation_user.user_id', '=', 'users.id')
+            ->whereIn('operations.type', $this->closingOperationTypes())
+            ->whereBetween(DB::raw('COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)'), [$startDate, $endDate])
+            ->select(
+                'users.id',
+                'users.first_name',
+                'users.last_name',
+                'users.email',
+                DB::raw('COUNT(DISTINCT operations.id) as closures_count'),
+                DB::raw('SUM(' . $this->qualifiedOperationAmountExpression() . ') as total_revenue')
+            )
+            ->groupBy('users.id', 'users.first_name', 'users.last_name', 'users.email')
+            ->orderByDesc('closures_count')
+            ->orderByDesc('total_revenue')
             ->limit(10)
             ->get();
 
         return [
             'data' => $topSellers->map(function ($seller) {
-                $user = User::find($seller->seller_id);
                 $defaultImage = '/images/default-avatar.png'; // Use local default avatar
                 return [
-                    'id' => $seller->seller_id,
-                    'name' => $user ? $user->full_name : 'N/A',
-                    'email' => $user ? $user->email : 'N/A',
-                    'image' => $user && $user->profile_picture ? $user->profile_picture->path : $defaultImage,
-                    'sales_count' => $seller->sales_count,
+                    'id' => $seller->id,
+                    'name' => trim(($seller->first_name ?? '') . ' ' . ($seller->last_name ?? '')) ?: 'N/A',
+                    'email' => $seller->email ?: 'N/A',
+                    'image' => $defaultImage,
+                    'closures_count' => $seller->closures_count,
                     'total_revenue' => $seller->total_revenue,
                 ];
             })
         ];
+    }
+
+    private function closingOperationTypes(): array
+    {
+        return ['venta', 'alquiler', 'traspaso', 'reserva'];
+    }
+
+    private function operationDateExpression(): string
+    {
+        return 'COALESCE(fecha_cierre, start_date, end_date)';
+    }
+
+    private function operationAmountExpression(): string
+    {
+        return 'COALESCE(NULLIF(amount, 0), property_price, 0)';
+    }
+
+    private function qualifiedOperationAmountExpression(): string
+    {
+        return 'COALESCE(NULLIF(operations.amount, 0), operations.property_price, 0)';
     }
 
     private function getSalesOverTime($startDate, $endDate)
@@ -165,24 +199,25 @@ class RealEstateDashboardService
 
         if ($diffInDays <= 31) {
             // Daily grouping
-            $groupBy = DB::raw('DATE(date)');
+            $groupBy = DB::raw('DATE(' . $this->operationDateExpression() . ')');
             $format = '%Y-%m-%d';
         } elseif ($diffInDays <= 365) {
             // Weekly grouping
-            $groupBy = DB::raw('YEARWEEK(date)');
+            $groupBy = DB::raw('YEARWEEK(' . $this->operationDateExpression() . ')');
             $format = '%Y-W%u';
         } else {
             // Monthly grouping
-            $groupBy = DB::raw('DATE_FORMAT(date, "%Y-%m")');
+            $groupBy = DB::raw('DATE_FORMAT(' . $this->operationDateExpression() . ', "%Y-%m")');
             $format = '%Y-%m';
         }
 
-        $salesData = Sale::select(
-            DB::raw("DATE_FORMAT(date, '$format') as period"),
+        $salesData = Operation::select(
+            DB::raw("DATE_FORMAT(" . $this->operationDateExpression() . ", '$format') as period"),
             DB::raw('COUNT(*) as count'),
-            DB::raw('SUM(total_amount) as revenue')
+            DB::raw('SUM(' . $this->operationAmountExpression() . ') as revenue')
         )
-            ->whereBetween('date', [$startDate, $endDate])
+            ->whereIn('type', $this->closingOperationTypes())
+            ->whereBetween(DB::raw($this->operationDateExpression()), [$startDate, $endDate])
             ->groupBy('period')
             ->orderBy('period')
             ->get();
@@ -221,7 +256,7 @@ class RealEstateDashboardService
 
         $chartData = [
             [
-                'title' => 'Ventas',
+                'title' => 'Cierres',
                 'pointRadius' => 0,
                 'borderWidth' => 2,
                 'borderColor' => 'rgba(240, 84, 84, 0.8)',

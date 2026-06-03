@@ -169,31 +169,33 @@
                 <div class="col-12 col-sm-12 col-md-6 mb-4 mb-md-0">
                     <div class="card card-with-shadow border-0">
                         <div class="card-header d-flex align-items-center justify-content-between p-primary primary-card-color">
-                            <h5 class="card-title d-inline-block mb-0">Últimas Ventas</h5>
+                            <h5 class="card-title d-inline-block mb-0">Últimas Negociaciones</h5>
                         </div>
                         <div class="card-body p-0">
-                            <div v-if="realEstateData.latestSales && realEstateData.latestSales.data && realEstateData.latestSales.data.length > 0">
+                            <div v-if="realEstateData.latestNegotiations && realEstateData.latestNegotiations.data && realEstateData.latestNegotiations.data.length > 0">
                                 <table class="table table-hover mb-0">
                                     <thead>
                                         <tr>
                                             <th>Propiedad</th>
-                                            <th>Comprador</th>
+                                            <th>Tipo</th>
+                                            <th>Cliente</th>
                                             <th>Monto</th>
                                             <th>Fecha</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="(sale, idx) in realEstateData.latestSales.data" :key="idx">
-                                            <td>{{ sale.property }}</td>
-                                            <td>{{ sale.buyer }}</td>
-                                            <td>{{ sale.amount ? '$' + numberFormat(sale.amount) : '$0' }}</td>
-                                            <td>{{ sale.date }}</td>
+                                        <tr v-for="(negotiation, idx) in realEstateData.latestNegotiations.data" :key="idx">
+                                            <td>{{ negotiation.property }}</td>
+                                            <td>{{ negotiation.type }}</td>
+                                            <td>{{ negotiation.client }}</td>
+                                            <td>{{ negotiation.amount ? '$' + numberFormat(negotiation.amount) : '$0' }}</td>
+                                            <td>{{ negotiation.date }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                             <div v-else class="p-primary text-center text-muted">
-                                No hay ventas registradas
+                                No hay negociaciones registradas
                             </div>
                         </div>
                     </div>
@@ -210,7 +212,7 @@
                                         <tr>
                                             <th>Vendedor</th>
                                             <th>Email</th>
-                                            <th>Ventas</th>
+                                            <th>Cierres</th>
                                             <th>Total</th>
                                         </tr>
                                     </thead>
@@ -218,7 +220,7 @@
                                         <tr v-for="(seller, idx) in realEstateData.topSellers.data" :key="idx">
                                             <td>{{ seller.name }}</td>
                                             <td>{{ seller.email }}</td>
-                                            <td>{{ seller.sales_count }}</td>
+                                            <td>{{ seller.closures_count }}</td>
                                             <td>{{ seller.total_revenue ? '$' + numberFormat(seller.total_revenue) : '$0' }}</td>
                                         </tr>
                                     </tbody>
@@ -266,7 +268,7 @@
                 realEstateData: {
                     defaultData: [],
                     activitiesByType: { labels: [], dataSet: [], chartElement: [] },
-                    latestSales: { data: [] },
+                    latestNegotiations: { data: [] },
                     topSellers: { data: [] },
                     salesOverTime: { labels: [], chartData: [], totalSales: 0, totalCaptaciones: 0 }
                 },
