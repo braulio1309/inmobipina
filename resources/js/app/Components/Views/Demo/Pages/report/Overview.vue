@@ -7,7 +7,7 @@
                     <div class="card card-with-shadow border-0">
                         <div class="card-body d-flex justifycontent-center align-items-center">
                             <div class="text-center w-100">
-                                <div class="text-muted">Ventas en el período</div>
+                                <div class="text-muted">Cierres en el período</div>
                                 <div class="h1">{{ overview ? overview.new_candidates : 0 }}</div>
                             </div>
                         </div>

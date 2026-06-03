@@ -9,6 +9,7 @@ use App\Filters\Core\OperationFilter;
 use App\Models\Client;
 use App\Models\Core\Auth\User;
 use App\Models\Property;
+use App\Models\Activity;
 use App\Services\Core\Auth\OperationService;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -258,6 +259,8 @@ class OperationController extends Controller
             'notes'        => $request->notes
         ]);
     }
+
+    $this->registerClosingActivities($operation->fresh(['property', 'sellers', 'ownerClient', 'buyerClient']));
 
     // *************************************************************************
     // LOGICA PARA EXCLUSIVIDAD (Generar PDF)
@@ -595,6 +598,8 @@ class OperationController extends Controller
             'date'         => now(),
             'notes'        => $operation->notes,
         ]);
+
+        $this->registerClosingActivities($operation->fresh(['property', 'sellers', 'ownerClient', 'buyerClient']));
 
         return response()->json([
             'message' => 'Venta confirmada correctamente.',
@@ -1028,6 +1033,49 @@ class OperationController extends Controller
         }
 
         return $nextDate->toDateString();
+    }
+
+    private function registerClosingActivities(Operation $operation): void
+    {
+        if ($operation->sellers->isEmpty()) {
+            return;
+        }
+
+        $activityDate = $operation->fecha_cierre
+            ? Carbon::parse($operation->fecha_cierre)->startOfDay()
+            : ($operation->end_date
+                ? Carbon::parse($operation->end_date)->startOfDay()
+                : ($operation->start_date
+                    ? Carbon::parse($operation->start_date)->startOfDay()
+                    : now()->startOfDay()));
+
+        $propertyLabel = trim((string) ($operation->property?->title ?: $operation->external_property_title ?: ($operation->property?->address ?: ('Propiedad #' . $operation->property_id))));
+        $counterparty = $operation->buyerClient?->name ?: $operation->ownerClient?->name;
+        $typeLabel = trim((string) ($operation->type ?: 'cierre'));
+        $description = 'Cierre de ' . $typeLabel . ' registrado';
+
+        if ($propertyLabel !== '') {
+            $description .= ' para ' . $propertyLabel;
+        }
+
+        if (trim((string) $counterparty) !== '') {
+            $description .= ' con ' . trim((string) $counterparty);
+        }
+
+        foreach ($operation->sellers as $seller) {
+            if (!$seller->id) {
+                continue;
+            }
+
+            Activity::create([
+                'user_id' => $seller->id,
+                'client_id' => $operation->buyer_client_id ?: $operation->owner_client_id,
+                'property_id' => $operation->property_id,
+                'type' => $typeLabel,
+                'description' => $description,
+                'date' => $activityDate,
+            ]);
+        }
     }
 
     private function makeAnonymousClient()

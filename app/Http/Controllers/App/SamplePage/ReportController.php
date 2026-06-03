@@ -11,6 +11,16 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    private function closingTypes(): array
+    {
+        return ['venta', 'alquiler', 'traspaso', 'reserva'];
+    }
+
+    private function operationDateExpression(): \Illuminate\Database\Query\Expression
+    {
+        return DB::raw('COALESCE(operations.fecha_cierre, operations.end_date, operations.start_date, operations.created_at)');
+    }
+
     private function applyDateRangeFilter($query, $column, $startDate = null, $endDate = null)
     {
         if ($startDate) {
@@ -165,7 +175,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Overview stats: sales count, captaciones count, reservations count, company commission
+        * Overview stats: closings count, captaciones count, reservations count, company commission
      */
     public function overviewStats(Request $request)
     {
@@ -175,8 +185,9 @@ class ReportController extends Controller
         $start = $startDate ? Carbon::parse($startDate)->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
         $end   = $endDate   ? Carbon::parse($endDate)->endOfDay()     : Carbon::now()->endOfDay();
 
-        $salesCount = DB::table('sales')
-            ->whereBetween('date', [$start, $end])
+        $closingsCount = DB::table('operations')
+            ->whereIn('type', $this->closingTypes())
+            ->whereBetween($this->operationDateExpression(), [$start, $end])
             ->count();
 
         $captacionesCount = DB::table('properties')
@@ -186,16 +197,16 @@ class ReportController extends Controller
 
         $reservationsCount = DB::table('operations')
             ->where('type', 'reserva')
-            ->whereBetween(DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), [$start, $end])
+            ->whereBetween($this->operationDateExpression(), [$start, $end])
             ->count();
 
         $companyCommission = DB::table('operations')
-            ->whereIn('type', ['venta', 'reserva'])
-            ->whereBetween(DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), [$start, $end])
+            ->whereIn('type', $this->closingTypes())
+            ->whereBetween($this->operationDateExpression(), [$start, $end])
             ->sum('company_commission_amount');
 
         return response()->json([
-            'new_candidates'  => $salesCount,
+            'new_candidates'  => $closingsCount,
             'moved_forward'   => $captacionesCount,
             'hired'           => $reservationsCount,
             'active_jobs'     => round((float) $companyCommission, 2),
@@ -225,11 +236,11 @@ class ReportController extends Controller
 
         $data = DB::table('operations')
             ->select(
-                DB::raw("DATE_FORMAT(COALESCE(fecha_cierre, start_date, end_date), '$format') as period"),
+                DB::raw("DATE_FORMAT(COALESCE(fecha_cierre, end_date, start_date, created_at), '$format') as period"),
                 DB::raw('SUM(company_commission_amount) as total')
             )
-            ->whereIn('type', ['venta', 'reserva'])
-            ->whereBetween(DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), [$start, $end])
+            ->whereIn('type', $this->closingTypes())
+            ->whereBetween(DB::raw('COALESCE(fecha_cierre, end_date, start_date, created_at)'), [$start, $end])
             ->groupBy('period')
             ->orderBy('period')
             ->get();

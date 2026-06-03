@@ -1013,7 +1013,22 @@ export default {
         'property.parking_spots': 'syncDerivedCaptationData',
         'property.agent_id': 'syncDerivedCaptationData',
         'property.description': 'syncDerivedCaptationData',
+        'exclusivityData.propietario_nombre': 'syncDerivedCaptationData',
+        'exclusivityData.propietario_ci': 'syncDerivedCaptationData',
+        'exclusivityData.propietario_email': 'syncDerivedCaptationData',
+        'exclusivityData.propietario_telefono': 'syncDerivedCaptationData',
+        'exclusivityData.inmueble_descripcion': 'syncDerivedCaptationData',
+        'exclusivityData.precio_venta': 'syncDerivedCaptationData',
+        'exclusivityData.registro_numero': 'syncDerivedCaptationData',
+        'exclusivityData.registro_folio': 'syncDerivedCaptationData',
+        'exclusivityData.registro_tomo': 'syncDerivedCaptationData',
+        'exclusivityData.registro_protocolo': 'syncDerivedCaptationData',
+        'exclusivityData.registro_anio': 'syncDerivedCaptationData',
+        'exclusivityData.registro_fecha': 'syncDerivedCaptationData',
         'captationData.cliente_nombre_apellido': 'syncDerivedCaptationData',
+        'captationData.cliente_nro_contacto': 'syncDerivedCaptationData',
+        'captationData.cliente_correo_electronico': 'syncDerivedCaptationData',
+        'captationData.autorizacion_cedula': 'syncDerivedCaptationData',
         'captationData.porcentaje_comision': 'syncDerivedCaptationData',
         'captationData.cliente_es_propietario': 'syncDerivedCaptationData',
         'captationData.cliente_es_apoderado': 'syncDerivedCaptationData',
@@ -1800,20 +1815,38 @@ export default {
             return roles.join(' / ');
         },
 
+        buildRegistrationSummary() {
+            const parts = [
+                this.exclusivityData.registro_numero ? `Nro. ${this.exclusivityData.registro_numero}` : '',
+                this.exclusivityData.registro_folio ? `Folio ${this.exclusivityData.registro_folio}` : '',
+                this.exclusivityData.registro_tomo ? `Tomo ${this.exclusivityData.registro_tomo}` : '',
+                this.exclusivityData.registro_protocolo ? `Protocolo ${this.exclusivityData.registro_protocolo}` : '',
+                this.exclusivityData.registro_anio ? `Año ${this.exclusivityData.registro_anio}` : '',
+            ].filter(Boolean);
+
+            return parts.join(' / ');
+        },
+
         syncDerivedCaptationData(propertyData = null) {
             const source = propertyData || this.property;
             const creator = propertyData && propertyData.creator ? propertyData.creator : null;
             const advisorName = this.buildAdvisorName(creator);
             const today = new Date().toISOString().slice(0, 10);
             const propertyType = source.type || this.property.type || '';
-            const propertyPrice = source.price || this.property.price || '';
+            const propertyPrice = this.exclusivityData.precio_venta || source.price || this.property.price || '';
             const propertyArea = source.square_meters || this.property.square_meters || '';
             const propertyAddress = source.address || this.property.address || '';
-            const propertyDescription = source.description || this.property.description || '';
+            const propertyDescription = this.exclusivityData.inmueble_descripcion || source.description || this.property.description || '';
             const propertyTypeSale = source.type_sale || this.property.type_sale || '';
             const pricePerSquareMeter = this.calculatePricePerSquareMeter(propertyPrice, propertyArea);
             const authorizationCharacter = this.deriveAuthorizationCharacter();
             const normalizedTypeSale = String(propertyTypeSale).toLowerCase();
+            const ownerName = this.exclusivityData.propietario_nombre || '';
+            const ownerPhone = this.exclusivityData.propietario_telefono || '';
+            const ownerEmail = this.exclusivityData.propietario_email || '';
+            const ownerCi = this.exclusivityData.propietario_ci || '';
+            const registrationSummary = this.buildRegistrationSummary();
+            const authorizationCharacterFallback = authorizationCharacter || (ownerName ? 'propietario' : '');
 
             this.captationData = {
                 ...this.captationData,
@@ -1824,14 +1857,21 @@ export default {
                 precio_cliente: this.preferEditableCaptationValue(this.captationData.precio_cliente, propertyPrice),
                 porcentaje_comision: this.preferEditableCaptationValue(this.captationData.porcentaje_comision, 5),
                 tipo_negociacion: this.preferEditableCaptationValue(this.captationData.tipo_negociacion, propertyTypeSale),
+                cliente_nombre_apellido: this.preferEditableCaptationValue(this.captationData.cliente_nombre_apellido, ownerName),
+                cliente_nro_contacto: this.preferEditableCaptationValue(this.captationData.cliente_nro_contacto, ownerPhone),
+                cliente_correo_electronico: this.preferEditableCaptationValue(this.captationData.cliente_correo_electronico, ownerEmail),
+                tipo_cliente: this.preferEditableCaptationValue(this.captationData.tipo_cliente, ownerName ? 'Propietario' : ''),
                 ubicacion: this.preferEditableCaptationValue(this.captationData.ubicacion, propertyAddress),
                 m2_construccion: this.preferEditableCaptationValue(this.captationData.m2_construccion, propertyArea),
                 precio_m2: this.preferEditableCaptationValue(this.captationData.precio_m2, pricePerSquareMeter),
                 cantidad_habitaciones: this.preferEditableCaptationValue(this.captationData.cantidad_habitaciones, source.bedrooms || this.property.bedrooms || ''),
                 cantidad_banos: this.preferEditableCaptationValue(this.captationData.cantidad_banos, source.bathrooms || this.property.bathrooms || ''),
                 capacidad_estacionamiento: this.preferEditableCaptationValue(this.captationData.capacidad_estacionamiento, source.parking_spots || this.property.parking_spots || ''),
-                autorizacion_nombre: this.captationData.cliente_nombre_apellido || '',
-                autorizacion_caracter: authorizationCharacter,
+                fecha_verificacion: this.preferEditableCaptationValue(this.captationData.fecha_verificacion, this.exclusivityData.registro_fecha || ''),
+                datos_registro: this.preferEditableCaptationValue(this.captationData.datos_registro, registrationSummary),
+                autorizacion_nombre: this.preferEditableCaptationValue(this.captationData.autorizacion_nombre, this.captationData.cliente_nombre_apellido || ownerName),
+                autorizacion_cedula: this.preferEditableCaptationValue(this.captationData.autorizacion_cedula, ownerCi),
+                autorizacion_caracter: this.preferEditableCaptationValue(this.captationData.autorizacion_caracter, authorizationCharacterFallback),
                 autoriza_venta: ['venta', 'ambos'].includes(normalizedTypeSale),
                 autoriza_alquiler: ['alquiler', 'ambos'].includes(normalizedTypeSale),
                 autorizacion_inmueble_constituido: propertyDescription,
