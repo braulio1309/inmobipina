@@ -160,11 +160,8 @@ export default {
             activityTypes: [
                 {id: '', value: "Seleccione un tipo"},
                 {id: 'demostración', value: "Demostración"},
-                {id: 'captación', value: "Captación"},
                 {id: 'publicidad', value: "Publicidad"},
-                {id: 'reserva', value: "Reserva"},
-                {id: 'venta', value: "Venta"},
-                {id: 'alquiler', value: "Alquiler"},
+                
             ],
 
             modalId: 'activity-add-edit-modal',

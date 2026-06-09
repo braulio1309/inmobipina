@@ -225,7 +225,7 @@ export default {
             if (actionObj.title === 'Delete' || actionObj.title === this.$t('delete')) {
                 this.openDeleteModal();
             } else if (actionObj.title === this.$t('edit')) {
-                this.selectedUrl = `${actions.DATATABLE_DATA}/${rowData.id}`;
+                this.selectedUrl = `/activities/${rowData.id}`;
                 this.openAddEditModal();
             } else if (actionObj.title === 'Ver detalle') {
                 this.openDetailModal(rowData.id);

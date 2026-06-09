@@ -149,14 +149,26 @@
                     :list="listForSelect"
                 />
             </div>
-            <div class="mb-3">
-                <label class="form-label">Precio (USD)</label>
-                <input 
-                    v-model="property.price" 
-                    type="number" 
-                    class="form-control"
-                    placeholder="Ej: 45000"
-                >
+            <div class="row">
+                <div v-if="showSalePriceField" class="col-md-6 mb-3">
+                    <label class="form-label">Precio de Venta (USD)</label>
+                    <input
+                        v-model="property.sale_price"
+                        type="number"
+                        class="form-control"
+                        placeholder="Ej: 45000"
+                    >
+                </div>
+
+                <div v-if="showRentalPriceField" class="col-md-6 mb-3">
+                    <label class="form-label">Precio de Alquiler (USD)</label>
+                    <input
+                        v-model="property.rental_price"
+                        type="number"
+                        class="form-control"
+                        placeholder="Ej: 500"
+                    >
+                </div>
             </div>
 
             <div class="mb-3">
@@ -835,6 +847,8 @@ export default {
                 map_lng: "",
                 type: "",
                 price: "",
+                sale_price: "",
+                rental_price: "",
                 status: "",
                 approved_by: null,
                 exclusivity: false,
@@ -1006,6 +1020,8 @@ export default {
         'property.type': 'syncDerivedCaptationData',
         'property.type_sale': 'syncDerivedCaptationData',
         'property.price': 'syncDerivedCaptationData',
+        'property.sale_price': 'syncDerivedCaptationData',
+        'property.rental_price': 'syncDerivedCaptationData',
         'property.square_meters': 'syncDerivedCaptationData',
         'property.address': 'syncDerivedCaptationData',
         'property.bedrooms': 'syncDerivedCaptationData',
@@ -1084,6 +1100,14 @@ export default {
 
         canApproveProperty() {
             return this.isAdmin && Boolean(this.savedPropertyId) && this.property.status === 'pending';
+        },
+
+        showSalePriceField() {
+            return ['venta', 'ambos'].includes(this.property.type_sale);
+        },
+
+        showRentalPriceField() {
+            return ['alquiler', 'ambos'].includes(this.property.type_sale);
         }
     },
 
@@ -1141,6 +1165,8 @@ export default {
                 this.property.map_lng = p.map_lng || '';
                 this.property.type = p.type || '';
                 this.property.price = p.price || '';
+                this.property.sale_price = p.sale_price || (p.type_sale === 'venta' || p.type_sale === 'ambos' ? (p.price || '') : '');
+                this.property.rental_price = p.rental_price || (p.type_sale === 'alquiler' ? (p.price || '') : '');
                 this.property.status = p.status || '';
                 this.property.approved_by = p.approved_by || null;
                 this.property.exclusivity = p.exclusivity || false;
@@ -1827,26 +1853,73 @@ export default {
             return parts.join(' / ');
         },
 
+        buildOfferPriceLabel(typeSale, salePrice, rentalPrice, fallbackPrice = '') {
+            const normalizedTypeSale = String(typeSale || '').toLowerCase();
+
+            if (normalizedTypeSale === 'ambos') {
+                const labels = [];
+
+                if (salePrice) {
+                    labels.push(`Venta: ${salePrice} USD`);
+                }
+
+                if (rentalPrice) {
+                    labels.push(`Alquiler: ${rentalPrice} USD`);
+                }
+
+                return labels.join(' / ');
+            }
+
+            const price = normalizedTypeSale === 'alquiler'
+                ? (rentalPrice || fallbackPrice)
+                : (salePrice || fallbackPrice);
+
+            return price ? `${price} USD` : '';
+        },
+
+        syncPrimaryPriceFromOfferType() {
+            if (this.property.type_sale === 'venta') {
+                this.property.price = this.property.sale_price || '';
+                return;
+            }
+
+            if (this.property.type_sale === 'alquiler') {
+                this.property.price = this.property.rental_price || '';
+                return;
+            }
+
+            if (this.property.type_sale === 'ambos') {
+                this.property.price = this.property.sale_price || this.property.rental_price || '';
+            }
+        },
+
         syncDerivedCaptationData(propertyData = null) {
             const source = propertyData || this.property;
             const creator = propertyData && propertyData.creator ? propertyData.creator : null;
             const advisorName = this.buildAdvisorName(creator);
             const today = new Date().toISOString().slice(0, 10);
             const propertyType = source.type || this.property.type || '';
-            const propertyPrice = this.exclusivityData.precio_venta || source.price || this.property.price || '';
+            const propertyTypeSale = source.type_sale || this.property.type_sale || '';
+            const normalizedTypeSale = String(propertyTypeSale).toLowerCase();
+            const salePrice = this.exclusivityData.precio_venta || source.sale_price || this.property.sale_price || (normalizedTypeSale === 'venta' ? (source.price || this.property.price || '') : '');
+            const rentalPrice = source.rental_price || this.property.rental_price || (normalizedTypeSale === 'alquiler' ? (source.price || this.property.price || '') : '');
+            const propertyPrice = normalizedTypeSale === 'alquiler'
+                ? (rentalPrice || source.price || this.property.price || '')
+                : (salePrice || source.price || this.property.price || '');
             const propertyArea = source.square_meters || this.property.square_meters || '';
             const propertyAddress = source.address || this.property.address || '';
             const propertyDescription = this.exclusivityData.inmueble_descripcion || source.description || this.property.description || '';
-            const propertyTypeSale = source.type_sale || this.property.type_sale || '';
             const pricePerSquareMeter = this.calculatePricePerSquareMeter(propertyPrice, propertyArea);
             const authorizationCharacter = this.deriveAuthorizationCharacter();
-            const normalizedTypeSale = String(propertyTypeSale).toLowerCase();
             const ownerName = this.exclusivityData.propietario_nombre || '';
             const ownerPhone = this.exclusivityData.propietario_telefono || '';
             const ownerEmail = this.exclusivityData.propietario_email || '';
             const ownerCi = this.exclusivityData.propietario_ci || '';
             const registrationSummary = this.buildRegistrationSummary();
             const authorizationCharacterFallback = authorizationCharacter || (ownerName ? 'propietario' : '');
+            const authorizationPrice = this.buildOfferPriceLabel(propertyTypeSale, salePrice, rentalPrice, propertyPrice);
+
+            this.syncPrimaryPriceFromOfferType();
 
             this.captationData = {
                 ...this.captationData,
@@ -1876,7 +1949,7 @@ export default {
                 autoriza_alquiler: ['alquiler', 'ambos'].includes(normalizedTypeSale),
                 autorizacion_inmueble_constituido: propertyDescription,
                 autorizacion_ubicado_en: propertyAddress,
-                autorizacion_precio: this.captationData.precio_cliente ? `${this.captationData.precio_cliente} USD` : (propertyPrice ? `${propertyPrice} USD` : ''),
+                autorizacion_precio: this.preferEditableCaptationValue(this.captationData.autorizacion_precio, authorizationPrice),
                 autorizacion_comision: this.captationData.porcentaje_comision ? `${this.captationData.porcentaje_comision}%` : '',
                 autorizacion_nacionalidad: this.captationData.autorizacion_nacionalidad || 'Venezolano(a)',
             };
@@ -1911,6 +1984,7 @@ export default {
         async saveProperty() {
             this.saving = true;
             try {
+                this.syncPrimaryPriceFromOfferType();
                 this.prefillCaptationData();
 
                 const normalizedCaptationData = this.normalizeCaptationData(this.captationData);

@@ -16,14 +16,18 @@ class OperationFilter extends FilterContact
      */
     public function filter() : Builder
     {
-        if (!auth()->user()->isAdmin()) {
-            $userId = auth()->id();
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = auth()->user();
+
+        if (!$authUser || !$authUser->isAdmin()) {
+            $userId = $authUser?->id;
+
+            if (!$userId) {
+                return $this->query;
+            }
+
             $this->query->whereHas('sellers', function ($q) use ($userId) {
                 $q->where('users.id', $userId);
-            });
-            // Advisors should not see operations for reserved or sold properties
-            $this->query->whereHas('property', function ($q) {
-                $q->whereNotIn('status', ['Reservado', 'Vendido']);
             });
         }
 

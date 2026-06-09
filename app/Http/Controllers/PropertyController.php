@@ -47,11 +47,13 @@ class PropertyController extends Controller
     public function create(Request $request)
     {
         $data = $request->only([
-            'agent_id', 'title', 'description', 'price',
+            'agent_id', 'title', 'description', 'price', 'sale_price', 'rental_price',
             'bathrooms', 'bedrooms', 'square_meters', 'parking_spots', 'address',
             'type', 'type_sale', 'status', 'map_lat', 'map_lng',
             'exclusivity', 'created_by', 'approved_by',
         ]);
+
+        $data = $this->normalizePropertyOfferPrices($data);
 
         $data['agent_id'] = filled($data['agent_id'] ?? null)
             ? $data['agent_id']
@@ -254,6 +256,8 @@ class PropertyController extends Controller
     {
         $property = Property::where('id', $id)->firstOrFail();
         $data = $request->except(['exclusivity_data']);
+
+        $data = $this->normalizePropertyOfferPrices($data, $property);
 
         if (array_key_exists('agent_id', $data)) {
             $data['agent_id'] = filled($data['agent_id'])
@@ -500,6 +504,56 @@ class PropertyController extends Controller
         }
 
         return null;
+    }
+
+    private function normalizePropertyOfferPrices(array $data, ?Property $property = null): array
+    {
+        $typeSale = strtolower((string) ($data['type_sale'] ?? $property?->type_sale ?? ''));
+        $salePrice = $this->normalizeOfferPriceValue($data['sale_price'] ?? $property?->sale_price ?? null);
+        $rentalPrice = $this->normalizeOfferPriceValue($data['rental_price'] ?? $property?->rental_price ?? null);
+        $primaryPrice = $this->normalizeOfferPriceValue($data['price'] ?? $property?->price ?? null);
+
+        if ($typeSale === 'venta') {
+            $salePrice = $salePrice ?? $primaryPrice;
+            $data['rental_price'] = null;
+            $data['sale_price'] = $salePrice;
+            $data['price'] = $salePrice;
+            return $data;
+        }
+
+        if ($typeSale === 'alquiler') {
+            $rentalPrice = $rentalPrice ?? $primaryPrice;
+            $data['sale_price'] = null;
+            $data['rental_price'] = $rentalPrice;
+            $data['price'] = $rentalPrice;
+            return $data;
+        }
+
+        if ($typeSale === 'ambos') {
+            $salePrice = $salePrice ?? $primaryPrice;
+            $data['sale_price'] = $salePrice;
+            $data['rental_price'] = $rentalPrice;
+            $data['price'] = $salePrice ?? $rentalPrice;
+        }
+
+        return $data;
+    }
+
+    private function normalizeOfferPriceValue($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+        }
+
+        if ($value === '') {
+            return null;
+        }
+
+        return is_numeric($value) ? (float) $value : null;
     }
 
     private function isFilledCaptationValue($value): bool

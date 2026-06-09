@@ -12,8 +12,7 @@ class ReportController extends Controller
     private function excludedReportUserNames(): array
     {
         return [
-            'luis rafael piñango',
-            'luis rafael pinango',
+           
         ];
     }
 
@@ -76,11 +75,11 @@ class ReportController extends Controller
      */
     private function getAllAdvisorsReport($startDate = null, $endDate = null)
     {
-        $salesQuery = DB::table('sales');
+        $salesQuery = DB::table('operations')->whereIn('type', ['venta', 'traspaso']);
         $reservationsQuery = DB::table('operations')->where('type', 'reserva');
         $propertiesQuery = DB::table('properties')->whereNotNull('approved_by');
         $demonstrationsQuery = DB::table('activities')->where('type', 'demostración');
-        $closuresQuery = DB::table('activities')->whereIn('type', ['venta', 'reserva', 'alquiler']);
+        $closuresQuery = DB::table('operations')->whereIn('type', ['venta', 'traspaso', 'reserva', 'alquiler']);
         $activitiesByTypeQuery = DB::table('activities')
             ->select('type', DB::raw('COUNT(*) as count'))
             ->groupBy('type');
@@ -88,11 +87,11 @@ class ReportController extends Controller
         $commissionQuery = DB::table('operation_user')
             ->join('operations', 'operation_user.operation_id', '=', 'operations.id');
 
-        $this->applyDateRange($salesQuery, 'date', $startDate, $endDate);
+        $this->applyDateRange($salesQuery, DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), $startDate, $endDate);
         $this->applyDateRange($reservationsQuery, DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), $startDate, $endDate);
         $this->applyDateRange($propertiesQuery, 'created_at', $startDate, $endDate);
         $this->applyDateRange($demonstrationsQuery, 'date', $startDate, $endDate);
-        $this->applyDateRange($closuresQuery, 'date', $startDate, $endDate);
+        $this->applyDateRange($closuresQuery, DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), $startDate, $endDate);
         $this->applyDateRange($activitiesByTypeQuery, 'date', $startDate, $endDate);
         $this->applyDateRange($totalActivitiesQuery, 'date', $startDate, $endDate);
         $this->applyDateRange($commissionQuery, DB::raw('COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)'), $startDate, $endDate);
@@ -169,12 +168,14 @@ class ReportController extends Controller
 
     private function getSalesCount($userId, $startDate = null, $endDate = null)
     {
-        $query = DB::table('sales')
-            ->where('seller_id', $userId);
+        $query = DB::table('operations')
+            ->join('operation_user', 'operations.id', '=', 'operation_user.operation_id')
+            ->whereIn('operations.type', ['venta', 'traspaso'])
+            ->where('operation_user.user_id', $userId);
 
-        $this->applyDateRange($query, 'date', $startDate, $endDate);
+        $this->applyDateRange($query, DB::raw('COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)'), $startDate, $endDate);
 
-        return $query->count();
+        return $query->distinct('operations.id')->count('operations.id');
     }
 
     private function getReservationsCount($userId, $startDate = null, $endDate = null)
@@ -186,7 +187,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, DB::raw('COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)'), $startDate, $endDate);
 
-        return $query->count();
+        return $query->distinct('operations.id')->count('operations.id');
     }
 
     private function getPropertiesCount($userId, $startDate = null, $endDate = null)
@@ -195,7 +196,7 @@ class ReportController extends Controller
             ->where('created_by', $userId)
             ->whereNotNull('approved_by');
 
-        $this->applyDateRange($query, 'date', $startDate, $endDate);
+        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
 
         return $query->count();
     }
@@ -228,13 +229,14 @@ class ReportController extends Controller
 
     private function getClosuresCount($userId, $startDate = null, $endDate = null)
     {
-        $query = DB::table('activities')
-            ->where('user_id', $userId)
-            ->whereIn('type', ['venta', 'reserva', 'alquiler']);
+        $query = DB::table('operations')
+            ->join('operation_user', 'operations.id', '=', 'operation_user.operation_id')
+            ->where('operation_user.user_id', $userId)
+            ->whereIn('operations.type', ['venta', 'traspaso', 'reserva', 'alquiler']);
 
-        $this->applyDateRange($query, 'date', $startDate, $endDate);
+        $this->applyDateRange($query, DB::raw('COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)'), $startDate, $endDate);
 
-        return $query->count();
+        return $query->distinct('operations.id')->count('operations.id');
     }
 
     private function getTotalActivities($userId, $startDate = null, $endDate = null)

@@ -16,12 +16,18 @@ class PropertyFilter extends FilterContact
      */
     public function filter() : Builder
     {
-        if (!auth()->user()->isAdmin()) {
-            $userId = auth()->id();
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = auth()->user();
+
+        if (!$authUser || !$authUser->isAdmin()) {
+            $userId = $authUser?->id;
+
+            if (!$userId) {
+                return $this->query;
+            }
+
             $this->query->where(function ($q) use ($userId) {
-                $q->where('status', '!=', 'pending')
-                  ->where('status', '!=', 'Reservado')
-                  ->where('status', '!=', 'Vendido')
+                $q->where('status', 'Disponible')
                   ->orWhere(function ($q2) use ($userId) {
                       $q2->where('status', 'pending')
                          ->where('created_by', $userId);

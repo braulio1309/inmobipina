@@ -36,7 +36,7 @@ class Property extends Model
 
 
     protected $fillable = [
-        'agent_id', 'title', 'description', 'price',
+        'agent_id', 'title', 'description', 'price', 'sale_price', 'rental_price',
         'bathrooms', 'bedrooms', 'square_meters', 'parking_spots', 'address', 'type', 'type_sale', 'status',
         'map_lat', 'map_lng', 'exclusivity', 'created_by', 'approved_by'
     ];
