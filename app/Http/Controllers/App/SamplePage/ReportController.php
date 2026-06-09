@@ -11,6 +11,25 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    private function excludedReportUserNames(): array
+    {
+        return [
+            'luis rafael piñango',
+            'luis rafael pinango',
+        ];
+    }
+
+    private function applyExcludedReportUsers($query, string $firstNameColumn = 'users.first_name', string $lastNameColumn = 'users.last_name')
+    {
+        $excludedNames = $this->excludedReportUserNames();
+        $placeholders = implode(', ', array_fill(0, count($excludedNames), '?'));
+
+        return $query->whereRaw(
+            "LOWER(TRIM(CONCAT($firstNameColumn, ' ', COALESCE($lastNameColumn, '')))) NOT IN ($placeholders)",
+            $excludedNames
+        );
+    }
+
     private function closingTypes(): array
     {
         return ['venta', 'alquiler', 'traspaso', 'reserva'];
@@ -65,6 +84,8 @@ class ReportController extends Controller
             )
             ->groupBy('users.id', 'users.first_name', 'users.last_name');
 
+        $this->applyExcludedReportUsers($query);
+
         if (!$user->isAdmin()) {
             $query->where('operation_user.user_id', $user->id);
         }
@@ -108,6 +129,8 @@ class ReportController extends Controller
             )
             ->groupBy('users.id', 'users.first_name', 'users.last_name');
 
+        $this->applyExcludedReportUsers($query);
+
         // Non-admin users can only see their own data
         if (!$user->isAdmin()) {
             $query->where('sales.seller_id', $user->id);
@@ -123,6 +146,7 @@ class ReportController extends Controller
 
         // Get all sellers ordered by sales count (no limit to show all in table)
         $topSellers = $query
+            ->orderByDesc('value')
             ->orderByDesc('count')
             ->get();
 
@@ -297,6 +321,10 @@ class ReportController extends Controller
             )
             ->whereBetween('activities.date', [$start, $end])
             ->groupBy('users.id', 'users.first_name', 'users.last_name')
+            ->whereRaw(
+                "LOWER(TRIM(CONCAT(users.first_name, ' ', COALESCE(users.last_name, '')))) NOT IN (?, ?)",
+                $this->excludedReportUserNames()
+            )
             ->orderByDesc('total_candidates')
             ->limit(10)
             ->get();

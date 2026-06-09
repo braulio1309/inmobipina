@@ -9,6 +9,25 @@ use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
+    private function excludedReportUserNames(): array
+    {
+        return [
+            'luis rafael piñango',
+            'luis rafael pinango',
+        ];
+    }
+
+    private function applyExcludedReportUsers($query, string $firstNameColumn = 'users.first_name', string $lastNameColumn = 'users.last_name')
+    {
+        $excludedNames = $this->excludedReportUserNames();
+        $placeholders = implode(', ', array_fill(0, count($excludedNames), '?'));
+
+        return $query->whereRaw(
+            "LOWER(TRIM(CONCAT($firstNameColumn, ' ', COALESCE($lastNameColumn, '')))) NOT IN ($placeholders)",
+            $excludedNames
+        );
+    }
+
     /**
      * Obtener reportes del asesor
      * - Si es admin, puede filtrar por user_id
@@ -120,6 +139,10 @@ class ReportController extends Controller
                     ->orWhereHas('sales')
                     ->orWhereHas('properties');
             })
+            ->whereRaw(
+                "LOWER(TRIM(CONCAT(first_name, ' ', COALESCE(last_name, '')))) NOT IN (?, ?)",
+                $this->excludedReportUserNames()
+            )
             ->orderBy('first_name')
             ->get()
             ->map(function ($user) { // 2. "Mapeamos" para crear el campo name limpio
@@ -264,6 +287,8 @@ class ReportController extends Controller
             ->whereNotNull('clients.assigned_to')
             ->groupBy('users.id', 'users.first_name', 'users.last_name', 'clients.source')
             ->orderBy('advisor_name');
+
+        $this->applyExcludedReportUsers($query);
 
         if ($userId) {
             $query->where('users.id', $userId);

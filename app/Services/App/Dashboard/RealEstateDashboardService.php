@@ -11,6 +11,25 @@ use Carbon\Carbon;
 
 class RealEstateDashboardService
 {
+    private function excludedReportUserNames(): array
+    {
+        return [
+            'luis rafael piñango',
+            'luis rafael pinango',
+        ];
+    }
+
+    private function applyExcludedReportUsers($query, string $firstNameColumn = 'users.first_name', string $lastNameColumn = 'users.last_name')
+    {
+        $excludedNames = $this->excludedReportUserNames();
+        $placeholders = implode(', ', array_fill(0, count($excludedNames), '?'));
+
+        return $query->whereRaw(
+            "LOWER(TRIM(CONCAT($firstNameColumn, ' ', COALESCE($lastNameColumn, '')))) NOT IN ($placeholders)",
+            $excludedNames
+        );
+    }
+
     public function getDashboardData($startDate = null, $endDate = null)
     {
         // Set default dates if not provided (last 30 days)
@@ -153,8 +172,12 @@ class RealEstateDashboardService
                 DB::raw('SUM(COALESCE(operation_user.commission_amount, 0)) as total_commission')
             )
             ->groupBy('users.id', 'users.first_name', 'users.last_name', 'users.email')
-            ->orderByDesc('closures_count')
+            ->whereRaw(
+                "LOWER(TRIM(CONCAT(users.first_name, ' ', COALESCE(users.last_name, '')))) NOT IN (?, ?)",
+                $this->excludedReportUserNames()
+            )
             ->orderByDesc('total_commission')
+            ->orderByDesc('closures_count')
             ->limit(10)
             ->get();
 
