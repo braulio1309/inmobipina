@@ -501,6 +501,13 @@ import axios from "axios";
 export default {
     mixins: [FormMixin],
 
+    props: {
+        isAdmin: {
+            type: Boolean,
+            default: false,
+        },
+    },
+
     data() {
         return {
             operationId: null,
@@ -683,7 +690,8 @@ export default {
             const response = await this.axiosGet(`/operations/${this.operationId}`);
             const operation = response.data;
 
-            this.isLocked = operation.is_locked || false;
+            // Admin users can always edit any closure regardless of property status
+            this.isLocked = this.isAdmin ? false : (operation.is_locked || false);
             this.propertyStatus = operation.property_status || null;
 
             // If the property is locked, add it to propertiesList so it displays correctly

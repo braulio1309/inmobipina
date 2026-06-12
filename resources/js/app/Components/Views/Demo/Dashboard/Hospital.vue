@@ -127,7 +127,6 @@
                     <div class="card card-with-shadow border-0 h-100" v-if="isActiveClientSources">
                         <div class="card-header bg-transparent p-primary d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0">Clientes por Medio de Captación</h5>
-                            <small class="text-muted">Total: {{ clientSources.total }}</small>
                         </div>
                         <div class="card-body">
                             <div v-if="clientSources.labels && clientSources.labels.length > 0">
@@ -151,6 +150,13 @@
                                                       :style="'background-color:' + clientSources.colors[idx % clientSources.colors.length]"/>
                                                 {{ label }}
                                                 <span class="value">{{ clientSources.data[idx] }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 mt-2">
+                                            <div class="data-group-item font-weight-bold" style="border-top: 1px solid #e9ecef; padding-top: 6px;">
+                                                <span class="square" style="background-color: #6c757d;"/>
+                                                <span style="color: #343a40;">Total</span>
+                                                <span class="value" style="color: #343a40; font-weight: 700;">{{ clientSources.total }}</span>
                                             </div>
                                         </div>
                                     </div>

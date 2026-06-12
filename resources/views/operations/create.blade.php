@@ -3,5 +3,6 @@
 @section('title', 'Cierres')
 
 @section('contents')
-    <create-operations></create-operations>
+    @php($isAdmin = auth()->user()->isAdmin())
+    <create-operations :is-admin='@json($isAdmin)'></create-operations>
 @endsection
