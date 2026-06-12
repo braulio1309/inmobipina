@@ -257,8 +257,18 @@ class ReportController extends Controller
 
         // Use whereRaw for DB::raw expressions to avoid potential issues
         // with whereDate wrapping raw SQL. For plain column names use whereDate.
+        // Note: $column is only ever passed as a hardcoded DB::raw() or a trusted
+        // column name string within this class — never from user input.
         if ($column instanceof \Illuminate\Database\Query\Expression) {
+            // Allowed COALESCE expressions used internally in this controller
+            $allowedExpressions = [
+                'COALESCE(fecha_cierre, start_date, end_date)',
+                'COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)',
+            ];
             $rawSql = $column->getValue();
+            if (!in_array($rawSql, $allowedExpressions, true)) {
+                throw new \InvalidArgumentException("Unexpected raw SQL expression in applyDateRange: {$rawSql}");
+            }
             if ($startDate) {
                 $query->whereRaw('DATE(' . $rawSql . ') >= ?', [$startDate]);
             }

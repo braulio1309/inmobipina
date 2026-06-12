@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Pago de Comision</title>
+    <title>Pago de Comisión</title>
     <style>
         @page {
             margin: 26px 30px;
@@ -251,10 +251,10 @@
 
             <!-- Resumen del cierre -->
             <div class="closure-info">
-                <div class="info-row"><dt>Operacion #:</dt> <dd>{{ $operation->id }} &mdash; <strong>{{ $operationLabel }}</strong></dd></div>
+                <div class="info-row"><dt>Operación #:</dt> <dd>{{ $operation->id }} &mdash; <strong>{{ $operationLabel }}</strong></dd></div>
                 <div class="info-row"><dt>Inmueble:</dt> <dd>{{ $propertyType }}{{ $propertyAddress ? ' &mdash; ' . $propertyAddress : '' }}</dd></div>
                 <div class="info-row"><dt>Precio del cierre:</dt> <dd><strong>${{ $formatAmount($propertyPrice) }}</strong></dd></div>
-                <div class="info-row"><dt>Monto de la operacion:</dt> <dd><strong>${{ $formatAmount($operation->amount ?? 0) }}</strong></dd></div>
+                <div class="info-row"><dt>Monto de la operación:</dt> <dd><strong>${{ $formatAmount($operation->amount ?? 0) }}</strong></dd></div>
                 @if($operationDate)
                 <div class="info-row"><dt>Fecha de cierre:</dt> <dd>{{ $operationDate }}</dd></div>
                 @endif
@@ -267,8 +267,8 @@
                 <thead>
                     <tr>
                         <th>Beneficiario</th>
-                        <th>% Operacion</th>
-                        <th>Monto Comision</th>
+                        <th>% Operación</th>
+                        <th>Monto Comisión</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -290,9 +290,14 @@
                     </tr>
                     @endforeach
                     <tr style="background:#e8f4e8;">
-                        <td><strong>TOTAL COMISION</strong></td>
+                        @php
+                            $displayTotalAmt = $totalCommissionAmt > 0
+                                ? $totalCommissionAmt
+                                : ($companyAmt + $advisors->sum(fn($a) => (float)($a->pivot->commission_amount ?? 0)));
+                        @endphp
+                        <td><strong>TOTAL COMISIÓN</strong></td>
                         <td><strong>{{ rtrim(rtrim(number_format($totalCommissionPct, 4, '.', ''), '0'), '.') }}%</strong></td>
-                        <td><strong>${{ $formatAmount($totalCommissionAmt > 0 ? $totalCommissionAmt : ($companyAmt + $advisors->sum(fn($a) => (float)($a->pivot->commission_amount ?? 0)))) }}</strong></td>
+                        <td><strong>${{ $formatAmount($displayTotalAmt) }}</strong></td>
                     </tr>
                 </tbody>
             </table>
@@ -303,7 +308,7 @@
                 Nro. <strong>{{ $companyRepresentative['rif'] }}</strong>, la cantidad de
                 <span class="line wide">{{ $spellAmount($recipientAmount) }}</span>
                 (<span class="line short">{{ $formatAmount($recipientAmount) }} $</span>),
-                por concepto de pago de comision del {{ rtrim(rtrim(number_format($commissionSharePct, 2, '.', ''), '0'), '.') }}% de
+                por concepto de pago de comisión del {{ rtrim(rtrim(number_format($commissionSharePct, 2, '.', ''), '0'), '.') }}% de
                 <span class="line short">{{ $formatAmount($totalCommission) }} $</span>.
             </p>
 
@@ -321,7 +326,7 @@
             <p>
                 Recibo emitido para {{ $receipt['is_company'] ? 'la inmobiliaria' : 'el asesor' }}
                 <strong>{{ $recipientName }}</strong>{{ $recipientEmail ? ' (' . $recipientEmail . ')' : '' }},
-                relacionado con la operacion #{{ $operation->id }} y autorizado por <strong>{{ $companyRepresentative['name'] }}</strong>,
+                relacionado con la operación #{{ $operation->id }} y autorizado por <strong>{{ $companyRepresentative['name'] }}</strong>,
                 C.I. {{ $companyRepresentative['ci'] }}.
             </p>
 
