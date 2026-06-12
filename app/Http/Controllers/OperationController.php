@@ -321,10 +321,13 @@ class OperationController extends Controller
 
         $operation = Operation::where('id', $id)->firstOrFail();
 
-        // Block editing if the property is already Reservado, Vendido or Alquilado
-        $property = Property::find($operation->property_id);
-        if ($property && in_array($property->status, ['Reservado', 'Vendido', 'Alquilado'])) {
-            return response()->json(['message' => 'Este cierre no puede editarse porque el inmueble ya está ' . $property->status . '.'], 403);
+        // Block editing if the property is already Reservado, Vendido or Alquilado,
+        // unless the current user is an admin who can override the lock.
+        if (!$authUser->isAdmin()) {
+            $property = Property::find($operation->property_id);
+            if ($property && in_array($property->status, ['Reservado', 'Vendido', 'Alquilado'])) {
+                return response()->json(['message' => 'Este cierre no puede editarse porque el inmueble ya está ' . $property->status . '.'], 403);
+            }
         }
 
         $amount = $request->amount ?? 0;
@@ -440,6 +443,9 @@ class OperationController extends Controller
 
     public function show($id)
     {
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
+
         $operation = Operation::with(['clients', 'sellers', 'property', 'ownerClient', 'buyerClient'])->findOrFail($id);
         $resolvedOwnerClient = $this->resolveOperationOwnerClient($operation);
         $resolvedBuyerClient = $this->resolveOperationBuyerClient($operation, $resolvedOwnerClient);
@@ -450,7 +456,10 @@ class OperationController extends Controller
             : 0;
 
         $propertyStatus = $operation->property ? $operation->property->status : null;
-        $isLocked = in_array($propertyStatus, ['Reservado', 'Vendido', 'Alquilado']);
+        // Admins can always edit any closure regardless of property status
+        $isLocked = $authUser && $authUser->isAdmin()
+            ? false
+            : in_array($propertyStatus, ['Reservado', 'Vendido', 'Alquilado']);
 
         return response()->json([
             'id' => $operation->id,

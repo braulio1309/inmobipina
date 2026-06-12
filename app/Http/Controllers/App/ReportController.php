@@ -251,12 +251,27 @@ class ReportController extends Controller
 
     private function applyDateRange($query, $column, $startDate = null, $endDate = null)
     {
-        if ($startDate) {
-            $query->whereDate($column, '>=', $startDate);
+        if (!$startDate && !$endDate) {
+            return $query;
         }
 
-        if ($endDate) {
-            $query->whereDate($column, '<=', $endDate);
+        // Use whereRaw for DB::raw expressions to avoid potential issues
+        // with whereDate wrapping raw SQL. For plain column names use whereDate.
+        if ($column instanceof \Illuminate\Database\Query\Expression) {
+            $rawSql = $column->getValue();
+            if ($startDate) {
+                $query->whereRaw('DATE(' . $rawSql . ') >= ?', [$startDate]);
+            }
+            if ($endDate) {
+                $query->whereRaw('DATE(' . $rawSql . ') <= ?', [$endDate]);
+            }
+        } else {
+            if ($startDate) {
+                $query->whereDate($column, '>=', $startDate);
+            }
+            if ($endDate) {
+                $query->whereDate($column, '<=', $endDate);
+            }
         }
 
         return $query;
