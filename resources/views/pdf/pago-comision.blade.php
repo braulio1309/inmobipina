@@ -249,58 +249,6 @@
 
             <h1>PAGO DE COMISION</h1>
 
-            <!-- Resumen del cierre -->
-            <div class="closure-info">
-                <div class="info-row"><dt>Operación #:</dt> <dd>{{ $operation->id }} &mdash; <strong>{{ $operationLabel }}</strong></dd></div>
-                <div class="info-row"><dt>Inmueble:</dt> <dd>{{ $propertyType }}{{ $propertyAddress ? ' &mdash; ' . $propertyAddress : '' }}</dd></div>
-                <div class="info-row"><dt>Precio del cierre:</dt> <dd><strong>${{ $formatAmount($propertyPrice) }}</strong></dd></div>
-                <div class="info-row"><dt>Monto de la operación:</dt> <dd><strong>${{ $formatAmount($operation->amount ?? 0) }}</strong></dd></div>
-                @if($operationDate)
-                <div class="info-row"><dt>Fecha de cierre:</dt> <dd>{{ $operationDate }}</dd></div>
-                @endif
-                <div class="info-row"><dt>Propietario:</dt> <dd>{{ $ownerName ?: '—' }}{{ $ownerCi ? ' (C.I. ' . $ownerCi . ')' : '' }}</dd></div>
-                <div class="info-row"><dt>Comprador/Arrendatario:</dt> <dd>{{ $buyerName ?: '—' }}{{ $buyerCi ? ' (C.I. ' . $buyerCi . ')' : '' }}</dd></div>
-            </div>
-
-            <!-- Tabla de comisiones del cierre -->
-            <table class="commission-table">
-                <thead>
-                    <tr>
-                        <th>Beneficiario</th>
-                        <th>% Operación</th>
-                        <th>Monto Comisión</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="{{ $receipt['is_company'] ? 'highlight' : '' }}">
-                        <td><strong>{{ $companyRepresentative['name'] }}</strong> (Inmobiliaria)</td>
-                        <td>{{ rtrim(rtrim(number_format($companyPctOfOperation, 4, '.', ''), '0'), '.') }}%</td>
-                        <td><strong>${{ $formatAmount($companyAmt) }}</strong></td>
-                    </tr>
-                    @foreach($advisors as $adv)
-                    @php
-                        $advName = $formatFullName($adv);
-                        $advAmt = (float) ($adv->pivot->commission_amount ?? 0);
-                        $advPct = (float) ($adv->pivot->commission_percentage ?? 0);
-                    @endphp
-                    <tr class="{{ (!$receipt['is_company'] && $advName === $recipientName) ? 'highlight' : '' }}">
-                        <td>{{ $advName }}{{ $adv->email ? ' (' . $adv->email . ')' : '' }}</td>
-                        <td>{{ rtrim(rtrim(number_format($advPct, 4, '.', ''), '0'), '.') }}%</td>
-                        <td>${{ $formatAmount($advAmt) }}</td>
-                    </tr>
-                    @endforeach
-                    <tr style="background:#e8f4e8;">
-                        @php
-                            $displayTotalAmt = $totalCommissionAmt > 0
-                                ? $totalCommissionAmt
-                                : ($companyAmt + $advisors->sum(fn($a) => (float)($a->pivot->commission_amount ?? 0)));
-                        @endphp
-                        <td><strong>TOTAL COMISIÓN</strong></td>
-                        <td><strong>{{ rtrim(rtrim(number_format($totalCommissionPct, 4, '.', ''), '0'), '.') }}%</strong></td>
-                        <td><strong>${{ $formatAmount($displayTotalAmt) }}</strong></td>
-                    </tr>
-                </tbody>
-            </table>
 
             <p>
                 Yo, <span class="line wide">{{ $recipientName }}</span>, he recibido de la sociedad mercantil
