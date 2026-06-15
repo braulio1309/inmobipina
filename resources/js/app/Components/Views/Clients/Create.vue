@@ -149,6 +149,8 @@ export default {
         { id: "instagram", value: "Instagram" },
         { id: "tu_inmueble", value: "Tu Inmueble" },
         { id: "pendon", value: "Pendón" },
+        { id: "tiktok", value: "TikTok" },
+        { id: "facebook", value: "Facebook" }
       ],
       tipoNegociacionOptions: [
         { id: "", value: "Elige uno" },
