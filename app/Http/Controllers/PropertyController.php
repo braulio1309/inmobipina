@@ -191,6 +191,14 @@ class PropertyController extends Controller
                 'status' => 'Disponible',
                 'approved_by' => Auth::id(),
             ]);
+
+            $property->load('captation');
+            $this->registerCaptationActivity(
+                $property,
+                $property->captation ? $property->captation->toArray() : null,
+                $property->agent_id ?: $property->created_by ?: Auth::id()
+            );
+
             return response()->json(['message' => 'Propiedad aprobada exitosamente.']);
         } else {
             $property->update([
@@ -255,6 +263,7 @@ class PropertyController extends Controller
     public function edit(Request $request, $id)
     {
         $property = Property::where('id', $id)->firstOrFail();
+        $previousStatus = (string) $property->status;
         $data = $request->except(['exclusivity_data']);
 
         $data = $this->normalizePropertyOfferPrices($data, $property);
@@ -307,6 +316,15 @@ class PropertyController extends Controller
             $property->captation()->updateOrCreate(
                 ['property_id' => $property->id],
                 $captationData
+            );
+        }
+
+        if ($previousStatus !== 'Disponible' && (string) $property->status === 'Disponible') {
+            $captationFromDb = $property->captation()->first();
+            $this->registerCaptationActivity(
+                $property,
+                $captationFromDb ? $captationFromDb->toArray() : null,
+                $property->agent_id ?: $property->created_by ?: Auth::id()
             );
         }
 
@@ -422,6 +440,18 @@ class PropertyController extends Controller
         }
 
         return response()->json(['message' => 'Documentos subidos.', 'data' => $saved], 201);
+    }
+
+    public function deleteImage(Request $request, $propertyId, $imageId)
+    {
+        $image = PropertyImage::where('property_id', $propertyId)
+            ->where('id', $imageId)
+            ->firstOrFail();
+
+        Storage::disk('public')->delete($image->path);
+        $image->delete();
+
+        return response()->json(['message' => 'Imagen eliminada.']);
     }
 
     public function deleteDocument(Request $request, $propertyId, $documentId)
@@ -605,7 +635,20 @@ class PropertyController extends Controller
 
     private function registerCaptationActivity(Property $property, ?array $captationData, ?int $userId): void
     {
-        if (!$userId) {
+        if (!$userId || !$captationData) {
+            return;
+        }
+
+        if ((string) $property->status !== 'Disponible') {
+            return;
+        }
+
+        $alreadyRegistered = Activity::query()
+            ->where('property_id', $property->id)
+            ->where('type', 'captación')
+            ->exists();
+
+        if ($alreadyRegistered) {
             return;
         }
 

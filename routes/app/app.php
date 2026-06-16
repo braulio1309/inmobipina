@@ -46,6 +46,7 @@ Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->n
 Route::patch('property/{id}/toggle-availability', [PropertyController::class, 'toggleAvailability'])->name('property.toggle-availability');
 Route::post('edit/property/{id}', [PropertyController::class, 'edit'])->name('property.edit');
 Route::post('property/{id}/images', [PropertyController::class, 'uploadImages'])->name('property.images');
+Route::delete('property/{propertyId}/images/{imageId}', [PropertyController::class, 'deleteImage'])->name('property.images.delete');
 Route::post('property/{id}/documents', [PropertyController::class, 'uploadDocuments'])->name('property.documents');
 Route::delete('property/{propertyId}/documents/{documentId}', [PropertyController::class, 'deleteDocument'])->name('property.documents.delete');
 Route::get('property/{id}/exclusivity-pdf', [PropertyController::class, 'generateExclusivityPdf'])->name('property.exclusivity-pdf');

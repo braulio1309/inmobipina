@@ -192,12 +192,21 @@ export default {
                     { id: '', value: 'Elige una propiedad' },
                     ...properties.map(property => ({
                         id: property.id.toString(),
-                        value: property.value,
+                        value: this.truncatePropertyLabel(property.value || property.title || ''),
                     }))
                 ];
             } catch (error) {
                 console.error('Error cargando propiedades para actividades:', error);
             }
+        },
+
+        truncatePropertyLabel(label) {
+            const text = String(label || '').trim();
+            if (text.length <= 60) {
+                return text;
+            }
+
+            return text.slice(0, 60).trim() + '...';
         },
 
         onImageChange(event) {

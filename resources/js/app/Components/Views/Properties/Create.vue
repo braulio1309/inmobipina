@@ -228,7 +228,18 @@
                     <h6>Imágenes guardadas:</h6>
                     <div class="row">
                         <div class="col-6 col-md-2 mb-2" v-for="(img, idx) in uploadedImages" :key="idx">
-                            <img :src="'/storage/' + img.path" class="img-thumbnail" style="height:80px;object-fit:cover;width:100%;">
+                            <div class="position-relative">
+                                <img :src="'/storage/' + img.path" class="img-thumbnail" style="height:80px;object-fit:cover;width:100%;">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-danger position-absolute"
+                                    style="top: 4px; right: 4px; line-height: 1;"
+                                    @click.prevent="deleteImage(img, idx)"
+                                    title="Eliminar imagen"
+                                >
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1656,6 +1667,20 @@ export default {
             } catch (error) {
                 console.error(error);
                 this.$toastr.e('Error al subir las imágenes');
+            }
+        },
+
+        async deleteImage(img, idx) {
+            if (!img?.id || !this.savedPropertyId) return;
+            if (!confirm('¿Eliminar esta imagen?')) return;
+
+            try {
+                await axios.delete(`/property/${this.savedPropertyId}/images/${img.id}`);
+                this.uploadedImages.splice(idx, 1);
+                this.$toastr.s('Imagen eliminada');
+            } catch (error) {
+                console.error(error);
+                this.$toastr.e('Error al eliminar la imagen');
             }
         },
 

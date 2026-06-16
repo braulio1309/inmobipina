@@ -61,15 +61,17 @@ class ActivityController extends Controller
             ->get()
             ->map(function ($property) {
                 $title = trim((string) ($property->title ?? ''));
-                $address = trim((string) ($property->address ?? ''));
+                if ($title === '') {
+                    $title = 'Propiedad #' . $property->id;
+                }
 
-                if (mb_strlen($address) > 30) {
-                    $address = mb_substr($address, 0, 30) . '...';
+                if (mb_strlen($title) > 60) {
+                    $title = mb_substr($title, 0, 60) . '...';
                 }
 
                 return [
                     'id' => (string) $property->id,
-                    'value' => $address !== '' ? trim($title . ' - ' . $address) : $title,
+                    'value' => $title,
                     'title' => $property->title,
                     'address' => $property->address,
                     'status' => $property->status,
