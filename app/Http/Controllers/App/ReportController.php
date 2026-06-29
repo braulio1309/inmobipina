@@ -19,6 +19,10 @@ class ReportController extends Controller
     private function applyExcludedReportUsers($query, string $firstNameColumn = 'users.first_name', string $lastNameColumn = 'users.last_name')
     {
         $excludedNames = $this->excludedReportUserNames();
+        if (empty($excludedNames)) {
+            return $query;
+        }
+
         $placeholders = implode(', ', array_fill(0, count($excludedNames), '?'));
 
         return $query->whereRaw(
@@ -86,6 +90,7 @@ class ReportController extends Controller
         $totalActivitiesQuery = DB::table('activities');
         $commissionQuery = DB::table('operation_user')
             ->join('operations', 'operation_user.operation_id', '=', 'operations.id');
+        $commissionQuery->where('operations.type', '!=', 'reserva');
 
         $this->applyDateRange($salesQuery, DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), $startDate, $endDate);
         $this->applyDateRange($reservationsQuery, DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), $startDate, $endDate);
@@ -130,24 +135,23 @@ class ReportController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $advisors = User::select('id', 'first_name', 'last_name') // 1. Seleccionamos las columnas reales
+        $advisorsQuery = User::select('id', 'first_name', 'last_name')
             ->where(function ($query) {
                 $query->whereHas('roles', function ($q) {
                     $q->whereIn('name', ['Asesor', 'Advisor', 'Agent']);
                 })
                     ->orWhereHas('sales')
                     ->orWhereHas('properties');
-            })
-            ->whereRaw(
-                "LOWER(TRIM(CONCAT(first_name, ' ', COALESCE(last_name, '')))) NOT IN (?, ?)",
-                $this->excludedReportUserNames()
-            )
+            });
+
+        $this->applyExcludedReportUsers($advisorsQuery, 'first_name', 'last_name');
+
+        $advisors = $advisorsQuery
             ->orderBy('first_name')
             ->get()
-            ->map(function ($user) { // 2. "Mapeamos" para crear el campo name limpio
+            ->map(function ($user) {
                 return [
                     'id' => $user->id,
-                    // trim() elimina espacios extra si no tiene apellido
                     'value' => trim($user->first_name . ' ' . $user->last_name) ?: 'Sin Nombre (' . $user->id . ')'
                 ];
             });
@@ -159,7 +163,8 @@ class ReportController extends Controller
     {
         $query = DB::table('operation_user')
             ->join('operations', 'operation_user.operation_id', '=', 'operations.id')
-            ->where('user_id', $userId);
+            ->where('user_id', $userId)
+            ->where('operations.type', '!=', 'reserva');
 
         $this->applyDateRange($query, DB::raw('COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)'), $startDate, $endDate);
 

@@ -73,11 +73,12 @@
                     <div class="input-group">
                         <span class="input-group-text">$</span>
                         <input
-                            v-model="operation.property_price"
-                            type="number"
+                            :value="formatInputWithCommas(operation.property_price)"
+                            type="text"
+                            inputmode="decimal"
                             class="form-control"
                             placeholder="Precio de la propiedad"
-                            @input="onPropertyPriceChanged"
+                            @input="onPropertyPriceInput"
                             :readonly="isLocked"
                         >
                     </div>
@@ -91,11 +92,12 @@
                     <div class="input-group">
                         <span class="input-group-text">$</span>
                         <input
-                            v-model="operation.amount"
-                            type="number"
+                            :value="formatInputWithCommas(operation.amount)"
+                            type="text"
+                            inputmode="decimal"
                             class="form-control"
                             placeholder="Monto a cobrar por reserva"
-                            @input="recalculateCommissions"
+                            @input="onAmountInput"
                             :readonly="isLocked"
                         >
                     </div>
@@ -110,11 +112,12 @@
         <div v-if="showAmount && operation.type !== 'reserva'" class="mb-3">
             <label class="form-label">Monto</label>
             <input
-                v-model="operation.amount"
-                type="number"
+                :value="formatInputWithCommas(operation.amount)"
+                type="text"
+                inputmode="decimal"
                 class="form-control"
                 placeholder="Monto de la operación"
-                @input="recalculateCommissions"
+                @input="onAmountInput"
                 :readonly="isLocked"
             >
             <small class="text-muted" v-if="suggestedMessage">
@@ -598,10 +601,19 @@ export default {
             return this.operation.type === 'alquiler';
         },
         totalCommissionPct() {
-            const operationAmount = parseFloat(this.operation.amount) || 0;
-            return operationAmount > 0
-                ? (this.totalCommissionAmount / operationAmount) * 100
+            return this.commissionBaseAmount > 0
+                ? (this.totalCommissionAmount / this.commissionBaseAmount) * 100
                 : 0;
+        },
+        commissionBaseAmount() {
+            if (this.operation.type === 'reserva') {
+                const propertyTotal = this.normalizeMoney(this.operation.property_price);
+                if (propertyTotal > 0) {
+                    return propertyTotal;
+                }
+            }
+
+            return this.normalizeMoney(this.operation.amount);
         },
         eachPartyPercentage() {
             const numSellers = this.sellersCommissions.length;
@@ -612,18 +624,21 @@ export default {
             return this.normalizeMoney(this.operation.total_commission_amount);
         },
         referenceCommissionAmount() {
-            const amt = parseFloat(this.operation.amount) || 0;
             if (this.isRentalOperation) {
                 const administrativeMonths = Math.max(0, parseInt(this.operation.mes_administrativo, 10) || 0);
-                return amt * administrativeMonths;
+                return this.commissionBaseAmount * administrativeMonths;
             }
 
-            return amt * 0.05;
+            return this.commissionBaseAmount * 0.05;
         },
         commissionReferenceText() {
             if (this.isRentalOperation) {
                 const administrativeMonths = Math.max(0, parseInt(this.operation.mes_administrativo, 10) || 0);
                 return `Referencia sugerida: monto de la operacion x meses administrativos (${administrativeMonths}).`;
+            }
+
+            if (this.operation.type === 'reserva') {
+                return 'Referencia sugerida: 5% del precio total de la propiedad.';
             }
 
             return 'Referencia sugerida: 5% del monto de la operación.';
@@ -846,11 +861,21 @@ export default {
             this.recalculateCommissions();
         },
 
+        onPropertyPriceInput(event) {
+            this.operation.property_price = this.parseMoneyInput(event?.target?.value);
+            this.onPropertyPriceChanged();
+        },
+
         onPropertyPriceChanged() {
             if (this.operation.type === 'reserva' && this.operation.property_price) {
-                // Recalculate commissions based on amount (not property_price)
+                // In reservations, commission references are based on total property price.
                 this.recalculateCommissions();
             }
+        },
+
+        onAmountInput(event) {
+            this.operation.amount = this.parseMoneyInput(event?.target?.value);
+            this.recalculateCommissions();
         },
 
         onSellersChanged(selectedIds, existingCommissions = []) {
@@ -1021,14 +1046,35 @@ export default {
         },
 
         normalizeMoney(value) {
-            const amount = parseFloat(value);
+            const amount = parseFloat(String(value ?? '').replace(/,/g, ''));
             return Number.isFinite(amount) ? amount : 0;
         },
 
+        parseMoneyInput(value) {
+            const normalized = String(value ?? '')
+                .replace(/\s+/g, '')
+                .replace(/\$/g, '')
+                .replace(/,/g, '');
+            const amount = parseFloat(normalized);
+            return Number.isFinite(amount) ? amount : 0;
+        },
+
+        formatInputWithCommas(value) {
+            const raw = String(value ?? '').trim();
+            if (raw === '') {
+                return '';
+            }
+
+            const number = this.normalizeMoney(value);
+            return new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            }).format(number);
+        },
+
         syncTotalCommissionPercentageFromAmount() {
-            const operationAmount = parseFloat(this.operation.amount) || 0;
-            this.operation.total_commission_percentage = operationAmount > 0
-                ? parseFloat(((this.totalCommissionAmount / operationAmount) * 100).toFixed(4))
+            this.operation.total_commission_percentage = this.commissionBaseAmount > 0
+                ? parseFloat(((this.totalCommissionAmount / this.commissionBaseAmount) * 100).toFixed(4))
                 : 0;
         },
 
@@ -1043,8 +1089,7 @@ export default {
         },
 
         referenceCommissionAmountFor(percentage) {
-            const amt = parseFloat(this.operation.amount) || 0;
-            return amt * (this.normalizePercentage(percentage) / 100);
+            return this.commissionBaseAmount * (this.normalizePercentage(percentage) / 100);
         },
 
         sellerCommissionAmount(pct) {

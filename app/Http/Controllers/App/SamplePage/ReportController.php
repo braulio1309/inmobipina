@@ -8,6 +8,7 @@ use App\Models\Core\Auth\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
@@ -33,6 +34,11 @@ class ReportController extends Controller
     private function closingTypes(): array
     {
         return ['venta', 'alquiler', 'traspaso', 'reserva'];
+    }
+
+    private function closingTypesForAmounts(): array
+    {
+        return ['venta', 'alquiler', 'traspaso'];
     }
 
     private function operationDateExpression(): \Illuminate\Database\Query\Expression
@@ -84,11 +90,23 @@ class ReportController extends Controller
             )
             ->groupBy('users.id', 'users.first_name', 'users.last_name');
 
+        // Include only users with advisor role to avoid showing non-advisor creators.
+        $query->whereExists(function ($subQuery) {
+            $subQuery->select(DB::raw(1))
+                ->from('role_user')
+                ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                ->whereColumn('role_user.user_id', 'users.id')
+                ->whereIn('roles.name', ['Asesor', 'Advisor', 'Agent']);
+        });
+
         $this->applyExcludedReportUsers($query);
 
         if (!$user->isAdmin()) {
             $query->where('operation_user.user_id', $user->id);
         }
+
+        // Reservation amounts should not be counted until they become confirmed sales.
+        $query->where('operations.type', '!=', 'reserva');
 
         $this->applyDateRangeFilter($query, DB::raw('COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)'), $startDate, $endDate);
 
@@ -175,27 +193,39 @@ class ReportController extends Controller
     public function exportAdvisorCommissions(Request $request)
     {
         $rows = $this->getAdvisorCommissionsRows($request);
-        $fileName = 'top_vendedores_' . now()->format('Y-m-d_H-i') . '.csv';
+        $fileName = 'reporte_ventas_asesores_' . now()->format('Y-m-d_H-i') . '.xlsx';
 
-        return response()->streamDownload(function () use ($rows) {
-            $handle = fopen('php://output', 'w');
-            fwrite($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        $export = new class($rows) implements
+            \Maatwebsite\Excel\Concerns\FromCollection,
+            \Maatwebsite\Excel\Concerns\WithHeadings,
+            \Maatwebsite\Excel\Concerns\ShouldAutoSize
+        {
+            private $rows;
 
-            fputcsv($handle, ['Nombre', 'Ventas', 'Monto USD', 'Clientes asignados']);
-
-            foreach ($rows as $row) {
-                fputcsv($handle, [
-                    $row['name'],
-                    $row['count'],
-                    number_format($row['value'], 2, '.', ''),
-                    $row['assigned_clients_count'],
-                ]);
+            public function __construct($rows)
+            {
+                $this->rows = collect($rows);
             }
 
-            fclose($handle);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+            public function headings(): array
+            {
+                return ['Asesor', 'Ventas', 'Monto USD', 'Clientes asignados'];
+            }
+
+            public function collection()
+            {
+                return $this->rows->map(function ($row) {
+                    return [
+                        $row['name'] ?? '',
+                        (int) ($row['count'] ?? 0),
+                        (float) ($row['value'] ?? 0),
+                        (int) ($row['assigned_clients_count'] ?? 0),
+                    ];
+                });
+            }
+        };
+
+        return Excel::download($export, $fileName);
     }
 
     /**
@@ -225,7 +255,7 @@ class ReportController extends Controller
             ->count();
 
         $companyCommission = DB::table('operations')
-            ->whereIn('type', $this->closingTypes())
+            ->whereIn('type', $this->closingTypesForAmounts())
             ->whereBetween($this->operationDateExpression(), [$start, $end])
             ->sum('company_commission_amount');
 
@@ -263,7 +293,7 @@ class ReportController extends Controller
                 DB::raw("DATE_FORMAT(COALESCE(fecha_cierre, end_date, start_date, created_at), '$format') as period"),
                 DB::raw('SUM(company_commission_amount) as total')
             )
-            ->whereIn('type', $this->closingTypes())
+            ->whereIn('type', $this->closingTypesForAmounts())
             ->whereBetween(DB::raw('COALESCE(fecha_cierre, end_date, start_date, created_at)'), [$start, $end])
             ->groupBy('period')
             ->orderBy('period')

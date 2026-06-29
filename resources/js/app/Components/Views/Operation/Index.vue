@@ -54,7 +54,6 @@
                         type="number"
                         class="form-control"
                         placeholder="Monto neto de venta"
-                        @input="recalcConfirmCommissions"
                     >
                 </div>
 
@@ -64,31 +63,31 @@
                         <div class="col-5"><strong>Comisión total</strong></div>
                         <div class="col-4">
                             <div class="input-group input-group-sm">
-                                <input type="number" class="form-control" v-model="confirmData.total_commission_percentage" min="0" max="100" step="0.01" @input="recalcConfirmCommissions">
+                                <input type="number" class="form-control" v-model="confirmData.total_commission_percentage" min="0" max="100" step="0.01" readonly>
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
-                        <div class="col-3 text-dark fw-bold">${{ confirmTotalCompanyPoolAmt }}</div>
+                        <div class="col-3 text-dark fw-bold">${{ formatAmt(confirmData.total_commission_amount) }}</div>
                     </div>
                     <div class="row mb-1 align-items-center">
                         <div class="col-5"><strong>Inmobiliaria</strong></div>
                         <div class="col-4">
                             <div class="input-group input-group-sm">
-                                <input type="number" class="form-control" v-model="confirmData.company_commission_percentage" min="0" max="100" step="0.01" @input="recalcConfirmCommissions">
+                                <input type="number" class="form-control" v-model="confirmData.company_commission_percentage" min="0" max="100" step="0.01" readonly>
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
-                        <div class="col-3 text-success fw-bold">${{ confirmCompanyAmt }}</div>
+                        <div class="col-3 text-success fw-bold">${{ formatAmt(confirmData.company_commission_amount) }}</div>
                     </div>
                     <div v-for="sc in confirmData.sellers_commissions" :key="sc.id" class="row mb-1 align-items-center">
                         <div class="col-5">{{ sc.name }}</div>
                         <div class="col-4">
                             <div class="input-group input-group-sm">
-                                <input type="number" class="form-control" v-model="sc.percentage" min="0" max="100" step="0.01" @input="recalcConfirmCommissions">
+                                <input type="number" class="form-control" v-model="sc.percentage" min="0" max="100" step="0.01" readonly>
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
-                        <div class="col-3 text-primary fw-bold">${{ formatAmt(parseFloat(confirmData.amount || 0) * parseFloat(sc.percentage || 0) / 100) }}</div>
+                        <div class="col-3 text-primary fw-bold">${{ formatAmt(sc.amount) }}</div>
                     </div>
                     <div v-if="confirmData.sellers_commissions.length === 0" class="small text-muted">
                         Solo la inmobiliaria está involucrada en esta comisión.
@@ -133,7 +132,9 @@
                     net_amount: 0,
                     amount: '',
                     total_commission_percentage: 5,
+                    total_commission_amount: 0,
                     company_commission_percentage: 5,
+                    company_commission_amount: 0,
                     sellers_commissions: [],
                 },
                 options: {
@@ -144,7 +145,7 @@
                     showClearFilter: true,
                     columns: [
                         {
-                            title: '#',
+                            title: 'ID',
                             type: 'text',
                             key: 'id',
                             default: "",
@@ -154,25 +155,35 @@
                             }
                         },
                         {
-                            title: 'Propiedad',
+                            title: 'Fecha',
                             type: 'text',
-                            key: 'property_title',
+                            key: 'closing_date',
                             default: "",
                             isVisible: true,
                             modifier: (value, row) => {
-                                return value || '—';
+                                return value || row.fecha_cierre || '—';
                             }
                         },
                         {
-                            title: 'Vendedores',
+                            title: 'Vendedor (propietario)',
                             type: 'text',
-                            key: 'sellers_names',
+                            key: 'owner_name',
                             default: "",
                             isVisible: true,
                             modifier: (value, row) => {
-                                return value
+                                return value || 'Sin propietario';
                             }
 
+                        },
+                        {
+                            title: 'Comprador',
+                            type: 'text',
+                            key: 'buyer_name',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value) => {
+                                return value || 'Sin comprador';
+                            }
                         },
                         {
                             title: 'Tipo',
@@ -192,58 +203,95 @@
                             }
                         },
                         {
-                            title: 'Monto',
-                            type: 'custom-html',
-                            key: 'amount',
+                            title: 'Propiedad',
+                            type: 'text',
+                            key: 'property_title',
                             default: "",
                             isVisible: true,
-                            modifier:(value, row)=>{
-                                if (!value) return 'N/A';
-                                const num = parseFloat(row.amount) || 0;
-                                return '$' + num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            modifier: (value) => {
+                                return value || '—';
                             }
                         },
                         {
-                            title: 'Comisiones',
+                            title: 'Medio de captacion',
+                            type: 'text',
+                            key: 'client_source',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value) => {
+                                return value || 'Sin especificar';
+                            }
+                        },
+                        {
+                            title: 'Precio total de la propiedad',
+                            type: 'custom-html',
+                            key: 'property_total_amount',
+                            default: "",
+                            isVisible: true,
+                            modifier:(value, row) => {
+                                const total = parseFloat(value || 0);
+                                const totalFmt = '$' + total.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                                if (row.type === 'reserva') {
+                                    const reserve = parseFloat(row.reservation_amount || row.amount || 0);
+                                    const reserveFmt = '$' + reserve.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                    return `<div><strong>Total:</strong> ${totalFmt}</div><div><strong>Reserva:</strong> ${reserveFmt}</div>`;
+                                }
+
+                                return totalFmt;
+                            }
+                        },
+                        {
+                            title: 'Asesores y comisiones',
                             type: 'custom-html',
                             key: 'commission_details',
                             default: "",
                             isVisible: true,
-                            modifier:(value, row) => {
-                                if (!value || !value.length) return 'N/A';
+                            modifier: (value) => {
+                                if (!Array.isArray(value) || value.length === 0) {
+                                    return 'Sin asesores';
+                                }
+
                                 const escape = (str) => String(str)
                                     .replace(/&/g, '&amp;')
                                     .replace(/</g, '&lt;')
                                     .replace(/>/g, '&gt;')
                                     .replace(/"/g, '&quot;');
-                                const lines = value.map(d =>
-                                    `<div><strong>${escape(d.name)}</strong>: $${escape((parseFloat(d.amount)||0).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2}))} (${escape(parseFloat(d.percentage).toFixed(2))}%)</div>`
-                                );
-                                return lines.join('');
+
+                                return value.map((detail) => {
+                                    const amount = parseFloat(detail.amount || 0);
+                                    const percentage = parseFloat(detail.percentage || 0);
+                                    const amountFmt = '$' + amount.toLocaleString('es-VE', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                    });
+
+                                    return `<div><strong>${escape(detail.name || 'Asesor')}</strong>: ${amountFmt} (${percentage.toFixed(2)}%)</div>`;
+                                }).join('');
                             }
                         },
                         {
-                            title: 'Contrato',
+                            title: 'Comision total $ (%)',
                             type: 'custom-html',
-                            key: 'contract_url',
+                            key: 'total_commission_amount_resolved',
                             default: "",
                             isVisible: true,
-                            modifier:(value, row) => {
-                                if (row.type !== 'exclusividad') return 'N/A';
-                                if (value) {
-                                    return `<span class="badge badge-sm badge-pill badge-success">Disponible</span>`;
-                                }
-                                return `<span class="badge badge-sm badge-pill badge-secondary">Sin contrato</span>`;
+                            modifier: (value, row) => {
+                                const amount = parseFloat(value || 0);
+                                const pct = parseFloat(row.total_commission_percentage_resolved || 0);
+                                const amountFmt = '$' + amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                return `${amountFmt} (${pct.toFixed(2)}%)`;
                             }
                         },
                         {
-                            title: 'Fecha de Cierre',
-                            type: 'text',
-                            key: 'fecha_cierre',
+                            title: 'Comision inmobiliaria $',
+                            type: 'custom-html',
+                            key: 'company_commission_amount_resolved',
                             default: "",
                             isVisible: true,
                             modifier: (value) => {
-                                return value ? value : '—';
+                                const amount = parseFloat(value || 0);
+                                return '$' + amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             }
                         },
                         {
@@ -299,24 +347,7 @@
                 },
             }
         },
-        computed: {
-            confirmTotalCommissionPct() {
-                const pct = parseFloat(this.confirmData.total_commission_percentage);
-                return Number.isFinite(pct) ? pct : 0;
-            },
-            confirmCompanyPct() {
-                const pct = parseFloat(this.confirmData.company_commission_percentage);
-                return Number.isFinite(pct) ? pct : 0;
-            },
-            confirmTotalCompanyPoolAmt() {
-                const amt = parseFloat(this.confirmData.amount) || 0;
-                return this.formatAmt(amt * this.confirmTotalCommissionPct / 100);
-            },
-            confirmCompanyAmt() {
-                const amt = parseFloat(this.confirmData.amount) || 0;
-                return this.formatAmt(amt * this.confirmCompanyPct / 100);
-            },
-        },
+        computed: {},
         created() {
             this.searchAndSelectFilterOptions();
         },
@@ -342,28 +373,6 @@
             formatAmt(val) {
                 const num = parseFloat(val) || 0;
                 return num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            },
-            recalcConfirmCommissions() {
-                const totalPct = this.confirmTotalCommissionPct;
-
-                if (this.confirmCompanyPct > totalPct) {
-                    this.confirmData.company_commission_percentage = totalPct;
-                }
-
-                if (this.confirmData.sellers_commissions.length === 0) {
-                    this.confirmData.company_commission_percentage = totalPct;
-                    return;
-                }
-
-                const remainingPct = Math.max(0, totalPct - this.confirmCompanyPct);
-                const evenPct = this.confirmData.sellers_commissions.length > 0
-                    ? parseFloat((remainingPct / this.confirmData.sellers_commissions.length).toFixed(4))
-                    : 0;
-
-                this.confirmData.sellers_commissions = this.confirmData.sellers_commissions.map((item) => ({
-                    ...item,
-                    percentage: Number.isFinite(parseFloat(item.percentage)) ? parseFloat(item.percentage) : evenPct,
-                }));
             },
             exportOperations() {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -395,6 +404,7 @@
                             id: sellerId,
                             name: detail ? detail.name : `Asesor #${sellerId}`,
                             percentage: existing ? parseFloat(existing.percentage) : equalPct,
+                            amount: existing ? parseFloat(existing.amount || 0) : 0,
                         };
                     });
 
@@ -406,7 +416,9 @@
                         net_amount:         netAmount,
                         amount:             netAmount > 0 ? netAmount : (op.amount || ''),
                         total_commission_percentage: totalPct,
+                        total_commission_amount: parseFloat(op.total_commission_amount || 0),
                         company_commission_percentage: companyPct,
+                        company_commission_amount: parseFloat(op.company_commission_amount || 0),
                         sellers_commissions: sellersWithNames,
                     };
                     this.showConfirmModal = true;
@@ -420,9 +432,6 @@
                 try {
                     await axios.post(`/operations/${this.confirmData.id}/confirm-sale`, {
                         amount: this.confirmData.amount,
-                        total_commission_percentage: this.confirmTotalCommissionPct,
-                        company_commission_percentage: this.confirmCompanyPct,
-                        sellers_commissions: this.confirmData.sellers_commissions,
                     });
                     this.$toastr.s('Venta confirmada correctamente');
                     this.showConfirmModal = false;

@@ -41,6 +41,9 @@ class OperationController extends Controller
             ->paginate(request()->get('per_page', 10));
 
         $operations->getCollection()->transform(function ($item) {
+            $resolvedOwnerClient = $this->resolveOperationOwnerClient($item) ?: $this->makeAnonymousClient();
+            $resolvedBuyerClient = $this->resolveOperationBuyerClient($item, $resolvedOwnerClient) ?: $this->makeAnonymousClient();
+
             $item->sellers_names = $item->sellers
                 ->map(fn ($s) => trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? '')))
                 ->filter()
@@ -59,6 +62,35 @@ class OperationController extends Controller
             $item->property_title = $item->property
                 ? $item->property->title
                 : ($item->external_property_title ?: '');
+
+            $item->closing_date = $item->fecha_cierre
+                ?: ($item->end_date ?: ($item->start_date ?: optional($item->created_at)->toDateString()));
+            $item->owner_name = trim((string) ($resolvedOwnerClient->name ?? '')) ?: 'Sin propietario';
+            $item->buyer_name = trim((string) ($resolvedBuyerClient->name ?? '')) ?: 'Sin comprador';
+            $item->client_source = $resolvedBuyerClient->source
+                ?: ($resolvedOwnerClient->source ?: 'Sin especificar');
+
+            $propertyTotalAmount = (float) ($item->property_price ?? $item->amount ?? 0);
+            $reservationAmount = $item->type === 'reserva' ? (float) ($item->amount ?? 0) : null;
+            $item->property_total_amount = $propertyTotalAmount;
+            $item->reservation_amount = $reservationAmount;
+
+            $sellerCommissionAmount = (float) $item->sellers->sum(fn ($seller) => $seller->pivot->commission_amount ?? 0);
+            $companyCommissionAmount = (float) ($item->company_commission_amount ?? 0);
+            $resolvedTotalCommissionAmount = (float) ($item->total_commission_amount ?? 0);
+            if ($resolvedTotalCommissionAmount <= 0) {
+                $resolvedTotalCommissionAmount = $companyCommissionAmount + $sellerCommissionAmount;
+            }
+
+            $resolvedTotalCommissionPercentage = (float) ($item->total_commission_percentage ?? 0);
+            if ($resolvedTotalCommissionPercentage <= 0 && (float) ($item->amount ?? 0) > 0) {
+                $resolvedTotalCommissionPercentage = round(($resolvedTotalCommissionAmount / (float) $item->amount) * 100, 4);
+            }
+
+            $item->total_commission_amount_resolved = round($resolvedTotalCommissionAmount, 2);
+            $item->total_commission_percentage_resolved = round($resolvedTotalCommissionPercentage, 4);
+            $item->company_commission_amount_resolved = round($companyCommissionAmount, 2);
+
             $item->contract_url = $item->contract_path
                 ? Storage::url('contracts/' . $item->contract_path)
                 : null;
@@ -134,6 +166,12 @@ class OperationController extends Controller
     $numSellers = count($sellers);
     $participants = $this->resolveOperationParticipants($request);
     $isRental = $request->input('type') === 'alquiler';
+    $isReservation = $request->input('type') === 'reserva';
+    $propertyPrice = (float) $request->input('property_price', 0);
+    // For reservations, commissions are calculated using the full property price.
+    $commissionBaseAmount = $isReservation && $propertyPrice > 0
+        ? $propertyPrice
+        : (float) $amount;
     $mesesAdelanto = max(0, (int) $request->input('meses_adelanto', 0));
     $mesAdministrativo = max(0, (int) $request->input('mes_administrativo', 0));
     $fechaInicio = $request->input('start_date');
@@ -162,24 +200,24 @@ class OperationController extends Controller
 
     $defaultTotalCommissionAmount = $isRental
         ? round(((float) $amount) * $mesAdministrativo, 2)
-        : round(((float) $amount) * 0.05, 2);
+        : round($commissionBaseAmount * 0.05, 2);
     $requestedTotalCommissionAmount = $request->filled('total_commission_amount')
         ? max(0, (float) $request->input('total_commission_amount'))
         : $defaultTotalCommissionAmount;
     $totalCommissionAmt = $requestedTotalCommissionAmount;
-    $totalCommissionPct = (float) $amount > 0
-        ? round(($totalCommissionAmt / (float) $amount) * 100, 4)
+    $totalCommissionPct = $commissionBaseAmount > 0
+        ? round(($totalCommissionAmt / $commissionBaseAmount) * 100, 4)
         : 0.0;
     $defaultCompanyPct = $isRental
         ? round($totalCommissionPct / 2, 4)
         : ($numSellers > 0 ? min(2.5, $totalCommissionPct) : $totalCommissionPct);
     $requestedCompanyAmount = $request->filled('company_commission_amount')
         ? max(0, (float) $request->input('company_commission_amount'))
-        : ($isRental ? round($totalCommissionAmt / 2, 2) : round(((float) $amount) * $defaultCompanyPct / 100, 2));
+        : ($isRental ? round($totalCommissionAmt / 2, 2) : round($commissionBaseAmount * $defaultCompanyPct / 100, 2));
     $companyAmt = $requestedCompanyAmount;
     $companyAmt = min($companyAmt, $totalCommissionAmt);
-    $companyPct = (float) $amount > 0
-        ? round(($companyAmt / (float) $amount) * 100, 4)
+    $companyPct = $commissionBaseAmount > 0
+        ? round(($companyAmt / $commissionBaseAmount) * 100, 4)
         : 0.0;
     $remainingAmount = max(0, $totalCommissionAmt - $companyAmt);
     $eachAdvisorAmt = $numSellers > 0 ? round($remainingAmount / $numSellers, 2) : 0;
@@ -228,7 +266,7 @@ class OperationController extends Controller
                 }
             }
             $amt = $customAmt !== null ? max(0, (float) $customAmt) : $eachAdvisorAmt;
-            $pct = (float) $amount > 0 ? round(($amt / (float) $amount) * 100, 4) : 0.0;
+            $pct = $commissionBaseAmount > 0 ? round(($amt / $commissionBaseAmount) * 100, 4) : 0.0;
             $syncData[$sellerId] = [
                 'commission_percentage' => $pct,
                 'commission_amount'     => $amt,
@@ -335,6 +373,12 @@ class OperationController extends Controller
         $numSellers = count($sellers);
         $participants = $this->resolveOperationParticipants($request);
         $isRental = $request->input('type') === 'alquiler';
+        $isReservation = $request->input('type') === 'reserva';
+        $propertyPrice = (float) $request->input('property_price', 0);
+        // For reservations, commissions are calculated using the full property price.
+        $commissionBaseAmount = $isReservation && $propertyPrice > 0
+            ? $propertyPrice
+            : (float) $amount;
         $mesesAdelanto = max(0, (int) $request->input('meses_adelanto', 0));
         $mesAdministrativo = max(0, (int) $request->input('mes_administrativo', 0));
         $fechaInicio = $request->input('start_date');
@@ -363,24 +407,24 @@ class OperationController extends Controller
 
         $defaultTotalCommissionAmount = $isRental
             ? round(((float) $amount) * $mesAdministrativo, 2)
-            : round(((float) $amount) * 0.05, 2);
+            : round($commissionBaseAmount * 0.05, 2);
         $requestedTotalCommissionAmount = $request->filled('total_commission_amount')
             ? max(0, (float) $request->input('total_commission_amount'))
             : (float) ($operation->total_commission_amount ?? $defaultTotalCommissionAmount);
         $totalCommissionAmt = $requestedTotalCommissionAmount;
-        $totalCommissionPct = (float) $amount > 0
-            ? round(($totalCommissionAmt / (float) $amount) * 100, 4)
+        $totalCommissionPct = $commissionBaseAmount > 0
+            ? round(($totalCommissionAmt / $commissionBaseAmount) * 100, 4)
             : 0.0;
         $defaultCompanyPct = $isRental
             ? round($totalCommissionPct / 2, 4)
             : ($numSellers > 0 ? min(2.5, $totalCommissionPct) : $totalCommissionPct);
         $requestedCompanyAmount = $request->filled('company_commission_amount')
             ? max(0, (float) $request->input('company_commission_amount'))
-            : (float) ($operation->company_commission_amount ?? ($isRental ? round($totalCommissionAmt / 2, 2) : round(((float) $amount) * $defaultCompanyPct / 100, 2)));
+            : (float) ($operation->company_commission_amount ?? ($isRental ? round($totalCommissionAmt / 2, 2) : round($commissionBaseAmount * $defaultCompanyPct / 100, 2)));
         $companyAmt = $requestedCompanyAmount;
         $companyAmt = min($companyAmt, $totalCommissionAmt);
-        $companyPct = (float) $amount > 0
-            ? round(($companyAmt / (float) $amount) * 100, 4)
+        $companyPct = $commissionBaseAmount > 0
+            ? round(($companyAmt / $commissionBaseAmount) * 100, 4)
             : 0.0;
         $remainingAmount = max(0, $totalCommissionAmt - $companyAmt);
         $eachAdvisorAmt = $numSellers > 0 ? round($remainingAmount / $numSellers, 2) : 0;
@@ -427,7 +471,7 @@ class OperationController extends Controller
                     }
                 }
                 $amt = $customAmt !== null ? max(0, (float) $customAmt) : $eachAdvisorAmt;
-                $pct = (float) $amount > 0 ? round(($amt / (float) $amount) * 100, 4) : 0.0;
+                $pct = $commissionBaseAmount > 0 ? round(($amt / $commissionBaseAmount) * 100, 4) : 0.0;
                 $syncData[$sellerId] = [
                     'commission_percentage' => $pct,
                     'commission_amount' => $amt,
@@ -523,74 +567,23 @@ class OperationController extends Controller
         $defaultNet      = max(0, $propertyPrice - $reservationAmt);
         $netAmount       = $request->has('amount') ? (float) $request->amount : $defaultNet;
 
-        $sellers    = $operation->sellers->pluck('id')->toArray();
-        $numSellers = count($sellers);
-        $totalCommissionPct = $request->filled('total_commission_percentage')
-            ? max(0, (float) $request->input('total_commission_percentage'))
-            : (float) ($operation->total_commission_percentage ?? 5);
-        $defaultCompanyPct = $numSellers > 0 ? min((float) ($operation->company_commission_percentage ?? 2.5), $totalCommissionPct) : $totalCommissionPct;
-        $companyPct = $request->filled('company_commission_percentage')
-            ? (float) $request->input('company_commission_percentage')
-            : $defaultCompanyPct;
-        $companyPct = max(0, min($companyPct, $totalCommissionPct));
-        $remainingPct = max(0, $totalCommissionPct - $companyPct);
-        $eachAdvisorPct = $numSellers > 0 ? round($remainingPct / $numSellers, 4) : 0;
+        $sellers = $operation->sellers->pluck('id')->toArray();
 
-        // Use per-seller percentages if provided, otherwise recalculate
-        $sellersWithPct = ($request->has('sellers_commissions') && is_array($request->sellers_commissions))
-            ? $request->sellers_commissions
-            : [];
-        $requestedSellerTotal = collect($sellersWithPct)
-            ->filter(fn ($item) => in_array((string) ($item['id'] ?? ''), array_map('strval', $sellers), true))
-            ->sum(fn ($item) => (float) ($item['percentage'] ?? 0));
-
-        if ($requestedSellerTotal > ($remainingPct + 0.0001)) {
-            return response()->json(['message' => 'La suma de comisiones de asesores supera el porcentaje total disponible.'], 422);
-        }
-
-        // Commission on the net sale amount
-        $salCompanyAmt = round($netAmount * $companyPct / 100, 2);
-
-        // Preserve the reservation commission earned in the first phase and ADD
-        // the new sale commission so total earnings include both phases.
+        // Keep reservation commissions exactly as defined; do not recalculate or accumulate on confirm.
         $reservationCompanyComm = (float) ($operation->company_commission_amount ?? 0);
-        $totalCompanyComm       = $reservationCompanyComm + $salCompanyAmt;
+        $totalCommissionPct = (float) ($operation->total_commission_percentage ?? 0);
+        $totalCommissionAmount = (float) ($operation->total_commission_amount ?? 0);
+        $companyPct = (float) ($operation->company_commission_percentage ?? 0);
 
         $operation->update([
             'type'                           => 'venta',
             'amount'                         => $netAmount,
             'total_commission_percentage'    => $totalCommissionPct,
+            'total_commission_amount'        => $totalCommissionAmount,
             'company_commission_percentage'  => $companyPct,
-            'company_commission_amount'      => $totalCompanyComm,
+            'company_commission_amount'      => $reservationCompanyComm,
             'reservation_company_commission' => $reservationCompanyComm,
         ]);
-
-        // Update sellers commissions, accumulating reservation + sale
-        if ($numSellers > 0) {
-            $syncData = [];
-            foreach ($sellers as $sellerId) {
-                $customPct = null;
-                foreach ($sellersWithPct as $sc) {
-                    if ((string)($sc['id'] ?? '') === (string)$sellerId) {
-                        $customPct = $sc['percentage'] ?? null;
-                        break;
-                    }
-                }
-                $pct = $customPct !== null ? (float)$customPct : $eachAdvisorPct;
-                $saleAmt = round($netAmount * $pct / 100, 2);
-
-                // Old reservation commission for this seller
-                $seller = $operation->sellers->firstWhere('id', $sellerId);
-                $reservationSellerAmt = (float) ($seller->pivot->commission_amount ?? 0);
-
-                $syncData[$sellerId] = [
-                    'commission_percentage'         => $pct,
-                    'commission_amount'             => $reservationSellerAmt + $saleAmt,
-                    'reservation_commission_amount' => $reservationSellerAmt,
-                ];
-            }
-            $operation->sellers()->sync($syncData);
-        }
 
         // Update property price if provided and mark as Vendido
         if ($operation->property_id) {
@@ -909,6 +902,7 @@ class OperationController extends Controller
                 optional($captation)->cliente_nombre_apellido,
                 optional($latestExclusivity)->propietario_nombre,
             ]),
+            'source' => '',
             'ci' => $this->firstFilledValue([
                 optional($captation)->autorizacion_cedula,
                 optional($latestExclusivity)->propietario_ci,
@@ -939,6 +933,7 @@ class OperationController extends Controller
         return (object) [
             'id' => $base->id,
             'name' => $base->name !== '' ? $base->name : $fallback->name,
+            'source' => $base->source !== '' ? $base->source : $fallback->source,
             'ci' => $base->ci !== '' ? $base->ci : $fallback->ci,
             'email' => $base->email !== '' ? $base->email : $fallback->email,
             'phone' => $base->phone !== '' ? $base->phone : $fallback->phone,
@@ -950,6 +945,7 @@ class OperationController extends Controller
         return (object) [
             'id' => $participant->id ?? null,
             'name' => trim((string) ($participant->name ?? '')),
+            'source' => trim((string) ($participant->source ?? '')),
             'ci' => trim((string) ($participant->ci ?? '')),
             'email' => trim((string) ($participant->email ?? '')),
             'phone' => trim((string) ($participant->phone ?? '')),
@@ -1092,6 +1088,7 @@ class OperationController extends Controller
         return (object) [
             'id' => null,
             'name' => '',
+            'source' => '',
             'ci' => '',
             'email' => '',
             'phone' => '',

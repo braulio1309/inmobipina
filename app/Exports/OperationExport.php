@@ -20,7 +20,7 @@ class OperationExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
 
     public function query()
     {
-        $query = Operation::with(['property', 'sellers', 'clients']);
+        $query = Operation::with(['property', 'sellers', 'clients', 'ownerClient', 'buyerClient']);
 
         // Filter by type
         $types = $this->request->input('type');
@@ -68,36 +68,100 @@ class OperationExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
     {
         return [
             'ID',
+            'Fecha',
+            'Vendedor (propietario)',
+            'Comprador',
             'Tipo',
             'Propiedad',
-            'Monto',
-            'Precio Propiedad',
-            'Comisión Inmobiliaria',
-            'Asesores',
-            'Compradores',
-            'Notas',
-            'Fecha de Cierre',
-            'Fecha de Creación',
+            'Medio de captacion',
+            'Precio total de la propiedad',
+            'Asesor 1',
+            'Asesor 2',
+            'Asesor 3',
+            'Asesor 4',
+            'Asesor 5',
+            'Asesor 6',
+            'Comision total $ (%)',
+            'Comision inmobiliaria $',
         ];
     }
 
     public function map($row): array
     {
-        $sellers = $row->sellers->map(fn($s) => trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? '')))->filter()->implode(', ');
-        $buyers  = $row->clients->map(fn($c) => $c->name)->filter()->implode(', ');
+        $ownerName = trim((string) optional($row->ownerClient)->name);
+        if ($ownerName === '') {
+            $ownerName = trim((string) optional($row->clients->first())->name);
+        }
+        if ($ownerName === '') {
+            $ownerName = 'Sin propietario';
+        }
+
+        $buyerName = trim((string) optional($row->buyerClient)->name);
+        if ($buyerName === '') {
+            $buyerName = trim((string) optional($row->clients->skip(1)->first())->name);
+        }
+        if ($buyerName === '') {
+            $buyerName = 'Sin comprador';
+        }
+
+        $clientSource = trim((string) (optional($row->buyerClient)->source ?: optional($row->ownerClient)->source ?: ''));
+        if ($clientSource === '') {
+            $clientSource = 'Sin especificar';
+        }
+
+        $propertyTitle = $row->property ? $row->property->title : ($row->external_property_title ?: 'N/A');
+
+        $propertyTotal = (float) ($row->property_price ?? $row->amount ?? 0);
+        $propertyTotalFormatted = '$' . number_format($propertyTotal, 2, '.', ',');
+        if ($row->type === 'reserva') {
+            $reservationAmount = (float) ($row->amount ?? 0);
+            $propertyTotalFormatted .= ' | Reserva: $' . number_format($reservationAmount, 2, '.', ',');
+        }
+
+        $sellerColumns = $row->sellers
+            ->map(function ($seller) {
+                $name = trim((string) (($seller->first_name ?? '') . ' ' . ($seller->last_name ?? '')));
+                if ($name === '') {
+                    $name = 'Asesor';
+                }
+
+                $amount = (float) ($seller->pivot->commission_amount ?? 0);
+                $percentage = (float) ($seller->pivot->commission_percentage ?? 0);
+
+                return $name . ': $' . number_format($amount, 2, '.', ',') . ' (' . number_format($percentage, 2, '.', ',') . '%)';
+            })
+            ->values()
+            ->all();
+        $sellerColumns = array_pad(array_slice($sellerColumns, 0, 6), 6, '');
+
+        $sellerCommissionAmount = (float) $row->sellers->sum(fn ($seller) => $seller->pivot->commission_amount ?? 0);
+        $companyCommissionAmount = (float) ($row->company_commission_amount ?? 0);
+        $totalCommissionAmount = (float) ($row->total_commission_amount ?? 0);
+        if ($totalCommissionAmount <= 0) {
+            $totalCommissionAmount = $companyCommissionAmount + $sellerCommissionAmount;
+        }
+
+        $commissionBase = (float) ($row->amount ?? 0);
+        $totalCommissionPercentage = (float) ($row->total_commission_percentage ?? 0);
+        if ($totalCommissionPercentage <= 0 && $commissionBase > 0) {
+            $totalCommissionPercentage = ($totalCommissionAmount / $commissionBase) * 100;
+        }
+
+        $closingDate = $row->fecha_cierre
+            ?: ($row->end_date ?: ($row->start_date ?: optional($row->created_at)->toDateString()));
 
         return [
             $row->id,
+            $closingDate ?: 'N/A',
+            $ownerName,
+            $buyerName,
             $row->type,
-            $row->property ? $row->property->title : 'N/A',
-            $row->amount,
-            $row->property_price,
-            $row->company_commission_amount,
-            $sellers ?: 'N/A',
-            $buyers  ?: 'N/A',
-            $row->notes,
-            $row->fecha_cierre ? \Carbon\Carbon::parse($row->fecha_cierre)->format('Y-m-d') : '',
-            $row->created_at ? $row->created_at->format('Y-m-d H:i') : '',
+            $propertyTitle,
+            $clientSource,
+            $propertyTotalFormatted,
+            ...$sellerColumns,
+            '$' . number_format($totalCommissionAmount, 2, '.', ',') . ' (' . number_format($totalCommissionPercentage, 2, '.', ',') . '%)',
+            '$' . number_format($companyCommissionAmount, 2, '.', ','),
         ];
     }
 }
