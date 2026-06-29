@@ -75,13 +75,13 @@ class OperationExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
             'Propiedad',
             'Medio de captacion',
             'Precio total de la propiedad',
+            'Comision total $ (%)',
             'Asesor 1',
             'Asesor 2',
             'Asesor 3',
             'Asesor 4',
             'Asesor 5',
             'Asesor 6',
-            'Comision total $ (%)',
             'Comision inmobiliaria $',
         ];
     }
@@ -159,8 +159,8 @@ class OperationExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
             $propertyTitle,
             $clientSource,
             $propertyTotalFormatted,
-            ...$sellerColumns,
             '$' . number_format($totalCommissionAmount, 2, '.', ',') . ' (' . number_format($totalCommissionPercentage, 2, '.', ',') . '%)',
+            ...$sellerColumns,
             '$' . number_format($companyCommissionAmount, 2, '.', ','),
         ];
     }

@@ -241,6 +241,20 @@
                                 return totalFmt;
                             }
                         },
+                        
+                        {
+                            title: 'Comision total $ (%)',
+                            type: 'custom-html',
+                            key: 'total_commission_amount_resolved',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value, row) => {
+                                const amount = parseFloat(value || 0);
+                                const pct = parseFloat(row.total_commission_percentage_resolved || 0);
+                                const amountFmt = '$' + amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                return `${amountFmt} (${pct.toFixed(2)}%)`;
+                            }
+                        },
                         {
                             title: 'Asesores y comisiones',
                             type: 'custom-html',
@@ -268,19 +282,6 @@
 
                                     return `<div><strong>${escape(detail.name || 'Asesor')}</strong>: ${amountFmt} (${percentage.toFixed(2)}%)</div>`;
                                 }).join('');
-                            }
-                        },
-                        {
-                            title: 'Comision total $ (%)',
-                            type: 'custom-html',
-                            key: 'total_commission_amount_resolved',
-                            default: "",
-                            isVisible: true,
-                            modifier: (value, row) => {
-                                const amount = parseFloat(value || 0);
-                                const pct = parseFloat(row.total_commission_percentage_resolved || 0);
-                                const amountFmt = '$' + amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                return `${amountFmt} (${pct.toFixed(2)}%)`;
                             }
                         },
                         {
