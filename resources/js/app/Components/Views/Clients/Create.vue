@@ -98,7 +98,7 @@
 
           <!-- Botón -->
           <div class="mt-3 text-end">
-            <button class="btn btn-success" type="submit">
+            <button class="btn btn-success" type="submit" :disabled="loading">
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
               {{ clientId ? 'Actualizar Cliente' : 'Guardar Cliente' }}
             </button>
@@ -131,18 +131,7 @@ export default {
     return {
       loading: false,
       clientId: null,
-      client: {
-        name: "",
-        email: "",
-        phone: "",
-        date: new Date().toISOString().slice(0, 10),
-        notes: "",
-        assigned_to: "",
-        property_ids: [],
-        source: "",
-        tipo_neg: "",
-        status: "potencial",
-      },
+      client: this.getDefaultClient(),
       sourceOptions: [
         { id: "", value: "Elige uno" },
         { id: "telefono", value: "Por teléfono" },
@@ -178,6 +167,25 @@ export default {
     }
   },
   methods: {
+    getDefaultClient() {
+      return {
+        name: "",
+        email: "",
+        phone: "",
+        date: new Date().toISOString().slice(0, 10),
+        notes: "",
+        assigned_to: this.isAdmin ? "" : (this.currentUserId || ""),
+        property_ids: [],
+        source: "",
+        tipo_neg: "",
+        status: "potencial",
+      };
+    },
+
+    resetClientForm() {
+      this.client = this.getDefaultClient();
+    },
+
     applyAdvisorDefaults() {
       if (!this.isAdmin) {
         this.client.assigned_to = this.currentUserId || "";
@@ -234,6 +242,10 @@ export default {
     },
 
     async saveClient() {
+      if (this.loading) {
+        return;
+      }
+
       this.loading = true;
       try {
         if (this.clientId) {
@@ -242,24 +254,14 @@ export default {
         } else {
           await axios.post("/client/create", this.client);
           this.$toastr.s("Cliente registrado correctamente");
-          this.client = {
-            name: "",
-            email: "",
-            phone: "",
-            date: new Date().toISOString().slice(0, 10),
-            notes: "",
-            assigned_to: this.isAdmin ? "" : (this.currentUserId || ""),
-            property_ids: [],
-            source: "",
-            tipo_neg: "",
-            status: "potencial",
-          };
+          this.resetClientForm();
         }
       } catch (error) {
         console.error(error);
         this.$toastr.e("Error al guardar cliente");
+      } finally {
+        this.loading = false;
       }
-      this.loading = false;
     }
   }
 };

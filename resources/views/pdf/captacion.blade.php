@@ -226,6 +226,13 @@
         $autorizacionPrecio = $formatText($captation->autorizacion_precio, $formatMoney($precioCliente) !== '' ? $formatMoney($precioCliente) . ' USD' : '');
         $autorizacionConstituido = $formatText($captation->autorizacion_inmueble_constituido, $property->description);
         $autorizacionUbicacion = $formatText($captation->autorizacion_ubicado_en, $ubicacion);
+        $tipoNegociacionNormalizada = strtolower($tipoNegociacion);
+        $esAlquiler = $tipoNegociacionNormalizada === 'alquiler' || ((bool) $captation->autoriza_alquiler && !(bool) $captation->autoriza_venta);
+        $autorizacionComisionAlquiler = $formatText($captation->autorizacion_comision, '1 mes');
+
+        if ($esAlquiler && str_contains($autorizacionComisionAlquiler, '%')) {
+            $autorizacionComisionAlquiler = '1 mes';
+        }
     @endphp
 
     <div class="page">
@@ -365,17 +372,31 @@
 
         <div class="authorization-title">AUTORIZACION PARA PRESTACION DE SERVICIO</div>
 
-        <div class="paragraph">
-            Yo, <strong>{{ $autorizacionNombre }}</strong>, {{ $formatText($captation->autorizacion_nacionalidad, 'venezolano(a)') }}, mayor de edad,
-            titular de la cedula de identidad <strong>{{ $formatText($captation->autorizacion_cedula) }}</strong>, en mi caracter de
-            <strong>{{ $formatText($captation->autorizacion_caracter) }}</strong>, por medio de la presente AUTORIZO a la sociedad
-            mercantil <strong>INVERSIONES PINANGO, C.A. (INMOBIPINA)</strong>, inscrita en el registro de Informacion Fiscal (RIF)
-            No. J-29788405-0, para promocionar en Venta {{ $mark($captation->autoriza_venta) }} y/o Alquiler {{ $mark($captation->autoriza_alquiler) }},
-            un inmueble constituido por <strong>{{ $autorizacionConstituido }}</strong> ubicado en <strong>{{ $autorizacionUbicacion }}</strong>,
-            fijando el precio de venta y/o alquiler en <strong>{{ $autorizacionPrecio }}</strong>. A su vez me comprometo a cancelar a la empresa inmobiliaria antes descrita la cantidad de
-            <strong>{{ $formatText($captation->autorizacion_comision) }}</strong> por concepto de comision, por Honorarios Inmobiliarios al momento de concretar la negociacion a traves de nuestra empresa.
-            Asi mismo, concedo el permiso a la empresa antes mencionada, para promocionar el inmueble a traves de:
-        </div>
+        @if ($esAlquiler)
+            <div class="paragraph">
+                Yo, <strong>{{ $autorizacionNombre }}</strong>, {{ $formatText($captation->autorizacion_nacionalidad, 'venezolano(a)') }}, mayor de edad,
+                titular de la cedula de identidad <strong>{{ $formatText($captation->autorizacion_cedula) }}</strong>, en mi caracter de
+                <strong>{{ $formatText($captation->autorizacion_caracter) }}</strong>, por medio de la presente AUTORIZO a la sociedad
+                mercantil <strong>INVERSIONES PINANGO, C.A. (INMOBIPINA)</strong>, inscrita en el registro de Informacion Fiscal (RIF)
+                No. J-29788405-0, para promocionar en Venta {{ $mark($captation->autoriza_venta) }} y/o Alquiler {{ $mark($captation->autoriza_alquiler) }},
+                un inmueble constituido por <strong>{{ $autorizacionConstituido }}</strong> ubicado en <strong>{{ $autorizacionUbicacion }}</strong>,
+                fijando el precio de venta y/o alquiler en <strong>{{ $autorizacionPrecio }}</strong>. A su vez me comprometo a cancelar a la empresa inmobiliaria antes descrita la cantidad de
+                <strong>{{ $autorizacionComisionAlquiler }}</strong> por concepto de comision, por Honorarios Inmobiliarios al momento de concretar la negociacion a traves de nuestra empresa.
+                Asi mismo, concedo el permiso a la empresa antes mencionada, para promocionar el inmueble a traves de:
+            </div>
+        @else
+            <div class="paragraph">
+                Yo, <strong>{{ $autorizacionNombre }}</strong>, {{ $formatText($captation->autorizacion_nacionalidad, 'venezolano(a)') }}, mayor de edad,
+                titular de la cedula de identidad <strong>{{ $formatText($captation->autorizacion_cedula) }}</strong>, en mi caracter de
+                <strong>{{ $formatText($captation->autorizacion_caracter) }}</strong>, por medio de la presente AUTORIZO a la sociedad
+                mercantil <strong>INVERSIONES PINANGO, C.A. (INMOBIPINA)</strong>, inscrita en el registro de Informacion Fiscal (RIF)
+                No. J-29788405-0, para promocionar en Venta {{ $mark($captation->autoriza_venta) }} y/o Alquiler {{ $mark($captation->autoriza_alquiler) }},
+                un inmueble constituido por <strong>{{ $autorizacionConstituido }}</strong> ubicado en <strong>{{ $autorizacionUbicacion }}</strong>,
+                fijando el precio de venta y/o alquiler en <strong>{{ $autorizacionPrecio }}</strong>. A su vez me comprometo a cancelar a la empresa inmobiliaria antes descrita la cantidad de
+                <strong>{{ $formatText($captation->autorizacion_comision) }}</strong> por concepto de comision, por Honorarios Inmobiliarios al momento de concretar la negociacion a traves de nuestra empresa.
+                Asi mismo, concedo el permiso a la empresa antes mencionada, para promocionar el inmueble a traves de:
+            </div>
+        @endif
 
         <table class="platform-grid">
             <tr>

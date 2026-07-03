@@ -81,7 +81,9 @@ class ReportController extends Controller
     {
         $salesQuery = DB::table('operations')->whereIn('type', ['venta', 'traspaso']);
         $reservationsQuery = DB::table('operations')->where('type', 'reserva');
-        $propertiesQuery = DB::table('properties')->whereNotNull('approved_by');
+        $propertiesQuery = DB::table('properties')
+            ->leftJoin('property_captations', 'property_captations.property_id', '=', 'properties.id')
+            ->whereNotNull('properties.approved_by');
         $demonstrationsQuery = DB::table('activities')->where('type', 'demostración');
         $closuresQuery = DB::table('operations')->whereIn('type', ['venta', 'traspaso', 'reserva', 'alquiler']);
         $activitiesByTypeQuery = DB::table('activities')
@@ -94,7 +96,12 @@ class ReportController extends Controller
 
         $this->applyDateRange($salesQuery, DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), $startDate, $endDate);
         $this->applyDateRange($reservationsQuery, DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), $startDate, $endDate);
-        $this->applyDateRange($propertiesQuery, 'created_at', $startDate, $endDate);
+        $this->applyDateRange(
+            $propertiesQuery,
+            DB::raw('property_captations.fecha_captacion'),
+            $startDate,
+            $endDate
+        );
         $this->applyDateRange($demonstrationsQuery, 'date', $startDate, $endDate);
         $this->applyDateRange($closuresQuery, DB::raw('COALESCE(fecha_cierre, start_date, end_date)'), $startDate, $endDate);
         $this->applyDateRange($activitiesByTypeQuery, 'date', $startDate, $endDate);
@@ -198,10 +205,16 @@ class ReportController extends Controller
     private function getPropertiesCount($userId, $startDate = null, $endDate = null)
     {
         $query = DB::table('properties')
-            ->where('created_by', $userId)
-            ->whereNotNull('approved_by');
+            ->leftJoin('property_captations', 'property_captations.property_id', '=', 'properties.id')
+            ->where('properties.created_by', $userId)
+            ->whereNotNull('properties.approved_by');
 
-        $this->applyDateRange($query, 'created_at', $startDate, $endDate);
+        $this->applyDateRange(
+            $query,
+            DB::raw('property_captations.fecha_captacion'),
+            $startDate,
+            $endDate
+        );
 
         return $query->count();
     }
@@ -269,6 +282,7 @@ class ReportController extends Controller
             $allowedExpressions = [
                 'COALESCE(fecha_cierre, start_date, end_date)',
                 'COALESCE(operations.fecha_cierre, operations.start_date, operations.end_date)',
+                'property_captations.fecha_captacion',
             ];
             $rawSql = $column->getValue();
             if (!in_array($rawSql, $allowedExpressions, true)) {

@@ -75,6 +75,38 @@
                             </div>
                         </div>
                         <div v-else class="text-muted">Esta propiedad no tiene actividades registradas.</div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Clientes que consultaron</h6>
+                            <span class="badge badge-light" v-if="selectedPropertySummary.clients">
+                                {{ selectedPropertySummary.clients.length }}
+                            </span>
+                        </div>
+
+                        <div v-if="selectedPropertySummary.clients && selectedPropertySummary.clients.length">
+                            <div
+                                v-for="client in selectedPropertySummary.clients"
+                                :key="client.id"
+                                class="border rounded p-3 mb-2"
+                            >
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="font-weight-bold">{{ client.name || 'Sin nombre' }}</div>
+                                        <div class="text-muted small">
+                                            Asesor: {{ client.advisor_name || 'Sin asesor' }}
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ formatActivityDate(client.assigned_at) }}</small>
+                                </div>
+                                <div class="mt-2 small text-muted">
+                                    <span class="mr-3">Tel: {{ client.phone || 'No registrado' }}</span>
+                                    <span>Email: {{ client.email || 'No registrado' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="text-muted">Esta propiedad no tiene clientes asociados.</div>
                     </div>
                 </div>
             </div>

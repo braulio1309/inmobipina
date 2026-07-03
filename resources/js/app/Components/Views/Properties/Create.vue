@@ -864,6 +864,7 @@ export default {
                 approved_by: null,
                 exclusivity: false,
                 type_sale: "",
+                fecha_captacion: "",
             },
 
             exclusivityData: {
@@ -1059,7 +1060,10 @@ export default {
         'captationData.porcentaje_comision': 'syncDerivedCaptationData',
         'captationData.cliente_es_propietario': 'syncDerivedCaptationData',
         'captationData.cliente_es_apoderado': 'syncDerivedCaptationData',
-        'captationData.cliente_es_encargado': 'syncDerivedCaptationData'
+        'captationData.cliente_es_encargado': 'syncDerivedCaptationData',
+        'captationData.fecha_captacion'(value) {
+            this.property.fecha_captacion = value || '';
+        }
     },
 
     computed: {
@@ -1182,10 +1186,14 @@ export default {
                 this.property.approved_by = p.approved_by || null;
                 this.property.exclusivity = p.exclusivity || false;
                 this.property.type_sale = p.type_sale || '';
+                this.property.fecha_captacion = this.normalizeDateForInput(p.fecha_captacion);
 
                 if (existingCaptation) {
                     this.captationData = this.normalizeCaptationData(existingCaptation);
                     this.savedCaptationData = this.normalizeCaptationData(existingCaptation);
+                    if (!this.property.fecha_captacion) {
+                        this.property.fecha_captacion = this.captationData.fecha_captacion || '';
+                    }
                 } else {
                     this.prefillCaptationData(p);
                     this.savedCaptationData = this.normalizeCaptationData({});
@@ -1218,7 +1226,9 @@ export default {
                     this.savedExclusivityData = this.normalizeExclusivityData({});
                 }
 
-                this.prefillCaptationData(p);
+                if (!existingCaptation) {
+                    this.prefillCaptationData(p);
+                }
 
                 if (p.images && p.images.length) {
                     this.uploadedImages = p.images;
@@ -1743,13 +1753,41 @@ export default {
             return false;
         },
 
+        normalizeDateForInput(value) {
+            if (!value) {
+                return '';
+            }
+
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (!trimmed) {
+                    return '';
+                }
+
+                if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+                    return trimmed;
+                }
+
+                if (trimmed.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+                    return trimmed.slice(0, 10);
+                }
+            }
+
+            const parsedDate = new Date(value);
+            if (Number.isNaN(parsedDate.getTime())) {
+                return '';
+            }
+
+            return parsedDate.toISOString().slice(0, 10);
+        },
+
         normalizeCaptationData(source = {}) {
             return {
                 fotos_descargadas: source.fotos_descargadas ?? null,
                 enviado_para_flyer: source.enviado_para_flyer ?? null,
                 codigo_publicacion: source.codigo_publicacion || '',
                 recepcion_documentos_correo: source.recepcion_documentos_correo ?? null,
-                fecha_captacion: source.fecha_captacion || '',
+                fecha_captacion: this.normalizeDateForInput(source.fecha_captacion),
                 asesor_responsable: source.asesor_responsable || '',
                 tipo_inmueble: source.tipo_inmueble || '',
                 precio_inmobiliaria: source.precio_inmobiliaria ?? '',
@@ -1780,7 +1818,7 @@ export default {
                 acabados: source.acabados || '',
                 listo_para_habitar: source.listo_para_habitar ?? null,
                 para_remodelar: source.para_remodelar ?? null,
-                fecha_verificacion: source.fecha_verificacion || '',
+                fecha_verificacion: this.normalizeDateForInput(source.fecha_verificacion),
                 documentacion_estado: source.documentacion_estado || '',
                 datos_registro: source.datos_registro || '',
                 hipoteca: source.hipoteca ?? null,
@@ -1948,7 +1986,7 @@ export default {
 
             this.captationData = {
                 ...this.captationData,
-                fecha_captacion: this.captationData.fecha_captacion || today,
+                fecha_captacion: this.captationData.fecha_captacion || source.fecha_captacion || this.property.fecha_captacion || today,
                 asesor_responsable: this.preferEditableCaptationValue(this.captationData.asesor_responsable, advisorName || ''),
                 tipo_inmueble: this.preferEditableCaptationValue(this.captationData.tipo_inmueble, propertyType),
                 precio_inmobiliaria: this.preferEditableCaptationValue(this.captationData.precio_inmobiliaria, propertyPrice),
@@ -1970,8 +2008,8 @@ export default {
                 autorizacion_nombre: this.preferEditableCaptationValue(this.captationData.autorizacion_nombre, this.captationData.cliente_nombre_apellido || ownerName),
                 autorizacion_cedula: this.preferEditableCaptationValue(this.captationData.autorizacion_cedula, ownerCi),
                 autorizacion_caracter: this.preferEditableCaptationValue(this.captationData.autorizacion_caracter, authorizationCharacterFallback),
-                autoriza_venta: ['venta', 'ambos'].includes(normalizedTypeSale),
-                autoriza_alquiler: ['alquiler', 'ambos'].includes(normalizedTypeSale),
+                autoriza_venta: this.captationData.autoriza_venta ?? ['venta', 'ambos'].includes(normalizedTypeSale),
+                autoriza_alquiler: this.captationData.autoriza_alquiler ?? ['alquiler', 'ambos'].includes(normalizedTypeSale),
                 autorizacion_inmueble_constituido: propertyDescription,
                 autorizacion_ubicado_en: propertyAddress,
                 autorizacion_precio: this.preferEditableCaptationValue(this.captationData.autorizacion_precio, authorizationPrice),
@@ -2017,6 +2055,7 @@ export default {
 
                 const payload = {
                     ...this.property,
+                    fecha_captacion: normalizedCaptationData.fecha_captacion || this.property.fecha_captacion || undefined,
                     captation_data: this.hasCaptationData ? normalizedCaptationData : undefined,
                     exclusivity_data: this.hasExclusivityData ? normalizedExclusivityData : undefined,
                 };

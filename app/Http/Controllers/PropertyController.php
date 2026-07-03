@@ -39,7 +39,8 @@ class PropertyController extends Controller
                     'creator:id,first_name,last_name',
                 ])
                 ->filters($this->filter)
-                ->latest()
+                ->orderByRaw('(SELECT property_captations.fecha_captacion FROM property_captations WHERE property_captations.property_id = properties.id LIMIT 1) DESC')
+                ->latest('properties.id')
         ))->filter()
             ->paginate(request()->get('per_page', 10));
     }
@@ -85,6 +86,11 @@ class PropertyController extends Controller
             }
         }
 
+        $captationData = $this->extractCaptationData($request);
+        if ($captationData !== null) {
+            $data['fecha_captacion'] = $captationData['fecha_captacion'] ?? null;
+        }
+
         $property = Property::create($data);
         // Save exclusivity contract data if provided
         if ($request->has('exclusivity_data') && is_array($request->exclusivity_data)) {
@@ -94,7 +100,6 @@ class PropertyController extends Controller
             Exclusivity::create($exData);
         }
 
-        $captationData = $this->extractCaptationData($request);
         if ($captationData !== null) {
             $captationData['property_id'] = $property->id;
             $captationData['user_id'] = $data['agent_id'] ?: Auth::id();
@@ -294,6 +299,11 @@ class PropertyController extends Controller
             }
         }
 
+        $captationData = $this->extractCaptationData($request);
+        if ($captationData !== null) {
+            $data['fecha_captacion'] = $captationData['fecha_captacion'] ?? null;
+        }
+
         $property->update($data);
 
         if ($request->has('exclusivity_data') && is_array($request->exclusivity_data)) {
@@ -309,7 +319,6 @@ class PropertyController extends Controller
                 Exclusivity::create($exData);
             }
         }
-        $captationData = $this->extractCaptationData($request);
         if ($captationData !== null) {
             $captationData['user_id'] = Auth::id();
 
@@ -362,6 +371,11 @@ class PropertyController extends Controller
                         ->latest('id')
                         ->limit(8);
                 },
+                'clients' => function ($query) {
+                    $query->select('clients.id', 'clients.name', 'clients.phone', 'clients.email', 'clients.assigned_to')
+                        ->with('advisor:id,first_name,last_name')
+                        ->orderBy('client_property.created_at', 'desc');
+                },
             ])
             ->findOrFail($id);
 
@@ -384,6 +398,18 @@ class PropertyController extends Controller
                     'description' => $activity->description,
                     'date' => $activity->date,
                     'user_name' => $name !== '' ? $name : 'Sin asesor',
+                ];
+            })->values(),
+            'clients' => $property->clients->map(function ($client) {
+                $advisorName = trim((string) (($client->advisor->first_name ?? '') . ' ' . ($client->advisor->last_name ?? '')));
+
+                return [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'phone' => $client->phone,
+                    'email' => $client->email,
+                    'assigned_at' => optional($client->pivot)->created_at,
+                    'advisor_name' => $advisorName !== '' ? $advisorName : 'Sin asesor',
                 ];
             })->values(),
         ]);
@@ -522,6 +548,13 @@ class PropertyController extends Controller
     private function extractCaptationData(Request $request): ?array
     {
         if (!$request->has('captation_data') || !is_array($request->captation_data)) {
+            $standaloneDate = $request->input('fecha_captacion');
+            if ($this->isFilledCaptationValue($standaloneDate)) {
+                return $this->normalizeCaptationData([
+                    'fecha_captacion' => $standaloneDate,
+                ]);
+            }
+
             return null;
         }
 
@@ -533,15 +566,22 @@ class PropertyController extends Controller
             }
         }
 
+        $standaloneDate = $request->input('fecha_captacion');
+        if ($this->isFilledCaptationValue($standaloneDate)) {
+            return $this->normalizeCaptationData([
+                'fecha_captacion' => $standaloneDate,
+            ]);
+        }
+
         return null;
     }
 
     private function normalizePropertyOfferPrices(array $data, ?Property $property = null): array
     {
-        $typeSale = strtolower((string) ($data['type_sale'] ?? $property?->type_sale ?? ''));
-        $salePrice = $this->normalizeOfferPriceValue($data['sale_price'] ?? $property?->sale_price ?? null);
-        $rentalPrice = $this->normalizeOfferPriceValue($data['rental_price'] ?? $property?->rental_price ?? null);
-        $primaryPrice = $this->normalizeOfferPriceValue($data['price'] ?? $property?->price ?? null);
+        $typeSale = strtolower((string) ($data['type_sale'] ?? optional($property)->type_sale ?? ''));
+        $salePrice = $this->normalizeOfferPriceValue($data['sale_price'] ?? optional($property)->sale_price ?? null);
+        $rentalPrice = $this->normalizeOfferPriceValue($data['rental_price'] ?? optional($property)->rental_price ?? null);
+        $primaryPrice = $this->normalizeOfferPriceValue($data['price'] ?? optional($property)->price ?? null);
 
         if ($typeSale === 'venta') {
             $salePrice = $salePrice ?? $primaryPrice;
@@ -601,6 +641,10 @@ class PropertyController extends Controller
 
     private function normalizeCaptationData(array $captationData): array
     {
+        if (empty($captationData['fecha_captacion'])) {
+            $captationData['fecha_captacion'] = now()->format('Y-m-d');
+        }
+
         $booleanFields = [
             'fotos_descargadas',
             'enviado_para_flyer',

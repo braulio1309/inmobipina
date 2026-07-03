@@ -245,8 +245,9 @@ class ReportController extends Controller
             ->count();
 
         $captacionesCount = DB::table('properties')
-            ->whereBetween('created_at', [$start, $end])
-            ->whereNotNull('approved_by')
+            ->leftJoin('property_captations', 'property_captations.property_id', '=', 'properties.id')
+            ->whereBetween('property_captations.fecha_captacion', [$start, $end])
+            ->whereNotNull('properties.approved_by')
             ->count();
 
         $reservationsCount = DB::table('operations')

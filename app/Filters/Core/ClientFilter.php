@@ -62,4 +62,12 @@ class ClientFilter extends FilterBuilder
             $builder->where('status', $status);
         });
     }
+
+    public function source($source = null)
+    {
+        $source = $source ?: request()->input('source');
+        $this->builder->when($source, function (Builder $builder) use ($source) {
+            $builder->where('source', $source);
+        });
+    }
 }

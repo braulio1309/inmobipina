@@ -21,7 +21,10 @@ class PropertyExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function query()
     {
-        $query = Property::with(['creator', 'agent']);
+        $query = Property::query()
+            ->with(['creator', 'agent', 'captation'])
+            ->leftJoin('property_captations', 'property_captations.property_id', '=', 'properties.id')
+            ->select('properties.*');
 
         // Filter by type
         $types = $this->request->input('type');
@@ -59,7 +62,10 @@ class PropertyExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             $date = json_decode(htmlspecialchars_decode($date), true);
         }
         if ($date && is_array($date) && isset($date['start'])) {
-            $query->whereBetween(DB::raw('DATE(created_at)'), [$date['start'], $date['end']]);
+            $query->whereBetween(
+                DB::raw('DATE(property_captations.fecha_captacion)'),
+                [$date['start'], $date['end']]
+            );
         }
 
         // Filter by price range
@@ -91,7 +97,7 @@ class PropertyExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             });
         }
 
-        return $query->latest();
+        return $query->latest('properties.created_at');
     }
 
     public function headings(): array
@@ -108,7 +114,7 @@ class PropertyExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             'Baños',
             'Estatus',
             'Asesor',
-            'Fecha de Registro',
+            'Fecha de Captación',
         ];
     }
 
@@ -119,6 +125,12 @@ class PropertyExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             : ($row->creator
                 ? trim(($row->creator->first_name ?? '') . ' ' . ($row->creator->last_name ?? ''))
                 : 'N/A');
+
+        $captationDate = $row->captation && $row->captation->fecha_captacion
+            ? $row->captation->fecha_captacion->format('Y-m-d')
+            : ($row->fecha_captacion
+                ? $row->fecha_captacion->format('Y-m-d')
+                : ($row->created_at ? $row->created_at->format('Y-m-d H:i') : ''));
 
         return [
             $row->id,
@@ -132,7 +144,7 @@ class PropertyExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             $row->bathrooms,
             $row->status,
             $creatorName,
-            $row->created_at ? $row->created_at->format('Y-m-d H:i') : '',
+            $captationDate,
         ];
     }
 }

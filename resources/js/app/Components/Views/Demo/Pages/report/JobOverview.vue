@@ -83,6 +83,31 @@
                     </div>
                 </div>
 
+                <div class="row mb-primary">
+                    <div class="col-12">
+                        <div class="card card-with-shadow border-0">
+                            <div class="card-body">
+                                <h4 class="card-title mb-3">Resumen de rendimiento por actividad</h4>
+                                <div class="activity-cards-grid">
+                                    <div
+                                        v-for="(activity, index) in activityMetricCards"
+                                        :key="`activity-metric-${activity.type}`"
+                                        class="activity-metric-card"
+                                    >
+                                        <div class="activity-metric-icon" :style="{ background: getActivityMetricGradient(index) }">
+                                            <i :class="getActivityIcon(activity.type)"></i>
+                                        </div>
+                                        <div class="activity-metric-content">
+                                            <div class="text-muted mb-1 text-uppercase small">{{ formatActivityTypeLabel(activity.type) }}</div>
+                                            <div class="h3 mb-0">{{ activity.count }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row mt-primary">
                     
                     <div class="col-12 col-lg-6">
@@ -186,6 +211,28 @@ export default {
         canFilterAdvisors() {
             return Boolean(this.props?.isAdmin ?? this.isAdmin);
         },
+        activityMetricCards() {
+            const metrics = this.reports?.metrics || {};
+            const normalized = this.getNormalizedActivitiesByType(metrics.activities_by_type);
+            const baseTypes = ['captación', 'demostración', 'publicidad', 'reserva', 'venta', 'alquiler'];
+
+            const cards = baseTypes.map((type) => ({
+                type,
+                count: Number(normalized[type] || 0),
+            }));
+
+            if (!normalized['demostración'] && Number(metrics.demonstrations_count || 0) > 0) {
+                cards.find(card => card.type === 'demostración').count = Number(metrics.demonstrations_count || 0);
+            }
+            if (!normalized['venta'] && Number(metrics.sales_count || 0) > 0) {
+                cards.find(card => card.type === 'venta').count = Number(metrics.sales_count || 0);
+            }
+            if (!normalized['reserva'] && Number(metrics.reservations_count || 0) > 0) {
+                cards.find(card => card.type === 'reserva').count = Number(metrics.reservations_count || 0);
+            }
+
+            return cards;
+        },
     },
 
     mounted() {
@@ -272,8 +319,9 @@ export default {
         },
 
         processChartData(metrics) {
-            const activityKeys = Object.keys(metrics.activities_by_type);
-            const activityValues = Object.values(metrics.activities_by_type).map(val => ({ value: val }));
+            const normalizedActivities = this.getNormalizedActivitiesByType(metrics.activities_by_type);
+            const activityKeys = Object.keys(normalizedActivities);
+            const activityValues = Object.values(normalizedActivities).map(val => ({ value: val }));
 
             this.activitiesChart.labels = activityKeys.map(key => 
                 key.charAt(0).toUpperCase() + key.slice(1)
@@ -294,6 +342,76 @@ export default {
 
         formatCurrency(val) {
             return (parseFloat(val) || 0).toFixed(2);
+        },
+
+        getNormalizedActivitiesByType(raw) {
+            if (!raw) {
+                return {};
+            }
+
+            if (Array.isArray(raw)) {
+                return raw.reduce((accumulator, item) => {
+                    const type = String(item?.type || '').toLowerCase().trim();
+                    if (!type) {
+                        return accumulator;
+                    }
+
+                    accumulator[type] = Number(item?.count || 0);
+                    return accumulator;
+                }, {});
+            }
+
+            if (typeof raw === 'object') {
+                return Object.entries(raw).reduce((accumulator, [type, count]) => {
+                    const normalizedType = String(type || '').toLowerCase().trim();
+                    if (!normalizedType) {
+                        return accumulator;
+                    }
+
+                    accumulator[normalizedType] = Number(count || 0);
+                    return accumulator;
+                }, {});
+            }
+
+            return {};
+        },
+
+        formatActivityTypeLabel(type) {
+            if (!type) {
+                return 'Actividad';
+            }
+
+            return String(type)
+                .replace(/[_-]+/g, ' ')
+                .trim()
+                .replace(/\s+/g, ' ')
+                .replace(/\b\w/g, (char) => char.toUpperCase());
+        },
+
+        getActivityIcon(type) {
+            const icons = {
+                'demostración': 'fas fa-eye',
+                'captación': 'fas fa-building',
+                'publicidad': 'fas fa-bullhorn',
+                'venta': 'fas fa-dollar-sign',
+                'alquiler': 'fas fa-key',
+                'reserva': 'fas fa-calendar-check',
+            };
+
+            return icons[String(type || '').toLowerCase()] || 'fas fa-tasks';
+        },
+
+        getActivityMetricGradient(index) {
+            const gradients = [
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                'linear-gradient(135deg, #f7971e 0%, #ffd200 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            ];
+
+            return gradients[index % gradients.length];
         }
     }
 }
@@ -306,5 +424,42 @@ export default {
 }
 .mb-primary {
     margin-bottom: 1.5rem;
+}
+
+.activity-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.activity-metric-card {
+    display: flex;
+    align-items: center;
+    border: 1px solid #edf0f2;
+    border-radius: 12px;
+    padding: 14px;
+    background: #fff;
+}
+
+.activity-metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 18px;
+    margin-right: 12px;
+}
+
+.activity-metric-content {
+    min-width: 0;
+}
+
+@media (max-width: 768px) {
+    .activity-cards-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>

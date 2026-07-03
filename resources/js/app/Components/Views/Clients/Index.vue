@@ -236,6 +236,19 @@
                                 { id: "cerrado", value: "Cerrado" },
                             ]
                         },
+                        {
+                            "title": 'Medio de captación',
+                            "type": "drop-down-filter",
+                            "key": "source",
+                            "option": [
+                                { id: "telefono", value: "Por teléfono" },
+                                { id: "instagram", value: "Instagram" },
+                                { id: "tu_inmueble", value: "Tu Inmueble" },
+                                { id: "pendon", value: "Pendón" },
+                                { id: "tiktok", value: "TikTok" },
+                                { id: "facebook", value: "Facebook" },
+                            ]
+                        },
                     ],
                     paginationType: "pagination",
                     responsive: true,
