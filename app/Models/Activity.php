@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Core\Auth\Traits\Attribute\UserAttribute;
-use App\Models\Core\Auth\Traits\Boot\UserBootTrait;
 use App\Models\Core\Auth\Traits\Method\HasRoles;
 use App\Models\Core\Auth\Traits\Method\UserMethod;
 use App\Models\Core\Auth\Traits\Method\UserStatus;
@@ -25,7 +24,6 @@ class Activity extends Model
         UserScope,
         HasRoles,
         UserRules,
-        UserBootTrait,
         Eventually,
         Notifiable,
         CausesActivity,

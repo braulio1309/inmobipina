@@ -192,6 +192,71 @@
             return $value !== null && $value !== '' ? number_format((float) $value, 2, ',', '.') : '';
         };
 
+        $formatMoneyWithWords = function ($value) use ($formatMoney) {
+            if ($value === null || $value === '') {
+                return '';
+            }
+
+            $amount = (float) $value;
+            $absoluteAmount = abs($amount);
+            $integerPart = (int) floor($absoluteAmount);
+            $decimalPart = (int) round(($absoluteAmount - $integerPart) * 100);
+
+            if ($decimalPart === 100) {
+                $integerPart += 1;
+                $decimalPart = 0;
+            }
+
+            $words = '';
+
+            if (class_exists(\NumberFormatter::class)) {
+                $formatter = new \NumberFormatter('es', \NumberFormatter::SPELLOUT);
+                $words = (string) $formatter->format($integerPart);
+            }
+
+            if ($words === '') {
+                $words = (string) $integerPart;
+            }
+
+            if (function_exists('mb_convert_case')) {
+                $words = mb_convert_case($words, MB_CASE_TITLE, 'UTF-8');
+            } else {
+                $words = ucfirst($words);
+            }
+
+            $prefix = $amount < 0 ? 'Menos ' : '';
+
+            return $prefix
+                . $words
+                . ' dolares con '
+                . str_pad((string) $decimalPart, 2, '0', STR_PAD_LEFT)
+                . '/100'
+                . ' ('
+                . $formatMoney($amount)
+                . ' USD)';
+        };
+
+        $extractNumericAmount = function ($value) {
+            if ($value === null || $value === '') {
+                return null;
+            }
+
+            if (is_numeric($value)) {
+                return (float) $value;
+            }
+
+            $text = (string) $value;
+
+            if (preg_match('/-?\d{1,3}(?:[\.\s]\d{3})*(?:,\d+)?|-?\d+(?:[\.,]\d+)?/', $text, $matches)) {
+                $normalized = str_replace([' ', '.'], '', $matches[0]);
+                $normalized = str_replace(',', '.', $normalized);
+
+                return is_numeric($normalized) ? (float) $normalized : null;
+            }
+
+            return null;
+        };
+
         $mark = function ($value) {
             return $value ? '[X]' : '[ ]';
         };
@@ -223,8 +288,16 @@
         $capacidadEstacionamiento = $formatText($captation->capacidad_estacionamiento, $property->parking_spots);
         $ubicacion = $formatText($captation->ubicacion, $property->address);
         $autorizacionNombre = $formatText($captation->autorizacion_nombre, $captation->cliente_nombre_apellido);
-        $autorizacionPrecio = $formatText($captation->autorizacion_precio, $formatMoney($precioCliente) !== '' ? $formatMoney($precioCliente) . ' USD' : '');
-        $autorizacionConstituido = $formatText($captation->autorizacion_inmueble_constituido, $property->description);
+        $autorizacionPrecioMonto = $extractNumericAmount($precioCliente);
+
+        if ($autorizacionPrecioMonto === null) {
+            $autorizacionPrecioMonto = $extractNumericAmount($captation->autorizacion_precio ?? null);
+        }
+
+        $autorizacionPrecio = $autorizacionPrecioMonto !== null
+            ? $formatMoneyWithWords($autorizacionPrecioMonto)
+            : $formatText($captation->autorizacion_precio);
+        $autorizacionConstituido = $tipoInmueble;
         $autorizacionUbicacion = $formatText($captation->autorizacion_ubicado_en, $ubicacion);
         $tipoNegociacionNormalizada = strtolower($tipoNegociacion);
         $esAlquiler = $tipoNegociacionNormalizada === 'alquiler' || ((bool) $captation->autoriza_alquiler && !(bool) $captation->autoriza_venta);
@@ -267,7 +340,7 @@
             </tr>
             <tr>
                 <td>TIPO DE NEGOCIACION: <span class="line-value">{{ $tipoNegociacion }}</span></td>
-                <td>% COMISION: <span class="line-value">{{ $formatText($captation->porcentaje_comision) }}</span></td>
+                <td>{{ $esAlquiler ? 'COMISION' : '% COMISION' }}: <span class="line-value">{{ $esAlquiler ? $autorizacionComisionAlquiler : $formatText($captation->porcentaje_comision) }}</span></td>
             </tr>
         </table>
 

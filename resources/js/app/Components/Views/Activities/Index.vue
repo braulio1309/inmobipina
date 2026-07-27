@@ -237,19 +237,19 @@ export default {
         },
 
         confirmed() {
-            let url = `${actions.DATATABLE_DATA}/${this.rowData.id}`;
+            const url = `/activities/${this.rowData.id}`;
             this.deleteLoader = true;
             this.axiosDelete(url)
                 .then(response => {
-                    this.deleteLoader = false;
                     $("#demo-delete").modal('hide');
                     this.cancelled();
-                    this.$toastr.s(response.data.message);
+                    this.$toastr.s(response?.data?.message || 'Actividad eliminada correctamente.');
                     this.searchAndSelectFilterOptions();
-                }).catch(({error}) => {
-
-                //trigger after error
+                }).catch((error) => {
+                    const message = error?.response?.data?.message || 'No se pudo eliminar la actividad.';
+                    this.$toastr.e(message);
             }).finally(() => {
+                    this.deleteLoader = false;
                 this.$hub.$emit('reload-' + this.tableId);
             });
         },

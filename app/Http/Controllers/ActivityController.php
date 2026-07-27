@@ -10,8 +10,12 @@ use App\Filters\Core\ActivityFilter;
 use App\Services\Core\Auth\ActivityService;
 use App\Exports\ActivityExport;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 
 class ActivityController extends Controller
@@ -86,57 +90,165 @@ class ActivityController extends Controller
 
     public function create(Request $request)
     {
-        $data = $request->only(['result', 'type', 'description', 'date', 'client_id', 'property_id']);
-        $data['user_id'] = Auth::user()->id;
-        if (!empty($data['date'])) {
-            $data['date'] = $this->normalizeActivityDate($data['date']);
+        $validated = $request->validate([
+            'result' => ['nullable', 'string', 'max:255'],
+            'type' => ['required', Rule::in(['demostración', 'captación', 'venta', 'alquiler', 'reserva'])],
+            'description' => ['nullable', 'string'],
+            'date' => ['required', 'date'],
+            'client_id' => ['nullable', 'exists:clients,id'],
+            'property_id' => ['nullable', 'exists:properties,id'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'image' => ['nullable', 'file', 'image', 'max:5120'],
+        ]);
+
+        $userId = Auth::id();
+        $activityDate = $this->normalizeActivityDate($validated['date']);
+
+        $duplicateQuery = Activity::query()
+            ->where('user_id', $userId)
+            ->where('type', $validated['type'])
+            ->whereDate('date', $activityDate->toDateString())
+            ->where('created_at', '>=', now()->subMinutes(3));
+
+        $duplicateQuery->where('description', $validated['description'] ?? null);
+        $duplicateQuery->where('result', $validated['result'] ?? null);
+
+        if (!empty($validated['property_id'])) {
+            $duplicateQuery->where('property_id', $validated['property_id']);
+        } else {
+            $duplicateQuery->whereNull('property_id');
         }
 
-        // Handle geolocation
-        if ($request->filled('latitude') && $request->filled('longitude')) {
-            $data['latitude'] = $request->input('latitude');
-            $data['longitude'] = $request->input('longitude');
+        if (!empty($validated['client_id'])) {
+            $duplicateQuery->where('client_id', $validated['client_id']);
+        } else {
+            $duplicateQuery->whereNull('client_id');
         }
 
-        $Activity = Activity::create($data);
-
-        // Handle image upload
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('activity_images', 'public');
-            $Activity->update(['image_path' => $path]);
+        if ($duplicateQuery->exists()) {
+            return response()->json([
+                'message' => 'Esta actividad ya fue registrada recientemente. Evitamos un duplicado.',
+            ], 200);
         }
 
-        return created_responses('Activity');
+        try {
+            DB::beginTransaction();
+
+            $data = [
+                'user_id' => $userId,
+                'result' => $validated['result'] ?? null,
+                'type' => $validated['type'],
+                'description' => $validated['description'] ?? null,
+                'date' => $activityDate,
+                'client_id' => $validated['client_id'] ?? null,
+                'property_id' => $validated['property_id'] ?? null,
+                'latitude' => $validated['latitude'] ?? null,
+                'longitude' => $validated['longitude'] ?? null,
+            ];
+
+            if ($request->hasFile('image')) {
+                $data['image_path'] = $request->file('image')->store('activity_images', 'public');
+            }
+
+            Activity::create($data);
+
+            DB::commit();
+
+            return created_responses('Activity');
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('Error al crear actividad', [
+                'message' => $e->getMessage(),
+                'user_id' => $userId,
+            ]);
+
+            return response()->json([
+                'message' => 'No se pudo guardar la actividad. Intenta nuevamente.',
+            ], 500);
+        }
     }
 
     public function edit(Request $request, $id)
     {
-        $Activity = Activity::where('id', $id)->firstOrFail();
-        $data = $request->only(['result', 'type', 'description', 'date', 'client_id', 'property_id']);
+        $validated = $request->validate([
+            'result' => ['nullable', 'string', 'max:255'],
+            'type' => ['required', Rule::in(['demostración', 'captación', 'venta', 'alquiler', 'reserva'])],
+            'description' => ['nullable', 'string'],
+            'date' => ['required', 'date'],
+            'client_id' => ['nullable', 'exists:clients,id'],
+            'property_id' => ['nullable', 'exists:properties,id'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'image' => ['nullable', 'file', 'image', 'max:5120'],
+        ]);
 
-        if (!empty($data['date'])) {
-            $data['date'] = $this->normalizeActivityDate($data['date']);
+        $activity = Activity::where('id', $id)->firstOrFail();
+
+        try {
+            DB::beginTransaction();
+
+            $data = [
+                'result' => $validated['result'] ?? null,
+                'type' => $validated['type'],
+                'description' => $validated['description'] ?? null,
+                'date' => $this->normalizeActivityDate($validated['date']),
+                'client_id' => $validated['client_id'] ?? null,
+                'property_id' => $validated['property_id'] ?? null,
+                'latitude' => $validated['latitude'] ?? null,
+                'longitude' => $validated['longitude'] ?? null,
+            ];
+
+            if ($request->hasFile('image')) {
+                $data['image_path'] = $request->file('image')->store('activity_images', 'public');
+            }
+
+            $activity->update($data);
+
+            DB::commit();
+
+            return created_responses('Activity');
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('Error al editar actividad', [
+                'message' => $e->getMessage(),
+                'activity_id' => $id,
+                'user_id' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'message' => 'No se pudo actualizar la actividad. Intenta nuevamente.',
+            ], 500);
         }
-
-        if ($request->filled('latitude') && $request->filled('longitude')) {
-            $data['latitude'] = $request->input('latitude');
-            $data['longitude'] = $request->input('longitude');
-        }
-
-        // Handle image upload on edit
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('activity_images', 'public');
-            $data['image_path'] = $path;
-        }
-
-        $Activity->update($data);
-
-        return created_responses('Activity');
     }
 
     public function show(Activity $Activity)
     {
         return response()->json($Activity->load('user', 'client', 'property'));
+    }
+
+    public function destroy($id)
+    {
+        $activity = Activity::query()->findOrFail($id);
+
+        try {
+            $activity->delete();
+
+            return response()->json([
+                'message' => 'Actividad eliminada correctamente.',
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Error al eliminar actividad', [
+                'message' => $e->getMessage(),
+                'activity_id' => $id,
+                'user_id' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'message' => 'No se pudo eliminar la actividad. Intenta nuevamente.',
+                 'message2' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function export(Request $request)

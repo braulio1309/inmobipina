@@ -65,13 +65,17 @@ class RealEstateDashboardService
         $exclusivitiesCount = Exclusivity::whereBetween('start_date', [$startDate, $endDate])
             ->count();
 
-        // Count of captaciones (properties created and approved)
-        $captacionesCount = Property::whereBetween('created_at', [$startDate, $endDate])
-            ->whereNotNull('approved_by')
+        // Count of captaciones aprobadas por fecha de captacion
+        $captacionesCount = DB::table('properties')
+            ->join('property_captations', 'property_captations.property_id', '=', 'properties.id')
+            ->whereBetween('property_captations.fecha_captacion', [$startDate, $endDate])
+            ->whereNotNull('properties.approved_by')
             ->count();
 
-        // Total properties
-        $totalProperties = Property::whereBetween('created_at', [$startDate, $endDate])
+        // Total properties captadas en el rango
+        $totalProperties = DB::table('properties')
+            ->join('property_captations', 'property_captations.property_id', '=', 'properties.id')
+            ->whereBetween('property_captations.fecha_captacion', [$startDate, $endDate])
             ->count();
 
         // Total company commission from operations in the date range
@@ -240,12 +244,14 @@ class RealEstateDashboardService
             ->orderBy('period')
             ->get();
 
-        $captacionesData = Property::select(
-            DB::raw("DATE_FORMAT(created_at, '$format') as period"),
+        $captacionesData = DB::table('properties')
+            ->join('property_captations', 'property_captations.property_id', '=', 'properties.id')
+            ->select(
+            DB::raw("DATE_FORMAT(property_captations.fecha_captacion, '$format') as period"),
             DB::raw('COUNT(*) as count')
         )
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->whereNotNull('approved_by')
+            ->whereBetween('property_captations.fecha_captacion', [$startDate, $endDate])
+            ->whereNotNull('properties.approved_by')
             ->groupBy('period')
             ->orderBy('period')
             ->get();

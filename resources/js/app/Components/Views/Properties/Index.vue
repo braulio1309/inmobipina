@@ -250,7 +250,7 @@
                                 if (value == 'Vendido')
                                     clase = 'success'
                                 if (value == 'Alquilado')
-                                    clase = 'info'
+                                    clase = 'purple'
                                 
                                 return `<span class="badge badge-sm badge-pill badge-${clase}">${row.status}</span>`;
                             }

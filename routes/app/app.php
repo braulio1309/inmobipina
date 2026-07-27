@@ -67,6 +67,7 @@ Route::get('activities/export', [ActivityController::class, 'export'])->name('Ac
 Route::post('activities/create', [ActivityController::class, 'create'])->name('Activity.crear');
 Route::post('edit/activities/{id}', [ActivityController::class, 'edit'])->name('Activity.edit');
 Route::get('activities/{activity}', [ActivityController::class, 'show'])->name('Activity.show');
+Route::delete('activities/{id}', [ActivityController::class, 'destroy'])->name('Activity.delete');
 
 Route::get('operations/listar', [OperationController::class, 'listado'])->name('operation.listar');
 Route::get('operations/active-rentals', [OperationController::class, 'activeRentals'])->name('operation.active-rentals');

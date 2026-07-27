@@ -140,6 +140,7 @@ export default {
     data() {
         return {
             preloader: false,
+            isSubmitting: false,
             inputs: {
                 type: '',
                 description: '',
@@ -303,6 +304,10 @@ export default {
         },
 
         submit() {
+            if (this.isSubmitting) {
+                return;
+            }
+
             const formData = new FormData();
             formData.append('type', this.inputs.type || '');
             formData.append('description', this.inputs.description || '');
@@ -321,21 +326,30 @@ export default {
             const url = isEdit ? `/edit/activities/${this.inputs.id}` : '/activities/create';
 
             this.preloader = true;
+            this.isSubmitting = true;
             const token = document.head.querySelector('meta[name="csrf-token"]');
             const headers = { 'X-CSRF-TOKEN': token ? token.content : '' };
 
             import('axios').then(({ default: axios }) => {
                 axios.post(url, formData, { headers })
                     .then(response => { this.afterSuccess(response); })
-                    .catch(() => {
+                    .catch((error) => {
                         this.preloader = false;
-                        this.$toastr.e('Error al guardar la actividad.');
+                        this.isSubmitting = false;
+
+                        const message = error?.response?.data?.message || 'Error al guardar la actividad.';
+                        this.$toastr.e(message);
                     });
+            }).catch(() => {
+                this.preloader = false;
+                this.isSubmitting = false;
+                this.$toastr.e('Error inesperado al preparar el guardado.');
             });
         },
 
         afterSuccess(response) {
             this.preloader = false;
+            this.isSubmitting = false;
             this.$toastr.s(response.data.message || 'Actividad guardada correctamente.');
             this.$hub.$emit('reload-' + this.tableId);
             this.$emit('close-modal');

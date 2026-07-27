@@ -585,7 +585,7 @@
                     <input v-model="captationData.precio_inmobiliaria" type="number" step="0.01" class="form-control"
                         placeholder="0.00">
                 </div>
-                <div class="col-md-4 mb-3">
+                <div v-if="showCaptationCommissionField" class="col-md-4 mb-3">
                     <label class="form-label">% comisión</label>
                     <input v-model="captationData.porcentaje_comision" type="number" step="0.01" class="form-control"
                         placeholder="Ej: 5">
@@ -1123,6 +1123,11 @@ export default {
 
         showRentalPriceField() {
             return ['alquiler', 'ambos'].includes(this.property.type_sale);
+        },
+
+        showCaptationCommissionField() {
+            const negotiationType = String(this.captationData.tipo_negociacion || this.property.type_sale || '').toLowerCase();
+            return negotiationType !== 'alquiler';
         }
     },
 
@@ -1948,6 +1953,7 @@ export default {
 
             if (this.property.type_sale === 'alquiler') {
                 this.property.price = this.property.rental_price || '';
+                this.captationData.porcentaje_comision = '';
                 return;
             }
 
@@ -1972,6 +1978,7 @@ export default {
             const propertyArea = source.square_meters || this.property.square_meters || '';
             const propertyAddress = source.address || this.property.address || '';
             const propertyDescription = this.exclusivityData.inmueble_descripcion || source.description || this.property.description || '';
+            const authorizationConstitutedFallback = this.exclusivityData.inmueble_descripcion || propertyType || propertyDescription || '';
             const pricePerSquareMeter = this.calculatePricePerSquareMeter(propertyPrice, propertyArea);
             const authorizationCharacter = this.deriveAuthorizationCharacter();
             const ownerName = this.exclusivityData.propietario_nombre || '';
@@ -1981,6 +1988,8 @@ export default {
             const registrationSummary = this.buildRegistrationSummary();
             const authorizationCharacterFallback = authorizationCharacter || (ownerName ? 'propietario' : '');
             const authorizationPrice = this.buildOfferPriceLabel(propertyTypeSale, salePrice, rentalPrice, propertyPrice);
+            const isRentalNegotiation = normalizedTypeSale === 'alquiler';
+            const commissionPercentageFallback = isRentalNegotiation ? '' : 5;
 
             this.syncPrimaryPriceFromOfferType();
 
@@ -1991,7 +2000,7 @@ export default {
                 tipo_inmueble: this.preferEditableCaptationValue(this.captationData.tipo_inmueble, propertyType),
                 precio_inmobiliaria: this.preferEditableCaptationValue(this.captationData.precio_inmobiliaria, propertyPrice),
                 precio_cliente: this.preferEditableCaptationValue(this.captationData.precio_cliente, propertyPrice),
-                porcentaje_comision: this.preferEditableCaptationValue(this.captationData.porcentaje_comision, 5),
+                porcentaje_comision: this.preferEditableCaptationValue(this.captationData.porcentaje_comision, commissionPercentageFallback),
                 tipo_negociacion: this.preferEditableCaptationValue(this.captationData.tipo_negociacion, propertyTypeSale),
                 cliente_nombre_apellido: this.preferEditableCaptationValue(this.captationData.cliente_nombre_apellido, ownerName),
                 cliente_nro_contacto: this.preferEditableCaptationValue(this.captationData.cliente_nro_contacto, ownerPhone),
@@ -2010,10 +2019,12 @@ export default {
                 autorizacion_caracter: this.preferEditableCaptationValue(this.captationData.autorizacion_caracter, authorizationCharacterFallback),
                 autoriza_venta: this.captationData.autoriza_venta ?? ['venta', 'ambos'].includes(normalizedTypeSale),
                 autoriza_alquiler: this.captationData.autoriza_alquiler ?? ['alquiler', 'ambos'].includes(normalizedTypeSale),
-                autorizacion_inmueble_constituido: propertyDescription,
+                autorizacion_inmueble_constituido: this.preferEditableCaptationValue(this.captationData.autorizacion_inmueble_constituido, authorizationConstitutedFallback),
                 autorizacion_ubicado_en: propertyAddress,
                 autorizacion_precio: this.preferEditableCaptationValue(this.captationData.autorizacion_precio, authorizationPrice),
-                autorizacion_comision: this.captationData.porcentaje_comision ? `${this.captationData.porcentaje_comision}%` : '',
+                autorizacion_comision: isRentalNegotiation
+                    ? '1 mes'
+                    : (this.captationData.porcentaje_comision ? `${this.captationData.porcentaje_comision}%` : ''),
                 autorizacion_nacionalidad: this.captationData.autorizacion_nacionalidad || 'Venezolano(a)',
             };
         },
