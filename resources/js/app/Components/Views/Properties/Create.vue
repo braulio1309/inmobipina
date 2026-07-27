@@ -1149,8 +1149,28 @@ export default {
     methods: {
         async loadAgents() {
             try {
-                const response = await this.axiosGet('admin/auth/users');
-                const users = Array.isArray(response.data) ? response.data : (response.data.data || []);
+                const users = [];
+                let page = 1;
+                let lastPage = 1;
+
+                do {
+                    const response = await this.axiosGet('admin/auth/users', {
+                        params: {
+                            per_page: 100,
+                            page,
+                        },
+                    });
+
+                    const responseData = response?.data || {};
+                    const pageUsers = Array.isArray(responseData.data)
+                        ? responseData.data
+                        : (Array.isArray(responseData) ? responseData : []);
+
+                    users.push(...pageUsers);
+
+                    lastPage = Number(responseData.last_page || 1);
+                    page += 1;
+                } while (page <= lastPage);
 
                 this.agentsList = [
                     { id: "", value: "Elige uno" },
