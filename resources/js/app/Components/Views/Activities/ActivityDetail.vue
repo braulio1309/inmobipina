@@ -62,11 +62,14 @@
                     <i class="fas fa-image text-primary mr-2"></i>
                     <strong>Imagen de soporte:</strong>
                     <div class="mt-2">
-                        <img :src="'/storage/' + activity.image_path"
+                        <img v-if="isPreviewablePath(activity.image_path)" :src="'/storage/' + activity.image_path"
                              class="img-fluid rounded shadow-sm"
                              style="max-height:250px;cursor:pointer;"
                              @click="openImage"
                              alt="Imagen de soporte"/>
+                        <a v-else :href="'/storage/' + activity.image_path" target="_blank" class="btn btn-outline-secondary btn-sm">
+                            Abrir archivo DNG
+                        </a>
                     </div>
                 </div>
 
@@ -206,6 +209,10 @@ export default {
 
         fullName(user) {
             return ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || 'N/A';
+        },
+
+        isPreviewablePath(path) {
+            return !/\.dng$/i.test(String(path || ''));
         },
 
         openImage() {

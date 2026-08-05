@@ -116,7 +116,7 @@ class PropertyController extends Controller
         $property = Property::findOrFail($id);
 
         $request->validate([
-            'images.*' => 'required|file|mimes:jpeg,jpg,png,gif,webp|max:5120',
+            'images.*' => 'required|file|mimes:jpeg,jpg,png,gif,webp,dng|max:5120',
         ]);
 
         $saved = [];

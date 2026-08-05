@@ -85,13 +85,19 @@
                     <div class="col-sm-9">
                         <input type="file"
                                class="form-control-file"
-                               accept="image/*"
+                               accept="image/*,.dng"
                                @change="onImageChange"/>
                         <div v-if="imagePreview" class="mt-2">
                             <img :src="imagePreview" style="max-width:200px;max-height:120px;border-radius:6px;" alt="Preview"/>
                         </div>
+                        <div v-else-if="imageFile" class="mt-2 text-muted small">
+                            Archivo seleccionado: {{ imageFile.name }}
+                        </div>
                         <div v-else-if="inputs.image_path" class="mt-2">
-                            <img :src="'/storage/' + inputs.image_path" style="max-width:200px;max-height:120px;border-radius:6px;" alt="Imagen actual"/>
+                            <img v-if="isPreviewablePath(inputs.image_path)" :src="'/storage/' + inputs.image_path" style="max-width:200px;max-height:120px;border-radius:6px;" alt="Imagen actual"/>
+                            <a v-else :href="'/storage/' + inputs.image_path" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                Ver archivo actual
+                            </a>
                             <small class="text-muted d-block">Imagen actual</small>
                         </div>
                     </div>
@@ -214,9 +220,26 @@ export default {
             const file = event.target.files[0];
             if (!file) return;
             this.imageFile = file;
+            this.imagePreview = null;
+            if (!this.isPreviewableFile(file)) {
+                return;
+            }
             const reader = new FileReader();
             reader.onload = (e) => { this.imagePreview = e.target.result; };
             reader.readAsDataURL(file);
+        },
+
+        isPreviewableFile(file) {
+            const fileName = file && file.name ? file.name : '';
+            return !this.isDngFileName(fileName);
+        },
+
+        isPreviewablePath(path) {
+            return !this.isDngFileName(path);
+        },
+
+        isDngFileName(value) {
+            return /\.dng$/i.test(String(value || ''));
         },
 
         captureLocation(silent = false) {

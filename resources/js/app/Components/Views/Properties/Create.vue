@@ -209,17 +209,20 @@
                         id="property-images-input"
                         type="file"
                         multiple
-                        accept="image/*"
+                        accept="image/*,.dng"
                         class="form-control"
                         @change="onFilesSelected"
                     >
-                    <small class="text-muted">Formatos permitidos: JPG, PNG, GIF, WEBP. Máx. 5MB por imagen.</small>
+                    <small class="text-muted">Formatos permitidos: JPG, PNG, GIF, WEBP, DNG. Máx. 5MB por imagen.</small>
                 </div>
 
                 <div v-if="selectedFiles.length > 0" class="mb-3">
                     <div class="row">
                         <div class="col-6 col-md-2 mb-2" v-for="(preview, idx) in filePreviews" :key="idx">
-                            <img :src="preview" class="img-thumbnail" style="height:80px;object-fit:cover;width:100%;">
+                            <img v-if="preview.previewable" :src="preview.src" class="img-thumbnail" style="height:80px;object-fit:cover;width:100%;">
+                            <div v-else class="img-thumbnail d-flex align-items-center justify-content-center text-muted small text-center p-2" style="height:80px;width:100%;">
+                                {{ preview.name }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -229,7 +232,10 @@
                     <div class="row">
                         <div class="col-6 col-md-2 mb-2" v-for="(img, idx) in uploadedImages" :key="idx">
                             <div class="position-relative">
-                                <img :src="'/storage/' + img.path" class="img-thumbnail" style="height:80px;object-fit:cover;width:100%;">
+                                <img v-if="isPreviewableImagePath(img.path)" :src="'/storage/' + img.path" class="img-thumbnail" style="height:80px;object-fit:cover;width:100%;">
+                                <a v-else :href="'/storage/' + img.path" target="_blank" class="img-thumbnail d-flex align-items-center justify-content-center text-muted small text-center p-2" style="height:80px;width:100%;">
+                                    Abrir DNG
+                                </a>
                                 <button
                                     type="button"
                                     class="btn btn-sm btn-danger position-absolute"
@@ -1681,10 +1687,27 @@ export default {
             this.selectedFiles = Array.from(event.target.files);
             this.filePreviews = [];
             this.selectedFiles.forEach(file => {
+                if (!this.isPreviewableImagePath(file.name)) {
+                    this.filePreviews.push({
+                        name: file.name,
+                        src: null,
+                        previewable: false,
+                    });
+                    return;
+                }
+
                 const reader = new FileReader();
-                reader.onload = (e) => this.filePreviews.push(e.target.result);
+                reader.onload = (e) => this.filePreviews.push({
+                    name: file.name,
+                    src: e.target.result,
+                    previewable: true,
+                });
                 reader.readAsDataURL(file);
             });
+        },
+
+        isPreviewableImagePath(path) {
+            return !/\.dng$/i.test(String(path || ''));
         },
 
         async uploadImages() {

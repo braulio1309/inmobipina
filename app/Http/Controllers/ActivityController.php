@@ -20,7 +20,6 @@ use Throwable;
 
 class ActivityController extends Controller
 {
-
     protected function normalizeActivityDate($date)
     {
         if (empty($date)) {
@@ -92,14 +91,14 @@ class ActivityController extends Controller
     {
         $validated = $request->validate([
             'result' => ['nullable', 'string', 'max:255'],
-            'type' => ['required', Rule::in(['demostración', 'captación', 'venta', 'alquiler', 'reserva'])],
+            'type' => ['required', Rule::in(['demostración', 'captación', 'publicidad', 'venta', 'alquiler', 'reserva'])],
             'description' => ['nullable', 'string'],
             'date' => ['required', 'date'],
             'client_id' => ['nullable', 'exists:clients,id'],
             'property_id' => ['nullable', 'exists:properties,id'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'image' => ['nullable', 'file', 'image', 'max:5120'],
+            'image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,dng', 'max:5120'],
         ]);
 
         $userId = Auth::id();
@@ -173,14 +172,14 @@ class ActivityController extends Controller
     {
         $validated = $request->validate([
             'result' => ['nullable', 'string', 'max:255'],
-            'type' => ['required', Rule::in(['demostración', 'captación', 'venta', 'alquiler', 'reserva'])],
+            'type' => ['required', Rule::in(['demostración', 'captación', 'publicidad', 'venta', 'alquiler', 'reserva'])],
             'description' => ['nullable', 'string'],
             'date' => ['required', 'date'],
             'client_id' => ['nullable', 'exists:clients,id'],
             'property_id' => ['nullable', 'exists:properties,id'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'image' => ['nullable', 'file', 'image', 'max:5120'],
+            'image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,dng', 'max:5120'],
         ]);
 
         $activity = Activity::where('id', $id)->firstOrFail();
