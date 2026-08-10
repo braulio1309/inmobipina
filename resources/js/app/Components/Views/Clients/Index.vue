@@ -280,7 +280,7 @@
         methods: {
             searchAndSelectFilterOptions() {
                 this.options.filters = this.options.filters.filter(f => f.key !== 'asesor');
-                this.axiosGet("admin/auth/users")
+                this.axiosGet("/all-users")
                 .then(response => {
                     const users = Array.isArray(response.data) ? response.data : (response.data.data || []);
                     this.options.filters.push({
@@ -289,9 +289,9 @@
                         key: 'asesor',
                         option: users.map(u => ({
                             id: u.id,
-                            value: u.first_name
+                            value: u.value || u.name || u.first_name
                                 ? (u.first_name + ' ' + (u.last_name || '')).trim()
-                                : (u.name || u.value || 'Sin nombre'),
+                                : 'Sin nombre',
                         }))
                     });
                 });

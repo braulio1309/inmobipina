@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Sale;
+use App\Models\RentalPaymentHistory;
 use App\Exports\OperationExport;
 use Maatwebsite\Excel\Facades\Excel;
 use stdClass;
@@ -112,10 +113,16 @@ class OperationController extends Controller
                 'sellers:id,first_name,last_name,email',
                 'ownerClient',
                 'buyerClient',
+                'paymentHistories',
             ])
             ->where('type', 'alquiler')
-            ->whereHas('property', function ($query) {
-                $query->where('status', 'Alquilado');
+            ->where(function ($query) {
+                $query->whereHas('property', function ($propertyQuery) {
+                    $propertyQuery->where('status', 'Alquilado');
+                })->orWhere(function ($externalQuery) {
+                    $externalQuery->whereNull('property_id')
+                        ->whereNotNull('external_property_title');
+                });
             })
             ->orderByDesc('fecha_cierre')
             ->paginate(request()->get('per_page', 10));
@@ -133,6 +140,10 @@ class OperationController extends Controller
                 ? (trim(($propertyAdvisor->first_name ?? '') . ' ' . ($propertyAdvisor->last_name ?? '')) ?: 'Sin asesor')
                 : 'Sin asesor';
 
+            $nextCutoffDate = $this->calculateNextRentalCutoffDate($operation);
+            $manualStatus = optional($operation->paymentHistories->first())->status;
+            $resolvedPaymentStatus = $manualStatus ?? 'pending';
+
             return [
                 'id' => $operation->id,
                 'property_id' => $property ? $property->id : null,
@@ -146,12 +157,46 @@ class OperationController extends Controller
                     ? $operationAdvisorNames->implode(', ')
                     : $propertyAdvisorName,
                 'payment_frequency' => $this->formatPaymentFrequencyLabel($operation->payment_frequency),
-                'next_cutoff_date' => $this->calculateNextRentalCutoffDate($operation),
+                'next_cutoff_date' => $nextCutoffDate,
                 'final_date' => $operation->fecha_corte,
+                'payment_status' => $resolvedPaymentStatus,
+                'payment_status_label' => $this->resolvePaymentStatusLabel($resolvedPaymentStatus, $nextCutoffDate),
             ];
         });
 
         return $operations;
+    }
+
+    public function storePaymentStatus(Request $request, int $id)
+    {
+        $request->validate([
+            'status' => 'required|in:on_time,late,pending',
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        $operation = Operation::findOrFail($id);
+        $history = RentalPaymentHistory::create([
+            'operation_id' => $operation->id,
+            'status' => $request->input('status'),
+            'note' => $request->input('note'),
+            'created_by' => Auth::id(),
+        ]);
+
+        return response()->json([
+            'message' => 'Historial de pago actualizado correctamente.',
+            'history' => $history,
+            'status' => $history->status,
+            'status_label' => $this->paymentStatusLabel($history->status),
+        ]);
+    }
+
+    public function paymentHistory(int $id)
+    {
+        $operation = Operation::with(['paymentHistories' => function ($query) {
+            $query->orderByDesc('created_at');
+        }])->findOrFail($id);
+
+        return response()->json($operation->paymentHistories);
     }
 
     public function create(Request $request)
@@ -1011,6 +1056,48 @@ class OperationController extends Controller
             default:
                 return 'Sin definir';
         }
+    }
+
+    private function paymentStatusLabel(?string $status): string
+    {
+        switch ($status) {
+            case 'on_time':
+                return 'Pagó a tiempo';
+            case 'late':
+                return 'Atrasado';
+            case 'pending':
+                return 'Pendiente';
+            default:
+                return 'Sin registro';
+        }
+    }
+
+    private function resolvePaymentStatusLabel(?string $status, ?string $nextCutoffDate): string
+    {
+        if ($status === 'late') {
+            return 'Atrasado';
+        }
+
+        if ($status === 'on_time') {
+            return 'Pagó a tiempo';
+        }
+
+        if (!$nextCutoffDate) {
+            return 'Pendiente';
+        }
+
+        $today = Carbon::today()->toDateString();
+        $nextDate = Carbon::parse($nextCutoffDate)->toDateString();
+
+        if ($today === $nextDate) {
+            return 'Hoy toca pagar';
+        }
+
+        if ($today > $nextDate) {
+            return 'Atrasado';
+        }
+
+        return 'Fecha de pago';
     }
 
     private function calculateNextRentalCutoffDate(Operation $operation): ?string

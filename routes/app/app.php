@@ -78,6 +78,8 @@ Route::post('edit/operations/{id}', [OperationController::class, 'edit'])->name(
 Route::post('operations/{id}/confirm-sale', [OperationController::class, 'confirmSale'])->name('operations.confirm-sale');
 Route::get('/operations/form-data', [\App\Http\Controllers\OperationController::class, 'formData']);
 Route::get('operations/{id}', [OperationController::class, 'show'])->name('operations.show');
+Route::post('operations/{id}/payment-status', [OperationController::class, 'storePaymentStatus'])->name('operations.payment-status');
+Route::get('operations/{id}/payment-history', [OperationController::class, 'paymentHistory'])->name('operations.payment-history');
 Route::get('operations/{id}/download-contract', [OperationController::class, 'downloadContract'])->name('operations.download-contract');
 Route::get('operations/{id}/commission-receipt', [OperationController::class, 'downloadCommissionReceipt'])->name('operations.commission-receipt');
 

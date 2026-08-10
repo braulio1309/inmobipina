@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\RentalPaymentHistory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Core\Auth\Traits\Attribute\UserAttribute;
 use App\Models\Core\Auth\Traits\Boot\UserBootTrait;
@@ -81,5 +82,10 @@ class Operation extends Model
     {
         return $this->belongsToMany(User::class, 'operation_user')
             ->withPivot('commission_percentage', 'commission_amount', 'reservation_commission_amount');
+    }
+
+    public function paymentHistories()
+    {
+        return $this->hasMany(RentalPaymentHistory::class, 'operation_id')->orderByDesc('created_at');
     }
 }

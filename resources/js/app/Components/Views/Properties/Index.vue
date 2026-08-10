@@ -434,16 +434,16 @@
                 }
             },
             searchAndSelectFilterOptions() {
-                this.axiosGet("admin/auth/users")
+                this.axiosGet("/all-users")
                 .then(response => {
-                    console.log(response.data)
+                    const users = Array.isArray(response.data) ? response.data : [];
                     this.options.filters.push({
                         title: 'Asesores',
                         type: 'drop-down-filter',
                         key: 'asesor',
-                        option: response.data.map(asesor => ({
+                        option: users.map(asesor => ({
                             id: asesor.id,
-                            value: asesor.name
+                            value: asesor.value || asesor.name || 'Sin nombre'
                         }))
                     });
                 });

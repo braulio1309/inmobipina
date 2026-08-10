@@ -267,7 +267,7 @@ export default {
         searchAndSelectFilterOptions() {
             this.options.filters = this.options.filters.filter(filter => filter.key !== 'asesor');
 
-            this.axiosGet('admin/auth/users').then(response => {
+            this.axiosGet('/all-users').then(response => {
                 const users = Array.isArray(response.data) ? response.data : (response.data.data || []);
                 this.options.filters.push({
                     title: 'Asesores',
