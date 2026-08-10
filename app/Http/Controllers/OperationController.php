@@ -128,15 +128,17 @@ class OperationController extends Controller
                 ->map(fn ($seller) => trim(($seller->first_name ?? '') . ' ' . ($seller->last_name ?? '')) ?: ($seller->email ?? ''))
                 ->filter()
                 ->values();
-            $propertyAdvisor = $property?->agent ?: $property?->creator;
+            $propertyAdvisor = $property && $property->agent ? $property->agent : ($property && $property->creator ? $property->creator : null);
             $propertyAdvisorName = $propertyAdvisor
                 ? (trim(($propertyAdvisor->first_name ?? '') . ' ' . ($propertyAdvisor->last_name ?? '')) ?: 'Sin asesor')
                 : 'Sin asesor';
 
             return [
                 'id' => $operation->id,
-                'property_title' => $property?->title ?: ($operation->external_property_title ?: 'Sin título'),
-                'property_address' => $property?->address ?: 'Sin ubicación',
+                'property_id' => $property ? $property->id : null,
+                'property_title' => $property ? ($property->title ?: ($operation->external_property_title ?: 'Sin título')) : ($operation->external_property_title ?: 'Sin título'),
+                'property_address' => $property ? ($property->address ?: 'Sin ubicación') : 'Sin ubicación',
+                'property_status' => $property ? ($property->status ?: 'Disponible') : 'Disponible',
                 'operation_amount' => $operation->amount,
                 'owner_name' => $resolvedOwnerClient->name ?: 'Sin propietario',
                 'buyer_name' => $resolvedBuyerClient->name ?: 'Sin comprador',
@@ -531,10 +533,10 @@ class OperationController extends Controller
                     : $derivedTotalCommissionAmount),
             'company_commission_percentage' => $operation->company_commission_percentage,
             'company_commission_amount' => $operation->company_commission_amount,
-            'owner_client_id' => $resolvedOwnerClient?->id ? (string) $resolvedOwnerClient->id : '',
-            'buyer_client_id' => $resolvedBuyerClient?->id ? (string) $resolvedBuyerClient->id : '',
-            'owner_client_name' => $resolvedOwnerClient?->name,
-            'buyer_client_name' => $resolvedBuyerClient?->name,
+            'owner_client_id' => $resolvedOwnerClient && $resolvedOwnerClient->id ? (string) $resolvedOwnerClient->id : '',
+            'buyer_client_id' => $resolvedBuyerClient && $resolvedBuyerClient->id ? (string) $resolvedBuyerClient->id : '',
+            'owner_client_name' => $resolvedOwnerClient ? $resolvedOwnerClient->name : null,
+            'buyer_client_name' => $resolvedBuyerClient ? $resolvedBuyerClient->name : null,
             'sellers' => $operation->sellers->pluck('id')->map(fn ($item) => (string) $item)->values(),
             'sellers_commissions' => $operation->sellers->map(fn ($s) => [
                 'id' => (string) $s->id,
@@ -670,8 +672,8 @@ class OperationController extends Controller
                         'value' => $property->title,
                         'price' => $property->price,
                         'status' => $property->status,
-                        'suggested_owner_client_id' => $suggestedOwnerClient?->id,
-                        'suggested_owner_client_name' => $suggestedOwnerClient?->name,
+                        'suggested_owner_client_id' => $suggestedOwnerClient ? $suggestedOwnerClient->id : null,
+                        'suggested_owner_client_name' => $suggestedOwnerClient ? $suggestedOwnerClient->name : null,
                     ];
                 })
                 ->values();
@@ -995,13 +997,20 @@ class OperationController extends Controller
 
     private function formatPaymentFrequencyLabel(?string $paymentFrequency): string
     {
-        return match (trim((string) $paymentFrequency)) {
-            'quincenal' => 'Quincenal',
-            'mensual' => 'Mensual',
-            'semestral' => 'Semestral',
-            'anual' => 'Anual',
-            default => 'Sin definir',
-        };
+        $normalized = trim((string) $paymentFrequency);
+
+        switch ($normalized) {
+            case 'quincenal':
+                return 'Quincenal';
+            case 'mensual':
+                return 'Mensual';
+            case 'semestral':
+                return 'Semestral';
+            case 'anual':
+                return 'Anual';
+            default:
+                return 'Sin definir';
+        }
     }
 
     private function calculateNextRentalCutoffDate(Operation $operation): ?string
@@ -1018,13 +1027,22 @@ class OperationController extends Controller
         $nextDate = $startDate->copy();
 
         while ($nextDate->lt($today)) {
-            $candidate = match ($paymentFrequency) {
-                'quincenal' => $nextDate->copy()->addDays(15),
-                'mensual' => $nextDate->copy()->addMonthNoOverflow(),
-                'semestral' => $nextDate->copy()->addMonthsNoOverflow(6),
-                'anual' => $nextDate->copy()->addYearNoOverflow(),
-                default => null,
-            };
+            $candidate = null;
+
+            switch ($paymentFrequency) {
+                case 'quincenal':
+                    $candidate = $nextDate->copy()->addDays(15);
+                    break;
+                case 'mensual':
+                    $candidate = $nextDate->copy()->addMonthNoOverflow();
+                    break;
+                case 'semestral':
+                    $candidate = $nextDate->copy()->addMonthsNoOverflow(6);
+                    break;
+                case 'anual':
+                    $candidate = $nextDate->copy()->addYearNoOverflow();
+                    break;
+            }
 
             if (!$candidate || $candidate->equalTo($nextDate)) {
                 break;
@@ -1054,8 +1072,10 @@ class OperationController extends Controller
                     ? Carbon::parse($operation->start_date)->startOfDay()
                     : now()->startOfDay()));
 
-        $propertyLabel = trim((string) ($operation->property?->title ?: $operation->external_property_title ?: ($operation->property?->address ?: ('Propiedad #' . $operation->property_id))));
-        $counterparty = $operation->buyerClient?->name ?: $operation->ownerClient?->name;
+        $propertyTitle = $operation->property ? $operation->property->title : null;
+        $propertyAddress = $operation->property ? $operation->property->address : null;
+        $propertyLabel = trim((string) ($propertyTitle ?: $operation->external_property_title ?: ($propertyAddress ?: ('Propiedad #' . $operation->property_id))));
+        $counterparty = $operation->buyerClient ? $operation->buyerClient->name : ($operation->ownerClient ? $operation->ownerClient->name : null);
         $typeLabel = trim((string) ($operation->type ?: 'cierre'));
         $description = 'Cierre de ' . $typeLabel . ' registrado';
 

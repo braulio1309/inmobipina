@@ -44,6 +44,7 @@ Route::get('property/{id}', [PropertyController::class, 'show'])->name('property
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');
 Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->name('property.approve');
 Route::patch('property/{id}/toggle-availability', [PropertyController::class, 'toggleAvailability'])->name('property.toggle-availability');
+Route::patch('property/{id}/status', [PropertyController::class, 'updateStatus'])->name('property.status');
 Route::post('edit/property/{id}', [PropertyController::class, 'edit'])->name('property.edit');
 Route::post('property/{id}/images', [PropertyController::class, 'uploadImages'])->name('property.images');
 Route::delete('property/{propertyId}/images/{imageId}', [PropertyController::class, 'deleteImage'])->name('property.images.delete');

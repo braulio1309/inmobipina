@@ -23,6 +23,9 @@ return new class extends Migration
             $table->decimal('precio_cliente', 12, 2)->nullable();
             $table->decimal('porcentaje_comision', 5, 2)->nullable();
             $table->string('tipo_negociacion')->nullable();
+            $table->boolean('es_otra_inmobiliaria')->nullable();
+            $table->string('nombre_inmobiliaria')->nullable();
+            $table->string('numero_contacto')->nullable();
             $table->string('cliente_nombre_apellido')->nullable();
             $table->string('cliente_nro_contacto')->nullable();
             $table->boolean('cliente_es_propietario')->nullable();

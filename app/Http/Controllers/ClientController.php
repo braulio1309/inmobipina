@@ -28,7 +28,9 @@ class ClientController extends Controller
         /** @var \Illuminate\Pagination\LengthAwarePaginator $clients */
         $clients = (new AppUserFilter(
             $this->service
-                ->with(['advisor'])
+                ->with(['advisor', 'properties' => function ($query) {
+                    $query->select('properties.id', 'properties.title', 'properties.address');
+                }])
                 ->filters($this->filter)
                 ->latest()
         ))->filter()
@@ -42,6 +44,25 @@ class ClientController extends Controller
             $client->advisor_name = $client->advisor
                 ? trim(($client->advisor->first_name ?? '') . ' ' . ($client->advisor->last_name ?? ''))
                 : '—';
+
+            $propertyNames = collect($client->properties)
+                ->map(function ($property) {
+                    $title = trim((string) ($property->title ?? ''));
+                    if ($title === '') {
+                        $title = trim((string) ($property->address ?? ''));
+                    }
+
+                    if ($title === '') {
+                        return null;
+                    }
+
+                    return mb_strimwidth($title, 0, 100, '...');
+                })
+                ->filter()
+                ->values()
+                ->all();
+
+            $client->properties_summary = $propertyNames ? implode(', ', $propertyNames) : '—';
 
             return $client;
         });

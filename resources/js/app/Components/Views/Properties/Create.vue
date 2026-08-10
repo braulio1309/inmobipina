@@ -52,6 +52,25 @@
                 ></textarea>
             </div>
 
+            <div class="mb-3">
+                <div class="form-check">
+                    <input v-model="property.is_other_real_estate" class="form-check-input" type="checkbox" id="property-other-real-estate">
+                    <label class="form-check-label fw-semibold" for="property-other-real-estate">Es de otra inmobiliaria</label>
+                </div>
+                <small class="text-muted">Marca esta opción si la propiedad pertenece a otra inmobiliaria.</small>
+            </div>
+
+            <div v-if="property.is_other_real_estate" class="row mt-2">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Nombre de inmobiliaria</label>
+                    <input v-model="property.other_real_estate_name" type="text" class="form-control" placeholder="Opcional">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Número de contacto</label>
+                    <input v-model="property.other_real_estate_phone" type="text" class="form-control" placeholder="Opcional">
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Baños</label>
@@ -428,6 +447,26 @@
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">Fecha de captación</label>
                     <input v-model="captationData.fecha_captacion" type="date" class="form-control">
+                </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input v-model="captationData.es_otra_inmobiliaria" class="form-check-input" type="checkbox" id="otra-inmobiliaria">
+                        <label class="form-check-label fw-semibold" for="otra-inmobiliaria">Es de otra inmobiliaria</label>
+                    </div>
+                    <small class="text-muted">Completa estos datos solo si la captación corresponde a otra inmobiliaria.</small>
+                </div>
+                <div v-if="captationData.es_otra_inmobiliaria" class="col-md-6">
+                    <label class="form-label">Nombre de inmobiliaria</label>
+                    <input v-model="captationData.nombre_inmobiliaria" type="text" class="form-control"
+                        placeholder="Opcional">
+                </div>
+                <div v-if="captationData.es_otra_inmobiliaria" class="col-md-6">
+                    <label class="form-label">Número de contacto</label>
+                    <input v-model="captationData.numero_contacto" type="text" class="form-control"
+                        placeholder="Opcional">
                 </div>
             </div>
 
@@ -869,6 +908,9 @@ export default {
                 status: "",
                 approved_by: null,
                 exclusivity: false,
+                is_other_real_estate: false,
+                other_real_estate_name: "",
+                other_real_estate_phone: "",
                 type_sale: "",
                 fecha_captacion: "",
             },
@@ -898,6 +940,9 @@ export default {
                 codigo_publicacion: "",
                 recepcion_documentos_correo: null,
                 fecha_captacion: "",
+                es_otra_inmobiliaria: false,
+                nombre_inmobiliaria: "",
+                numero_contacto: "",
                 asesor_responsable: "",
                 tipo_inmueble: "",
                 precio_inmobiliaria: "",
@@ -1061,6 +1106,12 @@ export default {
         'exclusivityData.registro_fecha': 'syncDerivedCaptationData',
         'captationData.cliente_nombre_apellido': 'syncDerivedCaptationData',
         'captationData.cliente_nro_contacto': 'syncDerivedCaptationData',
+        'captationData.es_otra_inmobiliaria'(value) {
+            if (!value) {
+                this.captationData.nombre_inmobiliaria = '';
+                this.captationData.numero_contacto = '';
+            }
+        },
         'captationData.cliente_correo_electronico': 'syncDerivedCaptationData',
         'captationData.autorizacion_cedula': 'syncDerivedCaptationData',
         'captationData.porcentaje_comision': 'syncDerivedCaptationData',
@@ -1836,6 +1887,9 @@ export default {
                 codigo_publicacion: source.codigo_publicacion || '',
                 recepcion_documentos_correo: source.recepcion_documentos_correo ?? null,
                 fecha_captacion: this.normalizeDateForInput(source.fecha_captacion),
+                es_otra_inmobiliaria: Boolean(source.es_otra_inmobiliaria),
+                nombre_inmobiliaria: source.nombre_inmobiliaria || '',
+                numero_contacto: source.numero_contacto || '',
                 asesor_responsable: source.asesor_responsable || '',
                 tipo_inmueble: source.tipo_inmueble || '',
                 precio_inmobiliaria: source.precio_inmobiliaria ?? '',

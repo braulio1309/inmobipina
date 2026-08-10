@@ -20,7 +20,9 @@ class ClientExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
 
     public function query()
     {
-        $query = Client::with(['advisor']);
+        $query = Client::with(['advisor', 'properties' => function ($query) {
+            $query->select('properties.id', 'properties.title', 'properties.address');
+        }]);
 
         // Filter by client date range
         $date = $this->request->input('date');
@@ -74,6 +76,7 @@ class ClientExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             'Email',
             'Teléfono',
             'Medio de captación',
+            'Casas consultadas',
             'Estatus',
             'Asesor asignado',
             'Notas',
@@ -94,12 +97,26 @@ class ClientExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             ? trim(($row->advisor->first_name ?? '') . ' ' . ($row->advisor->last_name ?? ''))
             : 'Sin asignar';
 
+        $propertyNames = collect($row->properties)
+            ->map(function ($property) {
+                $title = trim((string) ($property->title ?? ''));
+                if ($title === '') {
+                    $title = trim((string) ($property->address ?? ''));
+                }
+
+                return $title !== '' ? $title : null;
+            })
+            ->filter()
+            ->values()
+            ->all();
+
         return [
             $row->id,
             $row->name ?: 'Sin nombre',
             $row->email ?: '',
             $row->phone ?: '',
             $sourceMap[$row->source] ?? ($row->source ?: '—'),
+            $propertyNames ? implode(', ', $propertyNames) : '',
             $row->status ? ucfirst($row->status) : '—',
             $advisorName,
             $row->notes ?: '',

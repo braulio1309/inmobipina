@@ -149,6 +149,16 @@
                             }
                         },
                         {
+                            title: 'Casas consultadas',
+                            type: 'text',
+                            key: 'properties_summary',
+                            default: "",
+                            isVisible: true,
+                            modifier: (value) => {
+                                return value || '—';
+                            }
+                        },
+                        {
                             title: 'Fecha',
                             type: 'object',
                             key: 'date',

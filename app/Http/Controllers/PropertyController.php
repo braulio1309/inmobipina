@@ -234,6 +234,35 @@ class PropertyController extends Controller
         }
     }
 
+    public function updateStatus(Request $request, $id)
+    {
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser || !$authUser->isAdmin()) {
+            return response()->json(['message' => 'No tienes permisos para cambiar el estado de la propiedad.'], 403);
+        }
+
+        $property = Property::findOrFail($id);
+        $status = trim((string) $request->input('status', ''));
+        $allowedStatuses = ['Disponible', 'Alquilado', 'No disponible'];
+
+        if (!in_array($status, $allowedStatuses, true)) {
+            return response()->json(['message' => 'Estado no válido.'], 422);
+        }
+
+        $updateData = ['status' => $status];
+        if ($status === 'Disponible') {
+            $updateData['approved_by'] = Auth::id();
+        } elseif ($status !== 'Disponible') {
+            $updateData['approved_by'] = null;
+        }
+
+        $property->update($updateData);
+
+        return response()->json(['message' => 'Estado actualizado correctamente.', 'status' => $status]);
+    }
+
     public function generateCaptationPdf($id)
     {
         $property = Property::with(['captation', 'creator'])->findOrFail($id);
@@ -649,6 +678,7 @@ class PropertyController extends Controller
             'fotos_descargadas',
             'enviado_para_flyer',
             'recepcion_documentos_correo',
+            'es_otra_inmobiliaria',
             'cliente_es_propietario',
             'cliente_es_apoderado',
             'cliente_es_encargado',
