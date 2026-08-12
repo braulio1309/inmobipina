@@ -76,7 +76,7 @@ class ClientExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSi
             'Email',
             'Teléfono',
             'Medio de captación',
-            'Casas consultadas',
+            'Inmueble consultado',
             'Estatus',
             'Asesor asignado',
             'Notas',
