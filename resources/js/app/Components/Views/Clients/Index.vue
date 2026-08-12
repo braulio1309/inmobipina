@@ -149,7 +149,7 @@
                             }
                         },
                         {
-                            title: 'Inmueble consultada',
+                            title: 'Inmueble consultado',
                             type: 'text',
                             key: 'properties_summary',
                             default: "",
