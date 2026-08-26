@@ -242,13 +242,15 @@
                             default: "",
                             isVisible: true,
                             modifier:(value, row)=>{
-                                let clase = 'primary'
-                                if (value == 'pending')
-                                    clase = 'warning'
+                                let clase = 'secondary'
+                                if (value == 'Disponible')
+                                    clase = 'success'
                                 if (value == 'No disponible')
                                     clase = 'danger'
+                                if (value == 'pending')
+                                    clase = 'warning'
                                 if (value == 'Vendido')
-                                    clase = 'success'
+                                    clase = 'info'
                                 if (value == 'Alquilado')
                                     clase = 'purple'
                                 
