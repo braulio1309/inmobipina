@@ -143,6 +143,7 @@ class ReportController extends Controller
         }
 
         $advisorsQuery = User::select('id', 'first_name', 'last_name')
+            ->active()
             ->where(function ($query) {
                 $query->whereHas('roles', function ($q) {
                     $q->whereIn('name', ['Asesor', 'Advisor', 'Agent']);

@@ -673,6 +673,7 @@ class OperationController extends Controller
 
         try {
             $users = User::select('id', 'first_name', 'last_name', 'email')
+                ->active()
                 ->orderBy('first_name')
                 ->get()
                 ->map(function ($user) {

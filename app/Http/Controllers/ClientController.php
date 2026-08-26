@@ -101,6 +101,7 @@ class ClientController extends Controller
 
         if ($authUser->isAdmin()) {
             $users = User::query()
+                ->active()
                 ->select('id', 'first_name', 'last_name')
                 ->orderBy('first_name')
                 ->get()

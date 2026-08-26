@@ -96,6 +96,7 @@ class UserController extends Controller
         return $this->service
             ->with('status:id,name,type')
             ->filters($this->filter)
+            ->active()
             ->latest()
             ->get(['id', 'first_name', 'last_name', 'email'])
             ->map(function ($user) {
