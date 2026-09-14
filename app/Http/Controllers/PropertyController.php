@@ -47,6 +47,10 @@ class PropertyController extends Controller
 
     public function create(Request $request)
     {
+        $request->validate([
+            'rental_price' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
         $data = $request->only([
             'agent_id', 'title', 'description', 'price', 'sale_price', 'rental_price',
             'bathrooms', 'bedrooms', 'square_meters', 'parking_spots', 'address',
@@ -234,6 +238,26 @@ class PropertyController extends Controller
         }
     }
 
+    public function destroy($id)
+    {
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser || !$authUser->isAdmin()) {
+            return response()->json(['message' => 'No tienes permisos para eliminar propiedades.'], 403);
+        }
+
+        $property = Property::with('images')->findOrFail($id);
+
+        Storage::disk('public')->delete(
+            $property->images->pluck('path')->filter()->all()
+        );
+
+        $property->delete();
+
+        return response()->json(['message' => 'Propiedad e imágenes eliminadas correctamente.']);
+    }
+
     public function updateStatus(Request $request, $id)
     {
         /** @var \App\Models\Core\Auth\User|null $authUser */
@@ -296,6 +320,10 @@ class PropertyController extends Controller
 
     public function edit(Request $request, $id)
     {
+        $request->validate([
+            'rental_price' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
         $property = Property::where('id', $id)->firstOrFail();
         $previousStatus = (string) $property->status;
         $data = $request->except(['exclusivity_data']);

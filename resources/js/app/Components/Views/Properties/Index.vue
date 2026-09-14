@@ -347,6 +347,7 @@
                     { title: 'Aprobar', type: 'none', modifier: (row) => row.status === 'pending' },
                     { title: 'Rechazar', type: 'none', modifier: (row) => row.status === 'pending' }
                 );
+                this.options.actions.push({ title: 'Eliminar', type: 'none' });
             }
             this.searchAndSelectFilterOptions();
         },
@@ -432,6 +433,22 @@
                         this.$hub.$emit('reload-default-filter-table');
                     }).catch(err => {
                         this.$toastr.e(err.response?.data?.message || 'Error al rechazar.');
+                    });
+                } else if (actionObj.title === 'Eliminar') {
+                    if (!this.isAdmin) {
+                        this.$toastr.e('No tienes permisos para eliminar propiedades.');
+                        return;
+                    }
+
+                    if (!confirm(`¿Eliminar la propiedad "${rowData.title}"? Esta acción no se puede deshacer.`)) {
+                        return;
+                    }
+
+                    axios.delete(`property/${rowData.id}`).then(res => {
+                        this.$toastr.s(res.data.message || 'Propiedad eliminada.');
+                        this.$hub.$emit('reload-default-filter-table');
+                    }).catch(err => {
+                        this.$toastr.e(err.response?.data?.message || 'Error al eliminar la propiedad.');
                     });
                 }
             },

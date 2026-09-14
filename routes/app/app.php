@@ -42,6 +42,7 @@ Route::get('property/address-search', [PropertyController::class, 'searchAddress
 Route::get('property/{id}/summary', [PropertyController::class, 'summary'])->name('property.summary');
 Route::get('property/{id}', [PropertyController::class, 'show'])->name('property.show');
 Route::post('property/create', [PropertyController::class, 'create'])->name('property.crear');
+Route::delete('property/{id}', [PropertyController::class, 'destroy'])->name('property.delete');
 Route::patch('property/{id}/approve', [PropertyController::class, 'approve'])->name('property.approve');
 Route::patch('property/{id}/toggle-availability', [PropertyController::class, 'toggleAvailability'])->name('property.toggle-availability');
 Route::patch('property/{id}/status', [PropertyController::class, 'updateStatus'])->name('property.status');

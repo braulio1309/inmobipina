@@ -184,6 +184,8 @@
                     <input
                         v-model="property.rental_price"
                         type="number"
+                        min="0"
+                        step="0.01"
                         class="form-control"
                         placeholder="Ej: 500"
                     >
