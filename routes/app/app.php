@@ -76,7 +76,9 @@ Route::get('operations/active-rentals', [OperationController::class, 'activeRent
 Route::get('operations/export', [OperationController::class, 'export'])->name('operations.export');
 Route::post('operations/create', [OperationController::class, 'create'])->name('operations.crear');
 Route::post('edit/operations/{id}', [OperationController::class, 'edit'])->name('operations.edit');
+Route::delete('operations/{id}', [OperationController::class, 'destroy'])->name('operations.delete');
 Route::post('operations/{id}/confirm-sale', [OperationController::class, 'confirmSale'])->name('operations.confirm-sale');
+Route::post('operations/{id}/confirm-rental', [OperationController::class, 'confirmRental'])->name('operations.confirm-rental');
 Route::get('/operations/form-data', [\App\Http\Controllers\OperationController::class, 'formData']);
 Route::get('operations/{id}', [OperationController::class, 'show'])->name('operations.show');
 Route::post('operations/{id}/payment-status', [OperationController::class, 'storePaymentStatus'])->name('operations.payment-status');

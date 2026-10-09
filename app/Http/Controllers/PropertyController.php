@@ -9,12 +9,14 @@ use App\Models\PropertyDocument;
 use App\Models\Exclusivity;
 use App\Models\PropertyCaptation;
 use App\Models\Activity;
+use App\Models\Core\Auth\User;
 use App\Filters\Common\Auth\PropertyFilter as AppUserFilter;
 use App\Filters\Core\PropertyFilter;
 use App\Services\Core\Auth\PropertyService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\PropertyExport;
@@ -108,6 +110,7 @@ class PropertyController extends Controller
             $captationData['property_id'] = $property->id;
             $captationData['user_id'] = $data['agent_id'] ?: Auth::id();
             PropertyCaptation::create($captationData);
+            $this->notifyActiveAdvisorsOfCaptation($property);
         }
 
         $this->registerCaptationActivity($property, $captationData, $data['agent_id'] ?: $data['created_by']);
@@ -378,11 +381,16 @@ class PropertyController extends Controller
         }
         if ($captationData !== null) {
             $captationData['user_id'] = Auth::id();
+            $isNewCaptation = !$property->captation()->exists();
 
             $property->captation()->updateOrCreate(
                 ['property_id' => $property->id],
                 $captationData
             );
+
+            if ($isNewCaptation) {
+                $this->notifyActiveAdvisorsOfCaptation($property);
+            }
         }
 
         if ($previousStatus !== 'Disponible' && (string) $property->status === 'Disponible') {
@@ -633,6 +641,18 @@ class PropertyController extends Controller
         return null;
     }
 
+    private function notifyActiveAdvisorsOfCaptation(Property $property): void
+    {
+        $advisors = User::active()
+            ->whereHas('roles', fn ($query) => $query->where('name', 'Asesor'))
+            ->get();
+
+        Notification::send(
+            $advisors,
+            new \App\Notifications\PropertyCaptationCreatedNotification($property, Auth::id())
+        );
+    }
+
     private function normalizePropertyOfferPrices(array $data, ?Property $property = null): array
     {
         $typeSale = strtolower((string) ($data['type_sale'] ?? optional($property)->type_sale ?? ''));
@@ -769,4 +789,3 @@ class PropertyController extends Controller
         ]);
     }
 }
-

@@ -12,6 +12,7 @@ use App\Models\Property;
 use App\Models\Activity;
 use App\Services\Core\Auth\OperationService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -63,6 +64,7 @@ class OperationController extends Controller
             $item->property_title = $item->property
                 ? $item->property->title
                 : ($item->external_property_title ?: '');
+            $item->property_type_sale = $item->property ? $item->property->type_sale : null;
 
             $item->closing_date = $item->fecha_cierre
                 ?: ($item->end_date ?: ($item->start_date ?: optional($item->created_at)->toDateString()));
@@ -557,6 +559,7 @@ class OperationController extends Controller
             'type' => $operation->type,
             'property_id' => (string) $operation->property_id,
             'property_title' => $operation->property ? $operation->property->title : null,
+            'property_rental_price' => $operation->property ? $operation->property->rental_price : null,
             'external_property_title' => $operation->external_property_title,
             'property_status' => $propertyStatus,
             'is_locked' => $isLocked,
@@ -657,6 +660,140 @@ class OperationController extends Controller
             'reservation_amount' => $reservationAmt,
             'property_price' => $propertyPrice,
         ]);
+    }
+
+    public function confirmRental(Request $request, $id)
+    {
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser || !$authUser->isAdmin()) {
+            return response()->json(['message' => 'No tienes permiso para concretar alquileres.'], 403);
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01',
+            'start_date' => 'required|date',
+            'fecha_corte' => 'required|date|after_or_equal:start_date',
+            'meses_adelanto' => 'required|integer|min:0',
+            'mes_administrativo' => 'required|integer|min:0',
+            'payment_frequency' => 'required|in:quincenal,mensual,semestral,anual',
+        ]);
+
+        $operation = Operation::with(['sellers', 'property'])->findOrFail($id);
+
+        if ($operation->type !== 'reserva') {
+            return response()->json(['message' => 'Solo se puede concretar un alquiler desde una reserva.'], 422);
+        }
+
+        if ($operation->property && !in_array($operation->property->type_sale, ['alquiler', 'ambos'], true)) {
+            return response()->json(['message' => 'La propiedad no está disponible para alquiler.'], 422);
+        }
+
+        if (!$operation->sellers->isNotEmpty()) {
+            return response()->json(['message' => 'La reserva debe tener al menos un asesor para concretar el alquiler.'], 422);
+        }
+
+        if ($operation->property && $operation->property->status !== 'Reservado') {
+            return response()->json(['message' => 'La propiedad ya no está reservada y no se puede concretar el alquiler.'], 422);
+        }
+
+        $rentAmount = (float) $validated['amount'];
+        $administrativeMonths = (int) $validated['mes_administrativo'];
+        $totalCommissionAmount = round($rentAmount * $administrativeMonths, 2);
+        $companyCommissionAmount = round($totalCommissionAmount / 2, 2);
+        $sellerCommissionPool = max(0, $totalCommissionAmount - $companyCommissionAmount);
+        $sellerCount = $operation->sellers->count();
+        $totalCommissionPercentage = round(($totalCommissionAmount / $rentAmount) * 100, 4);
+        $companyCommissionPercentage = round(($companyCommissionAmount / $rentAmount) * 100, 4);
+
+        DB::transaction(function () use (
+            $operation,
+            $validated,
+            $rentAmount,
+            $totalCommissionAmount,
+            $companyCommissionAmount,
+            $sellerCommissionPool,
+            $sellerCount,
+            $totalCommissionPercentage,
+            $companyCommissionPercentage
+        ) {
+            $sellerCommissionRemaining = $sellerCommissionPool;
+            $sellerSyncData = [];
+
+            foreach ($operation->sellers as $index => $seller) {
+                $sellerCommission = $index === $sellerCount - 1
+                    ? $sellerCommissionRemaining
+                    : round($sellerCommissionPool / $sellerCount, 2);
+                $sellerCommissionRemaining -= $sellerCommission;
+
+                $sellerSyncData[$seller->id] = [
+                    'commission_percentage' => round(($sellerCommission / $rentAmount) * 100, 4),
+                    'commission_amount' => $sellerCommission,
+                    'reservation_commission_amount' => $seller->pivot->commission_amount ?? 0,
+                ];
+            }
+
+            $operation->update([
+                'type' => 'alquiler',
+                'amount' => $rentAmount,
+                'start_date' => $validated['start_date'],
+                'fecha_corte' => $validated['fecha_corte'],
+                'meses_adelanto' => $validated['meses_adelanto'],
+                'mes_administrativo' => $validated['mes_administrativo'],
+                'payment_frequency' => $validated['payment_frequency'],
+                'total_commission_percentage' => $totalCommissionPercentage,
+                'total_commission_amount' => $totalCommissionAmount,
+                'company_commission_percentage' => $companyCommissionPercentage,
+                'company_commission_amount' => $companyCommissionAmount,
+                'reservation_company_commission' => $operation->company_commission_amount ?? 0,
+            ]);
+            $operation->sellers()->sync($sellerSyncData);
+
+            if ($operation->property) {
+                $operation->property->update(['status' => 'Alquilado']);
+            }
+        });
+
+        $this->registerClosingActivities($operation->fresh(['property', 'sellers', 'ownerClient', 'buyerClient']));
+
+        return response()->json([
+            'message' => 'Alquiler concretado correctamente.',
+            'data' => $operation->fresh(),
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        /** @var \App\Models\Core\Auth\User|null $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser || !$authUser->isAdmin()) {
+            return response()->json(['message' => 'No tienes permiso para eliminar operaciones.'], 403);
+        }
+
+        DB::transaction(function () use ($id) {
+            $operation = Operation::with('property')->lockForUpdate()->findOrFail($id);
+            $property = $operation->property;
+
+            if ($property) {
+                $statusByOperationType = [
+                    'reserva' => 'Reservado',
+                    'alquiler' => 'Alquilado',
+                    'venta' => 'Vendido',
+                    'traspaso' => 'Vendido',
+                ];
+                $operationStatus = $statusByOperationType[$operation->type] ?? null;
+
+                if ($operationStatus && $property->status === $operationStatus) {
+                    $property->update(['status' => 'Disponible']);
+                }
+            }
+
+            $operation->delete();
+        });
+
+        return response()->json(['message' => 'Operación eliminada correctamente.']);
     }
 
     public function formData()

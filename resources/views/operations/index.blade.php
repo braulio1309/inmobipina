@@ -3,5 +3,7 @@
 @section('title', 'Cierres')
 
 @section('contents')
-    <operations></operations>
+    @php($isAdmin = auth()->user()->isAdmin())
+
+    <operations :is-admin='@json($isAdmin)'></operations>
 @endsection

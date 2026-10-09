@@ -4,18 +4,22 @@ namespace App\Http\Controllers\Core\Notification;
 
 use App\Http\Controllers\Controller;
 use App\Services\Core\Auth\UserService;
+use App\Services\RentalExpirationNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\DatabaseNotification;
 
 class NotificationController extends Controller
 {
-    public function __construct(UserService $service)
+    public function __construct(UserService $service, RentalExpirationNotificationService $rentalNotifications)
     {
         $this->service = $service;
+        $this->rentalNotifications = $rentalNotifications;
     }
 
     public function index()
     {
+        $this->rentalNotifications->notifyUpcomingRentals();
+
         $request = request();
         $notifications = auth()->user()->notifications();
 

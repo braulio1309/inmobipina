@@ -13,6 +13,55 @@
             </div>
         </div>
 
+        <div v-if="showConfirmRentalModal" class="modal-backdrop"
+             style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1050;display:flex;align-items:center;justify-content:center;">
+            <div class="card p-4" style="min-width:480px;max-width:600px;z-index:1060;max-height:90vh;overflow-y:auto;">
+                <h5 class="mb-1">Concretar Alquiler</h5>
+                <p class="text-muted mb-3 small">Reserva #{{ rentalData.id }} — <strong>{{ rentalData.property_title }}</strong></p>
+
+                <div class="mb-3">
+                    <label class="form-label">Monto mensual del alquiler (USD)</label>
+                    <input v-model="rentalData.amount" type="number" min="0.01" step="0.01" class="form-control">
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Fecha inicio</label>
+                        <input v-model="rentalData.start_date" type="date" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Fecha corte</label>
+                        <input v-model="rentalData.fecha_corte" type="date" class="form-control">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Meses de adelanto</label>
+                        <input v-model="rentalData.meses_adelanto" type="number" min="0" step="1" class="form-control">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Mes administrativo</label>
+                        <input v-model="rentalData.mes_administrativo" type="number" min="0" step="1" class="form-control">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Tiempo de pago</label>
+                        <select v-model="rentalData.payment_frequency" class="form-control">
+                            <option value="">Selecciona</option>
+                            <option value="quincenal">Quincenal</option>
+                            <option value="mensual">Mensual</option>
+                            <option value="semestral">Semestral</option>
+                            <option value="anual">Anual</option>
+                        </select>
+                    </div>
+                </div>
+                <small class="text-muted d-block mb-3">La comisión se calculará usando el monto mensual y los meses administrativos.</small>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success btn-sm" @click="doConfirmRental" :disabled="rentalLoading">
+                        <span v-if="rentalLoading" class="spinner-border spinner-border-sm me-1"></span>
+                        Concretar Alquiler
+                    </button>
+                    <button class="btn btn-secondary btn-sm ml-2" @click="showConfirmRentalModal = false" :disabled="rentalLoading">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Modal Confirmar Venta -->
         <div v-if="showConfirmModal" class="modal-backdrop"
              style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1050;display:flex;align-items:center;justify-content:center;">
@@ -120,10 +169,28 @@
         name: "Operations",
         mixins: [TableHelpers],
         extends: CoreLibrary,
+        props: {
+            isAdmin: {
+                type: Boolean,
+                default: false,
+            },
+        },
         data() {
             return {
                 showConfirmModal: false,
                 confirmLoading: false,
+                showConfirmRentalModal: false,
+                rentalLoading: false,
+                rentalData: {
+                    id: null,
+                    property_title: '',
+                    amount: '',
+                    start_date: '',
+                    fecha_corte: '',
+                    meses_adelanto: 0,
+                    mes_administrativo: 0,
+                    payment_frequency: '',
+                },
                 confirmData: {
                     id: null,
                     property_title: '',
@@ -344,6 +411,18 @@
                             type: 'none',
                             modifier: (row) => row.type === 'reserva',
                         },
+                        {
+                            title: 'Concretar Alquiler',
+                            type: 'none',
+                            modifier: (row) => row.type === 'reserva'
+                                && ['alquiler', 'ambos'].includes(row.property_type_sale)
+                                && this.isAdmin,
+                        },
+                        {
+                            title: 'Eliminar',
+                            type: 'none',
+                            modifier: () => this.isAdmin,
+                        },
                     ],
                 },
             }
@@ -428,6 +507,66 @@
                     console.error(e);
                 }
             },
+            async openConfirmRentalModal(rowData) {
+                try {
+                    const response = await this.axiosGet(`/operations/${rowData.id}`);
+                    const operation = response.data;
+                    this.rentalData = {
+                        id: rowData.id,
+                        property_title: operation.property_title || rowData.property_title || `Propiedad #${operation.property_id}`,
+                        amount: operation.property_rental_price || operation.property_price || '',
+                        start_date: '',
+                        fecha_corte: '',
+                        meses_adelanto: 0,
+                        mes_administrativo: 1,
+                        payment_frequency: '',
+                    };
+                    this.showConfirmRentalModal = true;
+                } catch (error) {
+                    this.$toastr.e(error.response?.data?.message || 'Error al cargar los datos de la reserva');
+                    console.error(error);
+                }
+            },
+            async doConfirmRental() {
+                this.rentalLoading = true;
+                try {
+                    const response = await axios.post(`/operations/${this.rentalData.id}/confirm-rental`, {
+                        amount: this.rentalData.amount,
+                        start_date: this.rentalData.start_date,
+                        fecha_corte: this.rentalData.fecha_corte,
+                        meses_adelanto: this.rentalData.meses_adelanto,
+                        mes_administrativo: this.rentalData.mes_administrativo,
+                        payment_frequency: this.rentalData.payment_frequency,
+                    });
+                    this.$toastr.s(response.data.message || 'Alquiler concretado correctamente');
+                    this.showConfirmRentalModal = false;
+                    this.$hub.$emit('reload-default-filter-table');
+                } catch (error) {
+                    this.$toastr.e(error.response?.data?.message || 'Error al concretar el alquiler');
+                    console.error(error);
+                } finally {
+                    this.rentalLoading = false;
+                }
+            },
+            async deleteOperation(rowData) {
+                if (!this.isAdmin) {
+                    this.$toastr.e('No tienes permiso para eliminar operaciones.');
+                    return;
+                }
+
+                if (!confirm(`¿Eliminar la operación #${rowData.id}? Esta acción no se puede deshacer.`)) {
+                    return;
+                }
+
+                try {
+                    const response = await axios.delete(`/operations/${rowData.id}`);
+                    this.$toastr.s(response.data.message || 'Operación eliminada correctamente.');
+                    this.$hub.$emit('reload-default-filter-table');
+                } catch (error) {
+                    this.$toastr.e(error.response?.data?.message || 'Error al eliminar la operación.');
+                    console.error(error);
+                }
+            },
             async doConfirmSale() {
                 this.confirmLoading = true;
                 try {
@@ -462,6 +601,12 @@
 
                 } else if (actionObj.title === 'Confirmar Venta') {
                     this.openConfirmSaleModal(rowData);
+
+                } else if (actionObj.title === 'Concretar Alquiler') {
+                    this.openConfirmRentalModal(rowData);
+
+                } else if (actionObj.title === 'Eliminar') {
+                    this.deleteOperation(rowData);
 
                 } else if (actionObj.title == this.$t('active')) {
 

@@ -33,14 +33,22 @@
         data(){
             return{
                 urlGenerator,
+                notificationRefreshInterval: null,
             }
         },
         created() {
             this.$store.dispatch('getSettings');
             this.$store.dispatch('getNotifications');
+            this.notificationRefreshInterval = setInterval(
+                () => this.$store.dispatch('getNotifications'),
+                5 * 60 * 1000
+            );
             this.$store.dispatch('setSelectedLanguage');
             this.$store.dispatch('getUser');
             this.$store.dispatch('getLanguages');
+        },
+        beforeDestroy() {
+            clearInterval(this.notificationRefreshInterval);
         },
         computed: {
             profileData() {
